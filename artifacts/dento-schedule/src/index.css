@@ -489,6 +489,27 @@
   margin-bottom: 20px;
 }
 
+.uni-branding {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.uni-logo {
+  display: block;
+  height: auto;
+  margin: 0 auto 10px;
+  width: 110px;
+}
+
+.uni-subtitle {
+  color: #6c757d !important;
+  font-size: 0.78rem !important;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 !important;
+  text-transform: uppercase;
+}
+
 .gateway-btn {
   background: #3b82f6;
   border: none;

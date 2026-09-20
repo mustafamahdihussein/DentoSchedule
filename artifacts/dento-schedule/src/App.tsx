@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import universityLogo from './Al-ameen-Logo-350.png';
 import NotFound from '@/pages/not-found';
 import {
   Route,
@@ -53,6 +54,16 @@ function Home() {
         <div className="gateway-card">
           {!showLogin ? (
             <>
+              <div className="uni-branding">
+                <img
+                  alt="Al-Ameen University Logo"
+                  className="uni-logo"
+                  src={universityLogo}
+                />
+                <p className="uni-subtitle">
+                  Al-Ameen University • College of Dentistry
+                </p>
+              </div>
               <h2>Welcome to DentoSchedule</h2>
               <p>Please select your role to continue:</p>
               <button

@@ -339,3 +339,23 @@ header p {
 .cancel-btn:hover {
   background-color: #5a6268;
 }
+/* University Gateway Branding */
+.uni-branding {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.uni-logo {
+  width: 110px;
+  height: auto;
+  margin-bottom: 10px;
+}
+
+.uni-subtitle {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 600;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
