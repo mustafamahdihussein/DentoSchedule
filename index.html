@@ -7,6 +7,30 @@
   <link href="style.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
+  <!-- Entry Gateway Overlay -->
+<div id="entry-gateway" class="gateway-overlay">
+  <div class="gateway-card" id="role-selection">
+    <h2>Welcome to DentoSchedule</h2>
+    <p>Please select your role to continue:</p>
+    <button id="btn-user" class="gateway-btn">Student / User</button>
+    <button id="btn-admin-prompt" class="gateway-btn outline">Admin Login</button>
+  </div>
+
+  <div class="gateway-card" id="login-form" style="display: none;">
+    <h2>Admin Login</h2>
+    <input type="text" id="admin-username" placeholder="Username" class="gateway-input">
+    <input type="password" id="admin-password" placeholder="Password" class="gateway-input">
+    <p id="login-error" class="error-msg" style="display: none;">Incorrect username or password.</p>
+    <button id="btn-login" class="gateway-btn">Login</button>
+    <button id="btn-back" class="gateway-btn text-only">Back</button>
+  </div>
+</div>
+
+<!-- Wrap your existing app content inside this main container -->
+<main id="main-app" style="display: none;">
+
+<!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->
+  
   <header>
     <h1>Class Schedule</h1>
     <p>4th Year Dentistry</p>
@@ -66,5 +90,13 @@
       </div>
     </div>
   </main>
+    <!-- Subtle Contact Footer -->
+  <footer class="app-footer">
+    <p>Developed & Managed by <strong>Tqy Malik</strong> & <strong>Mustafa Mahdi</strong></p>
+    <a href="mailto:mustafa.mahdi.hu@gmail.com" class="contact-link">Contact Admin (mustafa.mahdi.hu@gmail.com)</a>
+  </footer>
+
+</main> <!-- Closing the main app container -->
+  <script src="script.js"></script>
 </body>
 </html>

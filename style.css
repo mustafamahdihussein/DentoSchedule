@@ -142,3 +142,107 @@ header p {
   width: 1px;
   background: #E9ECEF;
 }
+/* Gateway Overlay Styles */
+.gateway-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(240, 244, 248, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Keep it on top */
+}
+
+.gateway-card {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  width: 90%;
+  max-width: 350px;
+  text-align: center;
+}
+
+.gateway-card h2 {
+  color: #1a3b5c;
+  margin-bottom: 15px;
+  font-size: 1.5rem;
+}
+
+.gateway-card p {
+  color: #64748b;
+  margin-bottom: 20px;
+  font-size: 0.95rem;
+}
+
+.gateway-btn {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  border: none;
+  border-radius: 10px;
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.gateway-btn:hover { background-color: #2563eb; }
+
+.gateway-btn.outline {
+  background-color: transparent;
+  color: #3b82f6;
+  border: 2px solid #3b82f6;
+}
+
+.gateway-btn.text-only {
+  background: none;
+  color: #64748b;
+  box-shadow: none;
+  font-weight: 500;
+}
+
+.gateway-input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 15px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+.error-msg {
+  color: #ef4444 !important;
+  font-size: 0.85rem !important;
+  margin-top: -5px;
+  margin-bottom: 15px !important;
+}
+
+/* Subtle Footer Styles */
+.app-footer {
+  text-align: center;
+  padding: 30px 20px;
+  margin-top: 20px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.app-footer p {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  margin: 0 0 5px 0;
+}
+
+.app-footer strong {
+  color: #64748b;
+}
+
+.contact-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 500;
+}

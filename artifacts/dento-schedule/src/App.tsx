@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type FormEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -15,6 +15,11 @@ const queryClient = new QueryClient();
 
 function Home() {
   const [selectedDate, setSelectedDate] = useState('Mon21');
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
   const dates = [
     { day: 'Sun', num: '20', label: 'Today', className: 'today' },
     { day: 'Mon', num: '21', label: 'Tomorrow', className: 'active-tomorrow' },
@@ -27,6 +32,87 @@ function Home() {
     { day: 'Mon', num: '28', label: '', className: '' },
     { day: 'Tue', num: '29', label: '', className: '' },
   ];
+
+  function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (username.trim() === 'Dent007' && password.trim() === 'Dent6969') {
+      setLoginError(false);
+      setIsUnlocked(true);
+      return;
+    }
+
+    setLoginError(true);
+  }
+
+  if (!isUnlocked) {
+    return (
+      <div className="gateway-overlay">
+        <div className="gateway-card">
+          {!showLogin ? (
+            <>
+              <h2>Welcome to DentoSchedule</h2>
+              <p>Please select your role to continue:</p>
+              <button
+                className="gateway-btn"
+                onClick={() => setIsUnlocked(true)}
+                type="button"
+              >
+                Student / User
+              </button>
+              <button
+                className="gateway-btn outline"
+                onClick={() => {
+                  setShowLogin(true);
+                  setLoginError(false);
+                }}
+                type="button"
+              >
+                Admin Login
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleLogin}>
+              <h2>Admin Login</h2>
+              <input
+                aria-label="Username"
+                className="gateway-input"
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="Username"
+                type="text"
+                value={username}
+              />
+              <input
+                aria-label="Password"
+                className="gateway-input"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Password"
+                type="password"
+                value={password}
+              />
+              {loginError && (
+                <p className="error-msg" role="alert">
+                  Incorrect username or password.
+                </p>
+              )}
+              <button className="gateway-btn" type="submit">
+                Login
+              </button>
+              <button
+                className="gateway-btn text-only"
+                onClick={() => {
+                  setShowLogin(false);
+                  setLoginError(false);
+                }}
+                type="button"
+              >
+                Back
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="schedule-shell">
@@ -98,6 +184,15 @@ function Home() {
           </div>
         </div>
       </main>
+      <footer className="app-footer">
+        <p>
+          Developed &amp; Managed by <strong>Tqy Malik</strong> &amp;{' '}
+          <strong>Mustafa Mahdi</strong>
+        </p>
+        <a className="contact-link" href="mailto:mustafa.mahdi.hu@gmail.com">
+          Contact Admin (mustafa.mahdi.hu@gmail.com)
+        </a>
+      </footer>
     </div>
   );
 }
