@@ -89,6 +89,29 @@
         </div>
       </div>
     </div>
+      <div id="modal-edit-schedule" class="admin-modal" style="display: none;">
+      <div class="modal-content">
+        <h3>Edit Schedule & Alerts</h3>
+        
+        <label for="edit-subject">Select Subject:</label>
+        <select id="edit-subject" class="admin-input">
+          <option value="general-medicine">General Medicine</option>
+          <option value="oral-surgery">Oral Surgery</option>
+          <option value="prosthodontics">Prosthodontics</option>
+        </select>
+
+        <label for="alert-text">Temporary Alert (Optional):</label>
+        <input type="text" id="alert-text" placeholder="e.g., Contains an exam! ⚠️" class="admin-input">
+
+        <label for="alert-date">Alert Expiration Date:</label>
+        <input type="date" id="alert-date" class="admin-input">
+
+        <div class="modal-actions">
+          <button id="btn-submit-edit" class="admin-btn">Save Changes</button>
+          <button id="btn-cancel-edit" class="admin-btn cancel-btn">Cancel</button>
+        </div>
+      </div>
+      </div>
   
 
 <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->

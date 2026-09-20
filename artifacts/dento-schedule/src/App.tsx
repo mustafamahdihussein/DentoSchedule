@@ -20,6 +20,7 @@ function Home() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [isEditScheduleModalOpen, setIsEditScheduleModalOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -138,7 +139,11 @@ function Home() {
         <section className="admin-panel" aria-label="Admin Dashboard">
           <h2>Admin Dashboard</h2>
           <div className="admin-actions">
-            <button className="admin-btn" type="button">
+            <button
+              className="admin-btn"
+              onClick={() => setIsEditScheduleModalOpen(true)}
+              type="button"
+            >
               Edit Schedule
             </button>
             <button
@@ -238,6 +243,51 @@ function Home() {
               <button
                 className="admin-btn cancel-btn"
                 onClick={() => setIsQuizModalOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {isEditScheduleModalOpen && (
+        <div
+          aria-labelledby="edit-schedule-title"
+          aria-modal="true"
+          className="admin-modal"
+          role="dialog"
+        >
+          <form
+            className="modal-content"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setIsEditScheduleModalOpen(false);
+            }}
+          >
+            <h2 id="edit-schedule-title">Edit Schedule &amp; Alerts</h2>
+            <label htmlFor="edit-subject">Select Subject:</label>
+            <select className="admin-input" defaultValue="general-medicine" id="edit-subject">
+              <option value="general-medicine">General Medicine</option>
+              <option value="oral-surgery">Oral Surgery</option>
+              <option value="prosthodontics">Prosthodontics</option>
+            </select>
+            <label htmlFor="alert-text">Temporary Alert (Optional):</label>
+            <input
+              className="admin-input"
+              id="alert-text"
+              placeholder="e.g., Contains an exam! ⚠️"
+              type="text"
+            />
+            <label htmlFor="alert-date">Alert Expiration Date:</label>
+            <input className="admin-input" id="alert-date" type="date" />
+            <div className="modal-actions">
+              <button className="admin-btn" type="submit">
+                Save Changes
+              </button>
+              <button
+                className="admin-btn cancel-btn"
+                onClick={() => setIsEditScheduleModalOpen(false)}
                 type="button"
               >
                 Cancel

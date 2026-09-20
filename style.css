@@ -359,3 +359,23 @@ header p {
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+/* Schedule Alert Badge */
+.class-alert {
+  color: #D32F2F; /* Deep alarming red */
+  background-color: #FFEBEE; /* Light red background */
+  font-size: 0.85rem;
+  font-weight: bold;
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #D32F2F;
+  margin-top: 8px;
+  animation: pulse 2s infinite; /* Optional: adds a subtle blink effect */
+}
+
+/* Subtle pulse animation to draw attention to exams */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
+}

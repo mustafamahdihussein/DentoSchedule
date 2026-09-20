@@ -705,3 +705,26 @@
 .cancel-btn:hover {
   background: hsl(var(--foreground));
 }
+
+.class-alert {
+  animation: pulse 2s infinite;
+  background-color: #ffebee;
+  border: 1px solid #d32f2f;
+  border-radius: 0.4rem;
+  color: #d32f2f;
+  display: inline-block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}

@@ -11,6 +11,9 @@ const mainApp = document.getElementById('main-app');
 const modalAddQuiz = document.getElementById('modal-add-quiz');
 const btnAddQuiz = document.getElementById('btn-add-quiz');
 const btnCancelQuiz = document.getElementById('btn-cancel-quiz');
+const modalEditSchedule = document.getElementById('modal-edit-schedule');
+const btnEditSchedule = document.getElementById('btn-edit-schedule');
+const btnCancelEdit = document.getElementById('btn-cancel-edit');
 
 // Buttons
 const btnUser = document.getElementById('btn-user');
@@ -76,4 +79,12 @@ btnAddQuiz.addEventListener('click', () => {
 
 btnCancelQuiz.addEventListener('click', () => {
   modalAddQuiz.style.display = 'none';
+});
+// 7. Admin Panel Logic: Edit Schedule Modal
+btnEditSchedule.addEventListener('click', () => {
+  modalEditSchedule.style.display = 'flex';
+});
+
+btnCancelEdit.addEventListener('click', () => {
+  modalEditSchedule.style.display = 'none';
 });
