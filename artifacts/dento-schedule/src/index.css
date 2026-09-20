@@ -620,3 +620,67 @@
   background: hsl(209 74% 42%);
   transform: translateY(-1px);
 }
+
+.admin-modal {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.25rem;
+  position: fixed;
+  z-index: 20;
+}
+
+.modal-content {
+  background: hsl(var(--card));
+  border-radius: 0.85rem;
+  box-shadow: 0 20px 60px rgba(15, 36, 58, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  max-width: 25rem;
+  padding: 1.5rem;
+  width: 100%;
+}
+
+.modal-content h2 {
+  color: hsl(var(--primary));
+  font-size: 1.1rem;
+  margin: 0 0 0.25rem;
+  text-align: center;
+}
+
+.modal-content label {
+  color: hsl(var(--muted-foreground));
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.admin-input {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  color: hsl(var(--foreground));
+  font: inherit;
+  padding: 0.65rem;
+  width: 100%;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.modal-actions .admin-btn {
+  flex: 1;
+}
+
+.cancel-btn {
+  background: hsl(var(--muted-foreground));
+}
+
+.cancel-btn:hover {
+  background: hsl(var(--foreground));
+}

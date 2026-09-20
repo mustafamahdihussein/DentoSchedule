@@ -17,6 +17,7 @@ function Home() {
   const [selectedDate, setSelectedDate] = useState('Mon21');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -128,7 +129,11 @@ function Home() {
             <button className="admin-btn" type="button">
               Edit Schedule
             </button>
-            <button className="admin-btn" type="button">
+            <button
+              className="admin-btn"
+              onClick={() => setIsUploadModalOpen(true)}
+              type="button"
+            >
               Upload PDF Notes
             </button>
             <button className="admin-btn" type="button">
@@ -136,6 +141,44 @@ function Home() {
             </button>
           </div>
         </section>
+      )}
+      {isUploadModalOpen && (
+        <div
+          aria-labelledby="upload-lecture-title"
+          aria-modal="true"
+          className="admin-modal"
+          role="dialog"
+        >
+          <form
+            className="modal-content"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setIsUploadModalOpen(false);
+            }}
+          >
+            <h2 id="upload-lecture-title">Upload Lecture PDF</h2>
+            <label htmlFor="pdf-subject">Select Subject:</label>
+            <select className="admin-input" defaultValue="general-medicine" id="pdf-subject">
+              <option value="general-medicine">General Medicine</option>
+              <option value="oral-surgery">Oral Surgery</option>
+              <option value="prosthodontics">Prosthodontics</option>
+            </select>
+            <label htmlFor="pdf-file">Choose File:</label>
+            <input accept=".pdf" className="admin-input" id="pdf-file" type="file" />
+            <div className="modal-actions">
+              <button className="admin-btn" type="submit">
+                Upload
+              </button>
+              <button
+                className="admin-btn cancel-btn"
+                onClick={() => setIsUploadModalOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
       <header className="schedule-header">
         <div className="schedule-header-inner">

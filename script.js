@@ -1,5 +1,8 @@
 // Get elements
 const adminPanel = document.getElementById('admin-panel');
+const modalUploadPdf = document.getElementById('modal-upload-pdf');
+const btnUploadPdf = document.getElementById('btn-upload-pdf');
+const btnCancelPdf = document.getElementById('btn-cancel-pdf');
 
 const entryGateway = document.getElementById('entry-gateway');
 const roleSelection = document.getElementById('role-selection');
@@ -54,4 +57,12 @@ btnLogin.addEventListener('click', () => {
     // Fail
     loginError.style.display = 'block';
   }
+});
+// 5. Admin Panel Logic: Upload PDF Modal
+btnUploadPdf.addEventListener('click', () => {
+  modalUploadPdf.style.display = 'flex'; // We use flex here to keep it centered
+});
+
+btnCancelPdf.addEventListener('click', () => {
+  modalUploadPdf.style.display = 'none';
 });

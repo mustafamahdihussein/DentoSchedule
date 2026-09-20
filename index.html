@@ -37,6 +37,28 @@
         <button class="admin-btn" id="btn-add-quiz">Add Quiz</button>
       </div>
     </div>
+      <!-- Admin Modal: Upload PDF (Hidden by default) -->
+    <div id="modal-upload-pdf" class="admin-modal" style="display: none;">
+      <div class="modal-content">
+        <h3>Upload Lecture PDF</h3>
+        
+        <label for="pdf-subject">Select Subject:</label>
+        <select id="pdf-subject" class="admin-input">
+          <option value="general-medicine">General Medicine</option>
+          <option value="oral-surgery">Oral Surgery</option>
+          <option value="prosthodontics">Prosthodontics</option>
+          <!-- We can add the rest of the 4th-year subjects here later -->
+        </select>
+
+        <label for="pdf-file">Choose File:</label>
+        <input type="file" id="pdf-file" accept=".pdf" class="admin-input">
+
+        <div class="modal-actions">
+          <button id="btn-submit-pdf" class="admin-btn">Upload</button>
+          <button id="btn-cancel-pdf" class="admin-btn cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
   
 
 <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->

@@ -284,3 +284,58 @@ header p {
 .admin-btn:hover {
   background-color: #3b82f6;
 }
+/* Admin Modal Styles */
+.admin-modal {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* Dark semi-transparent background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: #ffffff;
+  padding: 25px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.modal-content h3 {
+  color: #4A90E2;
+  margin: 0;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+.admin-input {
+  padding: 10px;
+  border: 1px solid #E9ECEF;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modal-actions .admin-btn {
+  flex: 1; /* Makes buttons equal width */
+}
+
+.cancel-btn {
+  background-color: #6c757d;
+}
+
+.cancel-btn:hover {
+  background-color: #5a6268;
+}
