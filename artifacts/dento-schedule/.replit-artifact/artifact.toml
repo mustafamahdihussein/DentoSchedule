@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Al-Ameen DentoSchedule"
+description = "A dental class and appointment schedule for Al-Ameen, showing upcoming dates and daily schedule details in a clear, mobile-friendly view."
+version = "1.0.0"
+id = "artifacts/dento-schedule"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19845
+
+[services.development]
+run = "pnpm --filter @workspace/dento-schedule run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dento-schedule", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dento-schedule/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19845"
+BASE_PATH = "/"
