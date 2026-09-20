@@ -14,6 +14,10 @@ const btnCancelQuiz = document.getElementById('btn-cancel-quiz');
 const modalEditSchedule = document.getElementById('modal-edit-schedule');
 const btnEditSchedule = document.getElementById('btn-edit-schedule');
 const btnCancelEdit = document.getElementById('btn-cancel-edit');
+const btnSubmitEdit = document.getElementById('btn-submit-edit');
+const editSubject = document.getElementById('edit-subject');
+const alertText = document.getElementById('alert-text');
+const alertDate = document.getElementById('alert-date');
 
 // Buttons
 const btnUser = document.getElementById('btn-user');
@@ -87,4 +91,46 @@ btnEditSchedule.addEventListener('click', () => {
 
 btnCancelEdit.addEventListener('click', () => {
   modalEditSchedule.style.display = 'none';
+});
+// 8. Submit Alert Logic (Visual Mockup & Expiration)
+btnSubmitEdit.addEventListener('click', () => {
+  const subjectId = editSubject.value; // e.g., 'general-medicine'
+  const text = alertText.value.trim();
+  const expDateStr = alertDate.value;
+
+  if (text !== '') {
+    // 1. Check if the date has passed
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
+    
+    let isExpired = false;
+    if (expDateStr) {
+      const expirationDate = new Date(expDateStr);
+      // If today's date is strictly greater than the expiration date, it's expired
+      if (today > expirationDate) {
+        isExpired = true;
+      }
+    }
+
+    // 2. If not expired, show the alert on the screen
+    if (!isExpired) {
+      const targetCard = document.getElementById(`card-${subjectId}`);
+      if (targetCard) {
+        // Create the red badge
+        const alertBadge = document.createElement('span');
+        alertBadge.className = 'class-alert';
+        alertBadge.innerText = text; // This will perfectly render "امتحان فصلي"
+        
+        // Add it to the card
+        targetCard.appendChild(alertBadge);
+      }
+    } else {
+      console.log("Alert not added: The expiration date has already passed.");
+    }
+  }
+
+  // 3. Hide modal and clear inputs
+  modalEditSchedule.style.display = 'none';
+  alertText.value = '';
+  alertDate.value = '';
 });

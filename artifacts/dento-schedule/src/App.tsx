@@ -14,6 +14,128 @@ import {
 
 const queryClient = new QueryClient();
 
+type ScheduleSession =
+  | {
+      time: string;
+      subjectId: string;
+      subject: string;
+      note?: string;
+    }
+  | {
+      time: string;
+      groups: [string, string];
+    };
+
+type ScheduleDay = {
+  title: string;
+  summary: string;
+  sessions: ScheduleSession[];
+};
+
+const scheduleDays: ScheduleDay[] = [
+  {
+    title: 'Saturday schedule',
+    summary: '4 sessions\n8:00 AM – 2:00 PM',
+    sessions: [
+      { time: '8:00 – 9:00 AM', subjectId: 'orthodontics', subject: 'Orthodontics' },
+      { time: '9:00 – 10:00 AM', subjectId: 'periodontics', subject: 'Periodontics' },
+      { time: '10:00 AM – 12:00 PM', groups: ['Orthodontics', 'Periodontics'] },
+      { time: '12:00 – 2:00 PM', groups: ['Periodontics', 'Orthodontics'] },
+    ],
+  },
+  {
+    title: 'Sunday schedule',
+    summary: '4 sessions\n8:00 AM – 2:00 PM',
+    sessions: [
+      { time: '8:00 – 9:00 AM', subjectId: 'prosthodontics', subject: 'Prosthodontics' },
+      { time: '9:00 – 10:00 AM', subjectId: 'pedodontics', subject: 'Pedodontics' },
+      { time: '10:00 AM – 12:00 PM', groups: ['Prosthodontics', 'Pedodontics'] },
+      { time: '12:00 – 2:00 PM', groups: ['Pedodontics', 'Prosthodontics'] },
+    ],
+  },
+  {
+    title: 'Monday schedule',
+    summary: '3 sessions\n8:00 AM – 12:00 PM',
+    sessions: [
+      {
+        time: '8:00 – 9:00 AM',
+        subjectId: 'general-medicine',
+        subject: 'General Medicine',
+        note: 'Midterm notes uploaded',
+      },
+      { time: '9:00 – 10:00 AM', subjectId: 'oral-surgery', subject: 'Oral Surgery' },
+      { time: '10:00 AM – 12:00 PM', groups: ['Oral Surgery Lab', 'Oral Surgery Lab'] },
+    ],
+  },
+  {
+    title: 'Tuesday schedule',
+    summary: '4 sessions\n8:00 AM – 2:00 PM',
+    sessions: [
+      { time: '8:00 – 9:00 AM', subjectId: 'general-surgery', subject: 'General Surgery' },
+      { time: '9:00 – 10:00 AM', subjectId: 'oral-pathology', subject: 'Oral Pathology' },
+      { time: '10:00 AM – 12:00 PM', groups: ['Oral Pathology', '-'] },
+      { time: '12:00 – 2:00 PM', groups: ['-', 'Oral Pathology'] },
+    ],
+  },
+  {
+    title: 'Wednesday schedule',
+    summary: '3 sessions\n8:00 AM – 2:00 PM',
+    sessions: [
+      { time: '8:00 – 9:00 AM', subjectId: 'conservative', subject: 'Conservative' },
+      { time: '10:00 AM – 12:00 PM', groups: ['Conservative', '-'] },
+      { time: '12:00 – 2:00 PM', groups: ['-', 'Conservative'] },
+    ],
+  },
+];
+
+function ScheduleDayView({
+  day,
+  alerts,
+}: {
+  day: ScheduleDay;
+  alerts: Record<string, string>;
+}) {
+  return (
+    <section className="schedule-container" aria-label={day.title}>
+      <div className="schedule-heading">
+        <h2>{day.title}</h2>
+        <p>
+          {day.summary.split('\n')[0]}
+          <br />
+          {day.summary.split('\n')[1]}
+        </p>
+      </div>
+
+      {day.sessions.map((session) => (
+        <div className="time-block" key={`${day.title}-${session.time}`}>
+          <div className="time">{session.time}</div>
+          {'subjectId' in session ? (
+            <div className="subject-card" id={`card-${session.subjectId}`}>
+              <h2>{session.subject}</h2>
+              {session.note && <span className="note-badge">{session.note}</span>}
+              {alerts[session.subjectId] && (
+                <span className="class-alert">{alerts[session.subjectId]}</span>
+              )}
+            </div>
+          ) : (
+            <div className="subject-card split-group">
+              <div className="group-col">
+                <h3>Group A</h3>
+                <p>{session.groups[0]}</p>
+              </div>
+              <div aria-hidden="true" className="divider" />
+              <div className="group-col">
+                <h3>Group B</h3>
+                <p>{session.groups[1]}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function Home() {
   const [selectedDate, setSelectedDate] = useState('Mon21');
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -21,10 +143,14 @@ function Home() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isEditScheduleModalOpen, setIsEditScheduleModalOpen] = useState(false);
+  const [alerts, setAlerts] = useState<Record<string, string>>({});
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [editSubject, setEditSubject] = useState('general-medicine');
+  const [alertText, setAlertText] = useState('');
+  const [alertDate, setAlertDate] = useState('');
   const dates = [
     { day: 'Sun', num: '20', label: 'Today', className: 'today' },
     { day: 'Mon', num: '21', label: 'Tomorrow', className: 'active-tomorrow' },
@@ -48,6 +174,30 @@ function Home() {
     }
 
     setLoginError(true);
+  }
+
+  function handleSaveAlert(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const text = alertText.trim();
+
+    if (text) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expirationDate = alertDate
+        ? new Date(`${alertDate}T00:00:00`)
+        : null;
+
+      if (!expirationDate || today <= expirationDate) {
+        setAlerts((currentAlerts) => ({
+          ...currentAlerts,
+          [editSubject]: text,
+        }));
+      }
+    }
+
+    setIsEditScheduleModalOpen(false);
+    setAlertText('');
+    setAlertDate('');
   }
 
   if (!isUnlocked) {
@@ -260,14 +410,16 @@ function Home() {
         >
           <form
             className="modal-content"
-            onSubmit={(event) => {
-              event.preventDefault();
-              setIsEditScheduleModalOpen(false);
-            }}
+            onSubmit={handleSaveAlert}
           >
             <h2 id="edit-schedule-title">Edit Schedule &amp; Alerts</h2>
             <label htmlFor="edit-subject">Select Subject:</label>
-            <select className="admin-input" defaultValue="general-medicine" id="edit-subject">
+            <select
+              className="admin-input"
+              id="edit-subject"
+              onChange={(event) => setEditSubject(event.target.value)}
+              value={editSubject}
+            >
               <option value="general-medicine">General Medicine</option>
               <option value="oral-surgery">Oral Surgery</option>
               <option value="prosthodontics">Prosthodontics</option>
@@ -276,11 +428,19 @@ function Home() {
             <input
               className="admin-input"
               id="alert-text"
+              onChange={(event) => setAlertText(event.target.value)}
               placeholder="e.g., Contains an exam! ⚠️"
               type="text"
+              value={alertText}
             />
             <label htmlFor="alert-date">Alert Expiration Date:</label>
-            <input className="admin-input" id="alert-date" type="date" />
+            <input
+              className="admin-input"
+              id="alert-date"
+              onChange={(event) => setAlertDate(event.target.value)}
+              type="date"
+              value={alertDate}
+            />
             <div className="modal-actions">
               <button className="admin-btn" type="submit">
                 Save Changes
@@ -328,42 +488,9 @@ function Home() {
         </div>
       </section>
 
-      <main className="schedule-container">
-        <div className="schedule-heading">
-          <h2>Monday schedule</h2>
-          <p>3 sessions<br />8:00 AM – 12:00 PM</p>
-        </div>
-
-        <div className="time-block">
-          <div className="time">8:00 – 9:00 AM</div>
-          <div className="subject-card">
-            <h2>General Medicine</h2>
-            <span className="note-badge">Midterm notes uploaded</span>
-          </div>
-        </div>
-
-        <div className="time-block">
-          <div className="time">9:00 – 10:00 AM</div>
-          <div className="subject-card">
-            <h2>Oral Surgery</h2>
-          </div>
-        </div>
-
-        <div className="time-block">
-          <div className="time">10:00 AM – 12:00 PM</div>
-          <div className="subject-card split-group">
-            <div className="group-col">
-              <h3>Group A</h3>
-              <p>Oral Surgery Lab</p>
-            </div>
-            <div aria-hidden="true" className="divider" />
-            <div className="group-col">
-              <h3>Group B</h3>
-              <p>Oral Surgery Lab</p>
-            </div>
-          </div>
-        </div>
-      </main>
+      {scheduleDays.map((day) => (
+        <ScheduleDayView alerts={alerts} day={day} key={day.title} />
+      ))}
       <footer className="app-footer">
         <p>
           Developed &amp; Managed by <strong>Tqy Malik</strong> &amp;{' '}
