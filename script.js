@@ -8,6 +8,9 @@ const entryGateway = document.getElementById('entry-gateway');
 const roleSelection = document.getElementById('role-selection');
 const loginForm = document.getElementById('login-form');
 const mainApp = document.getElementById('main-app');
+const modalAddQuiz = document.getElementById('modal-add-quiz');
+const btnAddQuiz = document.getElementById('btn-add-quiz');
+const btnCancelQuiz = document.getElementById('btn-cancel-quiz');
 
 // Buttons
 const btnUser = document.getElementById('btn-user');
@@ -65,4 +68,12 @@ btnUploadPdf.addEventListener('click', () => {
 
 btnCancelPdf.addEventListener('click', () => {
   modalUploadPdf.style.display = 'none';
+});
+// 6. Admin Panel Logic: Add Quiz Modal
+btnAddQuiz.addEventListener('click', () => {
+  modalAddQuiz.style.display = 'flex';
+});
+
+btnCancelQuiz.addEventListener('click', () => {
+  modalAddQuiz.style.display = 'none';
 });

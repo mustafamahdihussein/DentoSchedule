@@ -65,6 +65,30 @@
         </div>
       </div>
     </div>
+      <!-- Admin Modal: Add Quiz (Hidden by default) -->
+    <div id="modal-add-quiz" class="admin-modal" style="display: none;">
+      <div class="modal-content">
+        <h3>Add Interactive Quiz</h3>
+        
+        <label for="quiz-subject">Select Subject:</label>
+        <select id="quiz-subject" class="admin-input">
+          <option value="general-medicine">General Medicine</option>
+          <option value="oral-surgery">Oral Surgery</option>
+          <option value="prosthodontics">Prosthodontics</option>
+        </select>
+
+        <label for="quiz-title">Quiz Title:</label>
+        <input type="text" id="quiz-title" placeholder="e.g., Surgery Midterm MCQs" class="admin-input">
+
+        <label for="quiz-link">Quiz Link (URL):</label>
+        <input type="url" id="quiz-link" placeholder="Paste link here" class="admin-input">
+
+        <div class="modal-actions">
+          <button id="btn-submit-quiz" class="admin-btn">Add Quiz</button>
+          <button id="btn-cancel-quiz" class="admin-btn cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
   
 
 <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->

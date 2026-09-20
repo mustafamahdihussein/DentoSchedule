@@ -19,6 +19,7 @@ function Home() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -147,7 +148,11 @@ function Home() {
             >
               Upload PDF Notes
             </button>
-            <button className="admin-btn" type="button">
+            <button
+              className="admin-btn"
+              onClick={() => setIsQuizModalOpen(true)}
+              type="button"
+            >
               Add Quiz
             </button>
           </div>
@@ -183,6 +188,56 @@ function Home() {
               <button
                 className="admin-btn cancel-btn"
                 onClick={() => setIsUploadModalOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {isQuizModalOpen && (
+        <div
+          aria-labelledby="add-quiz-title"
+          aria-modal="true"
+          className="admin-modal"
+          role="dialog"
+        >
+          <form
+            className="modal-content"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setIsQuizModalOpen(false);
+            }}
+          >
+            <h2 id="add-quiz-title">Add Interactive Quiz</h2>
+            <label htmlFor="quiz-subject">Select Subject:</label>
+            <select className="admin-input" defaultValue="general-medicine" id="quiz-subject">
+              <option value="general-medicine">General Medicine</option>
+              <option value="oral-surgery">Oral Surgery</option>
+              <option value="prosthodontics">Prosthodontics</option>
+            </select>
+            <label htmlFor="quiz-title">Quiz Title:</label>
+            <input
+              className="admin-input"
+              id="quiz-title"
+              placeholder="e.g., Surgery Midterm MCQs"
+              type="text"
+            />
+            <label htmlFor="quiz-link">Quiz Link (URL):</label>
+            <input
+              className="admin-input"
+              id="quiz-link"
+              placeholder="Paste link here"
+              type="url"
+            />
+            <div className="modal-actions">
+              <button className="admin-btn" type="submit">
+                Add Quiz
+              </button>
+              <button
+                className="admin-btn cancel-btn"
+                onClick={() => setIsQuizModalOpen(false)}
                 type="button"
               >
                 Cancel
