@@ -580,3 +580,43 @@
 .contact-link:hover {
   text-decoration: underline;
 }
+
+.admin-panel {
+  background: hsl(var(--card));
+  border: 2px dashed hsl(var(--primary));
+  border-radius: 0.85rem;
+  margin: 1.25rem auto 0;
+  max-width: 47rem;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.admin-panel h2 {
+  color: hsl(var(--primary));
+  font-size: 1.05rem;
+  margin-bottom: 0.9rem;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+}
+
+.admin-btn {
+  background: hsl(var(--primary));
+  border: none;
+  border-radius: 0.55rem;
+  color: hsl(var(--primary-foreground));
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.admin-btn:hover {
+  background: hsl(209 74% 42%);
+  transform: translateY(-1px);
+}

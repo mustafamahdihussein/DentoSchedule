@@ -16,6 +16,7 @@ const queryClient = new QueryClient();
 function Home() {
   const [selectedDate, setSelectedDate] = useState('Mon21');
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -35,8 +36,9 @@ function Home() {
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (username.trim() === 'Dent007' && password.trim() === 'Dent6969') {
+    if (username.trim() === 'Dent007' && password.trim() === 'Dent007') {
       setLoginError(false);
+      setIsAdmin(true);
       setIsUnlocked(true);
       return;
     }
@@ -54,7 +56,10 @@ function Home() {
               <p>Please select your role to continue:</p>
               <button
                 className="gateway-btn"
-                onClick={() => setIsUnlocked(true)}
+                onClick={() => {
+                  setIsAdmin(false);
+                  setIsUnlocked(true);
+                }}
                 type="button"
               >
                 Student / User
@@ -116,6 +121,22 @@ function Home() {
 
   return (
     <div className="schedule-shell">
+      {isAdmin && (
+        <section className="admin-panel" aria-label="Admin Dashboard">
+          <h2>Admin Dashboard</h2>
+          <div className="admin-actions">
+            <button className="admin-btn" type="button">
+              Edit Schedule
+            </button>
+            <button className="admin-btn" type="button">
+              Upload PDF Notes
+            </button>
+            <button className="admin-btn" type="button">
+              Add Quiz
+            </button>
+          </div>
+        </section>
+      )}
       <header className="schedule-header">
         <div className="schedule-header-inner">
           <div className="eyebrow">Dental Schedule</div>

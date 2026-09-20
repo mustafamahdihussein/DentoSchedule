@@ -1,4 +1,6 @@
 // Get elements
+const adminPanel = document.getElementById('admin-panel');
+
 const entryGateway = document.getElementById('entry-gateway');
 const roleSelection = document.getElementById('role-selection');
 const loginForm = document.getElementById('login-form');
@@ -40,11 +42,11 @@ btnLogin.addEventListener('click', () => {
   const passVal = passwordInput.value.trim();
 
   // Check credentials
-  if (userVal === 'Dent007' && passVal === 'Dent6969') {
+  if (userVal === 'Dent007' && passVal === 'Dent007') {
     // Success! Hide gateway and show app
     entryGateway.style.display = 'none';
     mainApp.style.display = 'block';
-    
+    adminPanel.style.display = 'block';
     // (Optional) Add a visual indicator that they are in admin mode
     console.log("Logged in as Admin. Ready to configure!");
     // Later, we will use this block to show the 'Edit', 'Upload', and 'Add Quiz' buttons.
