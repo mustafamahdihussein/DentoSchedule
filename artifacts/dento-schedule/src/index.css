@@ -362,6 +362,7 @@
 }
 
 .subject-card {
+  cursor: pointer;
   min-height: 4.8rem;
   border: 1px solid hsl(var(--card-border));
   border-left: 4px solid hsl(var(--primary));
@@ -375,6 +376,11 @@
 .subject-card:hover {
   box-shadow: var(--shadow-soft);
   transform: translateY(-1px);
+}
+
+.subject-card:focus-visible {
+  outline: 3px solid hsl(var(--ring) / 0.28);
+  outline-offset: 2px;
 }
 
 .subject-card h2 {
@@ -717,6 +723,65 @@
   font-weight: 700;
   margin-top: 0.5rem;
   padding: 0.25rem 0.5rem;
+}
+
+.resource-section {
+  margin-top: 1.25rem;
+  text-align: left;
+}
+
+.resource-section h3 {
+  border-bottom: 1px solid hsl(var(--border));
+  color: hsl(var(--primary));
+  font-size: 0.85rem;
+  margin: 0 0 0.65rem;
+  padding-bottom: 0.35rem;
+}
+
+.resource-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resource-list li {
+  align-items: center;
+  background: hsl(var(--muted));
+  border-radius: 0.4rem;
+  display: flex;
+  font-size: 0.78rem;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  padding: 0.6rem 0.8rem;
+}
+
+.resource-list li a {
+  color: hsl(var(--foreground));
+  flex-grow: 1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.resource-list li a:hover {
+  color: hsl(var(--primary));
+}
+
+.delete-resource-btn {
+  background: transparent;
+  border: none;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.7;
+  padding: 0.25rem;
+}
+
+.delete-resource-btn:hover {
+  opacity: 1;
+}
+
+.admin-ui {
+  display: none;
 }
 
 @keyframes pulse {

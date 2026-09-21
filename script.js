@@ -194,3 +194,35 @@ document.addEventListener("DOMContentLoaded", () => {
   // When the page first loads, set Monday as the default visible day
   switchDay("monday");
 });
+// ==========================================
+// 2. SUBJECT VIEWER MODAL LOGIC
+// ==========================================
+const subjectCardsList = document.querySelectorAll(".subject-card");
+const subjectModal = document.getElementById("modal-subject-view");
+const closeSubjectBtn = document.getElementById("btn-close-subject-view");
+const subjectTitle = document.getElementById("view-subject-title");
+
+// 1. Open the modal when any subject card is clicked
+subjectCardsList.forEach(card => {
+  card.addEventListener("click", () => {
+    // Look for the subject name inside the <h2> tag
+    const heading = card.querySelector("h2");
+
+    if (heading) {
+      subjectTitle.innerText = heading.innerText;
+    } else {
+      // If it is a split lab group (Group A/B), use a general title
+      subjectTitle.innerText = "Clinical Lab Session";
+    }
+
+    // Show the pop-up
+    subjectModal.style.display = "block";
+  });
+});
+
+// 2. Close the modal when 'Close' is clicked
+if (closeSubjectBtn) {
+  closeSubjectBtn.addEventListener("click", () => {
+    subjectModal.style.display = "none";
+  });
+}

@@ -97,10 +97,22 @@ const scheduleDays: ScheduleDay[] = [
 function ScheduleDayView({
   day,
   alerts,
+  onOpenSubjectResource,
 }: {
   day: ScheduleDay;
   alerts: Record<string, string>;
+  onOpenSubjectResource: (subjectName: string) => void;
 }) {
+  function handleSubjectCardKeyDown(
+    event: React.KeyboardEvent<HTMLDivElement>,
+    subjectName: string,
+  ) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onOpenSubjectResource(subjectName);
+    }
+  }
+
   return (
     <section className="schedule-container" aria-label={day.title} id={`schedule-${day.key}`}>
       <div className="schedule-heading">
@@ -116,7 +128,14 @@ function ScheduleDayView({
         <div className="time-block" key={`${day.title}-${session.time}`}>
           <div className="time">{session.time}</div>
           {'subjectId' in session ? (
-            <div className="subject-card" id={`card-${session.subjectId}`}>
+            <div
+              className="subject-card"
+              id={`card-${session.subjectId}`}
+              onClick={() => onOpenSubjectResource(session.subject)}
+              onKeyDown={(event) => handleSubjectCardKeyDown(event, session.subject)}
+              role="button"
+              tabIndex={0}
+            >
               <h2>{session.subject}</h2>
               {session.note && <span className="note-badge">{session.note}</span>}
               {alerts[session.subjectId] && (
@@ -124,7 +143,15 @@ function ScheduleDayView({
               )}
             </div>
           ) : (
-            <div className="subject-card split-group">
+            <div
+              className="subject-card split-group"
+              onClick={() => onOpenSubjectResource('Clinical Lab Session')}
+              onKeyDown={(event) =>
+                handleSubjectCardKeyDown(event, 'Clinical Lab Session')
+              }
+              role="button"
+              tabIndex={0}
+            >
               <div className="group-col">
                 <h3>Group A</h3>
                 <p>{session.groups[0]}</p>
@@ -150,6 +177,8 @@ function Home() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isEditScheduleModalOpen, setIsEditScheduleModalOpen] = useState(false);
+  const [isSubjectViewerOpen, setIsSubjectViewerOpen] = useState(false);
+  const [selectedSubjectName, setSelectedSubjectName] = useState('');
   const [alerts, setAlerts] = useState<Record<string, string>>({});
   const [showLogin, setShowLogin] = useState(false);
   const [username, setUsername] = useState('');
@@ -205,6 +234,11 @@ function Home() {
     setIsEditScheduleModalOpen(false);
     setAlertText('');
     setAlertDate('');
+  }
+
+  function openSubjectViewer(subjectName: string) {
+    setSelectedSubjectName(subjectName);
+    setIsSubjectViewerOpen(true);
   }
 
   if (!isUnlocked) {
@@ -481,6 +515,56 @@ function Home() {
           </form>
         </div>
       )}
+      {isSubjectViewerOpen && (
+        <div
+          aria-labelledby="view-subject-title"
+          aria-modal="true"
+          className="admin-modal"
+          role="dialog"
+        >
+          <div className="modal-content">
+            <h2 id="view-subject-title">{selectedSubjectName}</h2>
+
+            <div className="resource-section">
+              <h3>📚 Lecture PDFs</h3>
+              <ul className="resource-list">
+                <li>
+                  <a href="#" onClick={(event) => event.preventDefault()} target="_blank">
+                    Lec 1: Introduction
+                  </a>
+                  <button className="delete-resource-btn admin-ui" type="button">
+                    🗑️
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div className="resource-section">
+              <h3>📝 Interactive Quizzes</h3>
+              <ul className="resource-list">
+                <li>
+                  <a href="#" onClick={(event) => event.preventDefault()} target="_blank">
+                    Midterm MCQs
+                  </a>
+                  <button className="delete-resource-btn admin-ui" type="button">
+                    🗑️
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="admin-btn cancel-btn"
+                onClick={() => setIsSubjectViewerOpen(false)}
+                type="button"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="schedule-header">
         <div className="schedule-header-inner">
           <div className="eyebrow">Dental Schedule</div>
@@ -519,7 +603,12 @@ function Home() {
       {scheduleDays
         .filter((day) => day.key === selectedScheduleDay)
         .map((day) => (
-          <ScheduleDayView alerts={alerts} day={day} key={day.key} />
+          <ScheduleDayView
+            alerts={alerts}
+            day={day}
+            key={day.key}
+            onOpenSubjectResource={openSubjectViewer}
+          />
         ))}
       <footer className="app-footer">
         <p>
