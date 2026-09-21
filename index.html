@@ -43,6 +43,8 @@
         <button class="admin-btn" id="btn-add-quiz">Add Quiz</button>
       </div>
     </div>
+  <button class="admin-btn" id="btn-post-announcement">📢 Post Announcement</button>
+  
       <!-- Admin Modal: Upload PDF (Hidden by default) -->
     <div id="modal-upload-pdf" class="admin-modal" style="display: none;">
       <div class="modal-content">
@@ -134,6 +136,21 @@
         </div>
       </div>
       </div>
+      <!-- Admin Modal: Post Announcement (Hidden by default) -->
+    <div id="modal-post-announcement" class="admin-modal" style="display: none;">
+      <div class="modal-content">
+        <h3>📢 Post Live Announcement</h3>
+        
+        <label for="announcement-input-text">Announcement Message:</label>
+        <input type="text" id="announcement-input-text" class="admin-input" placeholder="e.g., Surgery lab moved to Hall B">
+        
+        <div class="modal-actions">
+          <button id="btn-submit-announcement" class="admin-btn">Post Alert</button>
+          <button id="btn-cancel-announcement" class="admin-btn cancel-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  
       <!-- Subject Resource Modal (View PDFs & Quizzes) -->
     <div id="modal-subject-view" class="admin-modal" style="display: none;">
       <div class="modal-content">
@@ -174,7 +191,11 @@
     <h1>Class Schedule</h1>
     <p>4th Year Dentistry</p>
   </header>
-
+    <!-- Live Announcement Banner (Hidden by default) -->
+    <div id="announcement-banner" class="live-alert" style="display: none;">
+      <strong>🚨 UPDATE:</strong> <span id="announcement-text">Welcome to the new schedule!</span>
+    </div>
+  
   <!-- 10-Day Rolling Date Ribbon -->
   <div class="date-ribbon">
     <div class="date-card today">

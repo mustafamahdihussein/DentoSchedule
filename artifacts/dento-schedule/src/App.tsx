@@ -178,6 +178,7 @@ function Home() {
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
   const [isEditScheduleModalOpen, setIsEditScheduleModalOpen] = useState(false);
   const [isSubjectViewerOpen, setIsSubjectViewerOpen] = useState(false);
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [selectedSubjectName, setSelectedSubjectName] = useState('');
   const [alerts, setAlerts] = useState<Record<string, string>>({});
   const [showLogin, setShowLogin] = useState(false);
@@ -187,6 +188,8 @@ function Home() {
   const [editSubject, setEditSubject] = useState('general-medicine');
   const [alertText, setAlertText] = useState('');
   const [alertDate, setAlertDate] = useState('');
+  const [announcementInput, setAnnouncementInput] = useState('');
+  const [liveAnnouncement, setLiveAnnouncement] = useState('');
   const dates = [
     { day: 'Sat', num: '19', label: '', scheduleKey: 'saturday' },
     { day: 'Sun', num: '20', label: 'Today', scheduleKey: 'sunday' },
@@ -234,6 +237,13 @@ function Home() {
     setIsEditScheduleModalOpen(false);
     setAlertText('');
     setAlertDate('');
+  }
+
+  function handleSaveAnnouncement(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLiveAnnouncement(announcementInput.trim());
+    setAnnouncementInput('');
+    setIsAnnouncementModalOpen(false);
   }
 
   function openSubjectViewer(subjectName: string) {
@@ -350,6 +360,13 @@ function Home() {
               type="button"
             >
               Add Quiz
+            </button>
+            <button
+              className="admin-btn"
+              onClick={() => setIsAnnouncementModalOpen(true)}
+              type="button"
+            >
+              📢 Post Announcement
             </button>
           </div>
         </section>
@@ -565,6 +582,42 @@ function Home() {
           </div>
         </div>
       )}
+      {isAnnouncementModalOpen && (
+        <div
+          aria-labelledby="announcement-modal-title"
+          aria-modal="true"
+          className="admin-modal"
+          role="dialog"
+        >
+          <form className="modal-content" onSubmit={handleSaveAnnouncement}>
+            <h2 id="announcement-modal-title">📢 Post Live Announcement</h2>
+            <label htmlFor="announcement-input-text">Announcement Message:</label>
+            <input
+              className="admin-input"
+              id="announcement-input-text"
+              onChange={(event) => setAnnouncementInput(event.target.value)}
+              placeholder="e.g., Surgery lab moved to Hall B"
+              type="text"
+              value={announcementInput}
+            />
+            <div className="modal-actions">
+              <button className="admin-btn" type="submit">
+                Post Alert
+              </button>
+              <button
+                className="admin-btn cancel-btn"
+                onClick={() => {
+                  setAnnouncementInput('');
+                  setIsAnnouncementModalOpen(false);
+                }}
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
       <header className="schedule-header">
         <div className="schedule-header-inner">
           <div className="eyebrow">Dental Schedule</div>
@@ -572,6 +625,13 @@ function Home() {
           <p className="schedule-subtitle">4th Year Dentistry</p>
         </div>
       </header>
+
+      {liveAnnouncement && (
+        <div className="live-alert" role="status">
+          <strong>🚨 UPDATE:</strong>
+          <span>{liveAnnouncement}</span>
+        </div>
+      )}
 
       <section className="date-section" aria-label="Schedule dates">
         <div className="date-section-inner">
