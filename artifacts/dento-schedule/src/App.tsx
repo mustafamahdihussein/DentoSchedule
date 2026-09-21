@@ -27,6 +27,7 @@ type ScheduleSession =
     };
 
 type ScheduleDay = {
+  key: string;
   title: string;
   summary: string;
   sessions: ScheduleSession[];
@@ -34,6 +35,7 @@ type ScheduleDay = {
 
 const scheduleDays: ScheduleDay[] = [
   {
+    key: 'saturday',
     title: 'Saturday schedule',
     summary: '4 sessions\n8:00 AM – 2:00 PM',
     sessions: [
@@ -44,6 +46,7 @@ const scheduleDays: ScheduleDay[] = [
     ],
   },
   {
+    key: 'sunday',
     title: 'Sunday schedule',
     summary: '4 sessions\n8:00 AM – 2:00 PM',
     sessions: [
@@ -54,6 +57,7 @@ const scheduleDays: ScheduleDay[] = [
     ],
   },
   {
+    key: 'monday',
     title: 'Monday schedule',
     summary: '3 sessions\n8:00 AM – 12:00 PM',
     sessions: [
@@ -68,6 +72,7 @@ const scheduleDays: ScheduleDay[] = [
     ],
   },
   {
+    key: 'tuesday',
     title: 'Tuesday schedule',
     summary: '4 sessions\n8:00 AM – 2:00 PM',
     sessions: [
@@ -78,6 +83,7 @@ const scheduleDays: ScheduleDay[] = [
     ],
   },
   {
+    key: 'wednesday',
     title: 'Wednesday schedule',
     summary: '3 sessions\n8:00 AM – 2:00 PM',
     sessions: [
@@ -96,7 +102,7 @@ function ScheduleDayView({
   alerts: Record<string, string>;
 }) {
   return (
-    <section className="schedule-container" aria-label={day.title}>
+    <section className="schedule-container" aria-label={day.title} id={`schedule-${day.key}`}>
       <div className="schedule-heading">
         <h2>{day.title}</h2>
         <p>
@@ -138,6 +144,7 @@ function ScheduleDayView({
 
 function Home() {
   const [selectedDate, setSelectedDate] = useState('Mon21');
+  const [selectedScheduleDay, setSelectedScheduleDay] = useState('monday');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -152,16 +159,10 @@ function Home() {
   const [alertText, setAlertText] = useState('');
   const [alertDate, setAlertDate] = useState('');
   const dates = [
-    { day: 'Sun', num: '20', label: 'Today', className: 'today' },
-    { day: 'Mon', num: '21', label: 'Tomorrow', className: 'active-tomorrow' },
-    { day: 'Tue', num: '22', label: '', className: '' },
-    { day: 'Wed', num: '23', label: '', className: '' },
-    { day: 'Thu', num: '24', label: '', className: '' },
-    { day: 'Fri', num: '25', label: '', className: '' },
-    { day: 'Sat', num: '26', label: '', className: '' },
-    { day: 'Sun', num: '27', label: '', className: '' },
-    { day: 'Mon', num: '28', label: '', className: '' },
-    { day: 'Tue', num: '29', label: '', className: '' },
+    { day: 'Sun', num: '20', label: 'Today', scheduleKey: 'sunday' },
+    { day: 'Mon', num: '21', label: 'Tomorrow', scheduleKey: 'monday' },
+    { day: 'Tue', num: '22', label: '', scheduleKey: 'tuesday' },
+    { day: 'Wed', num: '23', label: '', scheduleKey: 'wednesday' },
   ];
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -474,9 +475,12 @@ function Home() {
             {dates.map((date) => (
               <button
                 aria-label={`${date.day} ${date.num}${date.label ? `, ${date.label}` : ''}`}
-                className={`date-card ${date.className} ${selectedDate === date.day + date.num ? 'is-selected' : ''}`}
+                className={`date-card ${selectedDate === date.day + date.num ? 'active-tomorrow is-selected' : date.day === 'Sun' && date.num === '20' ? 'today' : ''}`}
                 key={`${date.day}-${date.num}`}
-                onClick={() => setSelectedDate(date.day + date.num)}
+                onClick={() => {
+                  setSelectedDate(date.day + date.num);
+                  setSelectedScheduleDay(date.scheduleKey);
+                }}
                 type="button"
               >
                 <span className="day">{date.day}</span>
@@ -488,9 +492,11 @@ function Home() {
         </div>
       </section>
 
-      {scheduleDays.map((day) => (
-        <ScheduleDayView alerts={alerts} day={day} key={day.title} />
-      ))}
+      {scheduleDays
+        .filter((day) => day.key === selectedScheduleDay)
+        .map((day) => (
+          <ScheduleDayView alerts={alerts} day={day} key={day.key} />
+        ))}
       <footer className="app-footer">
         <p>
           Developed &amp; Managed by <strong>Tqy Malik</strong> &amp;{' '}

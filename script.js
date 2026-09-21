@@ -134,3 +134,63 @@ btnSubmitEdit.addEventListener('click', () => {
   alertText.value = '';
   alertDate.value = '';
 });
+// ==========================================
+// 1. DAY SWITCHER LOGIC
+// ==========================================
+document.addEventListener("DOMContentLoaded", () => {
+  const dateCards = document.querySelectorAll(".date-card");
+  const schedules = document.querySelectorAll(".schedule-container");
+
+  // A dictionary to match the 3-letter abbreviations to your HTML IDs
+  const dayMap = {
+    "sat": "saturday",
+    "sun": "sunday",
+    "mon": "monday",
+    "tue": "tuesday",
+    "wed": "wednesday"
+  };
+
+  function switchDay(fullDayName) {
+    // Hide all schedule containers first
+    schedules.forEach(schedule => {
+      schedule.style.display = "none";
+    });
+
+    // Find the schedule for the selected day and show it
+    const activeSchedule = document.getElementById("schedule-" + fullDayName);
+    if (activeSchedule) {
+      activeSchedule.style.display = "block";
+    }
+  }
+
+  // Add click behavior to every date card
+  dateCards.forEach(card => {
+    card.addEventListener("click", () => {
+      // 1. Reset all date cards to their default look
+      dateCards.forEach(c => {
+        c.classList.remove("active-tomorrow", "today"); // Removes hardcoded classes from HTML
+        c.style.backgroundColor = "transparent";
+        c.style.color = ""; // Resets text color
+      });
+
+      // 2. Make the clicked card look active with your clinical blue theme
+      card.style.backgroundColor = "#4A90E2";
+      card.style.color = "white";
+      card.style.borderRadius = "8px"; 
+
+      // 3. Get the 3-letter day text inside the clicked card (e.g., "Mon")
+      const daySpan = card.querySelector(".day");
+      if (daySpan) {
+        const shortDay = daySpan.innerText.trim().toLowerCase();
+
+        // 4. Switch to the matching schedule
+        if (dayMap[shortDay]) {
+          switchDay(dayMap[shortDay]);
+        }
+      }
+    });
+  });
+
+  // When the page first loads, set Monday as the default visible day
+  switchDay("monday");
+});
