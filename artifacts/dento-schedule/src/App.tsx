@@ -159,10 +159,16 @@ function Home() {
   const [alertText, setAlertText] = useState('');
   const [alertDate, setAlertDate] = useState('');
   const dates = [
+    { day: 'Sat', num: '19', label: '', scheduleKey: 'saturday' },
     { day: 'Sun', num: '20', label: 'Today', scheduleKey: 'sunday' },
     { day: 'Mon', num: '21', label: 'Tomorrow', scheduleKey: 'monday' },
     { day: 'Tue', num: '22', label: '', scheduleKey: 'tuesday' },
     { day: 'Wed', num: '23', label: '', scheduleKey: 'wednesday' },
+    { day: 'Sat', num: '26', label: '', scheduleKey: 'saturday' },
+    { day: 'Sun', num: '27', label: '', scheduleKey: 'sunday' },
+    { day: 'Mon', num: '28', label: '', scheduleKey: 'monday' },
+    { day: 'Tue', num: '29', label: '', scheduleKey: 'tuesday' },
+    { day: 'Wed', num: '30', label: '', scheduleKey: 'wednesday' },
   ];
 
   function handleLogin(event: FormEvent<HTMLFormElement>) {
@@ -331,9 +337,15 @@ function Home() {
             <h2 id="upload-lecture-title">Upload Lecture PDF</h2>
             <label htmlFor="pdf-subject">Select Subject:</label>
             <select className="admin-input" defaultValue="general-medicine" id="pdf-subject">
-              <option value="general-medicine">General Medicine</option>
-              <option value="oral-surgery">Oral Surgery</option>
+              <option value="orthodontics">Orthodontics</option>
+              <option value="periodontics">Periodontics</option>
               <option value="prosthodontics">Prosthodontics</option>
+              <option value="pedodontics">Pedodontics</option>
+              <option value="general-medicine">General Medicine</option>
+              <option value="oral_surgery">Oral Surgery</option>
+              <option value="general_surgery">General Surgery</option>
+              <option value="oral_pathology">Oral Pathology</option>
+              <option value="conservative">Conservative</option>
             </select>
             <label htmlFor="pdf-file">Choose File:</label>
             <input accept=".pdf" className="admin-input" id="pdf-file" type="file" />
@@ -369,9 +381,15 @@ function Home() {
             <h2 id="add-quiz-title">Add Interactive Quiz</h2>
             <label htmlFor="quiz-subject">Select Subject:</label>
             <select className="admin-input" defaultValue="general-medicine" id="quiz-subject">
-              <option value="general-medicine">General Medicine</option>
-              <option value="oral-surgery">Oral Surgery</option>
+              <option value="orthodontics">Orthodontics</option>
+              <option value="periodontics">Periodontics</option>
               <option value="prosthodontics">Prosthodontics</option>
+              <option value="pedodontics">Pedodontics</option>
+              <option value="general-medicine">General Medicine</option>
+              <option value="oral_surgery">Oral Surgery</option>
+              <option value="general_surgery">General Surgery</option>
+              <option value="oral_pathology">Oral Pathology</option>
+              <option value="conservative">Conservative</option>
             </select>
             <label htmlFor="quiz-title">Quiz Title:</label>
             <input
