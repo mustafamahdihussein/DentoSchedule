@@ -439,9 +439,15 @@ function Home() {
               onChange={(event) => setEditSubject(event.target.value)}
               value={editSubject}
             >
-              <option value="general-medicine">General Medicine</option>
-              <option value="oral-surgery">Oral Surgery</option>
+              <option value="orthodontics">Orthodontics</option>
+              <option value="periodontics">Periodontics</option>
               <option value="prosthodontics">Prosthodontics</option>
+              <option value="pedodontics">Pedodontics</option>
+              <option value="general-medicine">General Medicine</option>
+              <option value="oral_surgery">Oral Surgery</option>
+              <option value="general_surgery">General Surgery</option>
+              <option value="oral_pathology">Oral Pathology</option>
+              <option value="conservative">Conservative</option>
             </select>
             <label htmlFor="alert-text">Temporary Alert (Optional):</label>
             <input
