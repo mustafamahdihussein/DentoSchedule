@@ -30,10 +30,16 @@ const usernameInput = document.getElementById('admin-username');
 const passwordInput = document.getElementById('admin-password');
 const loginError = document.getElementById('login-error');
 
-// 1. User Button Click (Bypass login, go straight to app)
+// 1. User Button Click
 btnUser.addEventListener('click', () => {
   entryGateway.style.display = 'none';
-  mainApp.style.display = 'block';
+  const savedUser = localStorage.getItem('dento_student');
+
+  if (savedUser) {
+    mainApp.style.display = 'block';
+  } else {
+    loginOverlay.style.display = 'flex';
+  }
 });
 
 // 2. Admin Prompt Click (Show login form)
@@ -277,34 +283,16 @@ if (btnSubmitAnnouncement) {
 // 4. LOGIN & LOCAL STORAGE LOGIC (UPDATED)
 // ==========================================
 const loginOverlay = document.getElementById("login-overlay");
-const btnLogin = document.getElementById("btn-login");
+const studentLoginForm = document.getElementById("student-login-form");
 const btnSignup = document.getElementById("btn-signup");
 const studentUsernameInput = document.getElementById("student-username");
 const studentPinInput = document.getElementById("student-pin");
 const loginErrorMsg = document.getElementById("login-error-msg");
 
-// --> IMPORTANT: Change these to match the actual IDs in your Welcome Screen HTML
-const btnWelcomeUser = document.getElementById("btn-welcome-user"); 
-const welcomeScreen = document.getElementById("welcome-screen"); 
-
-// 1. When the "User" button is clicked on the Welcome Screen
-if (btnWelcomeUser) {
-  btnWelcomeUser.addEventListener("click", () => {
-    const savedUser = localStorage.getItem("dento_student");
-    
-    if (savedUser) {
-      // If they already have an account, hide the welcome screen and show the schedule!
-      if (welcomeScreen) welcomeScreen.style.display = "none";
-    } else {
-      // If they are new, show the 6-digit PIN login screen
-      loginOverlay.style.display = "flex";
-    }
-  });
-}
-
-// 2. Handle the Login Button click inside the Gateway
-if (btnLogin) {
-  btnLogin.addEventListener("click", () => {
+// 2. Handle the Login form submission inside the student login screen
+if (studentLoginForm) {
+  studentLoginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
     const username = studentUsernameInput.value.trim();
     const pin = studentPinInput.value.trim();
     const isPinValid = /^\d{6}$/.test(pin); 
@@ -315,14 +303,14 @@ if (btnLogin) {
       loginErrorMsg.style.display = "none";
       localStorage.setItem("dento_student", username);
       
-      // Hide both the login screen and the welcome screen to reveal the schedule
+      // Hide the login screen and reveal the schedule
       loginOverlay.style.display = "none";
-      if (welcomeScreen) welcomeScreen.style.display = "none";
+      mainApp.style.display = "block";
     }
   });
 }
 
-// 3. Handle the "Sign Up / Reset" Button
+// 3. Handle the "Sign Up / Reset" button
 if (btnSignup) {
   btnSignup.addEventListener("click", () => {
     // Erase the old memory
