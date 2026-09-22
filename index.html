@@ -59,9 +59,9 @@
         <button class="admin-btn" id="btn-edit-schedule">Edit Schedule</button>
         <button class="admin-btn" id="btn-upload-pdf">Upload PDF Notes</button>
         <button class="admin-btn" id="btn-add-quiz">Add Quiz</button>
+        <button class="admin-btn" id="btn-post-announcement">📢 Post Announcement</button>
       </div>
     </div>
-  <button class="admin-btn" id="btn-post-announcement">📢 Post Announcement</button>
   
       <!-- Admin Modal: Upload PDF (Hidden by default) -->
     <div id="modal-upload-pdf" class="admin-modal" style="display: none;">
@@ -216,15 +216,15 @@
   
   <!-- 10-Day Rolling Date Ribbon -->
   <div class="date-ribbon">
-    <div class="date-card today">
-          <div class="date-card">
+        <div class="date-card">
       <span class="day">Sat</span>
       <span class="num">19</span>
-          </div>
-    
+    </div>
+    <div class="date-card">
       <span class="day">Sun</span>
       <span class="num">20</span>
     </div>
+
     <div class="date-card active-tomorrow">
       <span class="day">Mon</span>
       <span class="num">21</span>
@@ -263,7 +263,7 @@
     <!-- We will use JavaScript to auto-generate the rest of the 10 days later -->
   </div>
   <!-- Saturday Schedule Cards -->
-  <main id="schedule-saturday" class="schedule-container">
+  <section id="schedule-saturday" class="schedule-container" style="display: none;">
     <div class="time-block">
       <div class="time">8:00 - 9:00 AM</div>
       <div id="card_orthodontics" class="subject-card">
@@ -304,10 +304,10 @@
         </div>
       </div>
     </div>
-  </main>
+  </section>
 
   <!-- Sunday Schedule Cards -->
-  <main id="schedule-sunday" class="schedule-container">
+  <section id="schedule-sunday" class="schedule-container" style="display: none;">
     <div class="time-block">
       <div class="time">8:00 - 9:00 AM</div>
       <div id="card_prosthodontics" class="subject-card">
@@ -348,10 +348,10 @@
         </div>
       </div>
     </div>
-  </main>
+  </section>
 
   <!-- Monday Schedule Cards -->
-  <main id="schedule-monday" class="schedule-container">
+  <section id="schedule-monday" class="schedule-container" style="display: block;">
     <div class="time-block">
       <div class="time">8:00 - 9:00 AM</div>
       <div id="card-general-medicine" class="subject-card">
@@ -382,14 +382,14 @@
         </div>
       </div>
     </div>
-  </main>
+  </section>
     <!-- Subtle Contact Footer -->
   <footer class="app-footer">
     <p>Developed & Managed by <strong>Tqy Malik</strong> & <strong>Mustafa Mahdi</strong></p>
     <a href="mailto:mustafa.mahdi.hu@gmail.com" class="contact-link">Contact Admin (mustafa.mahdi.hu@gmail.com)</a>
   </footer>
     <!-- Tuesday Schedule Cards -->
-    <main id="schedule-tuesday" class="schedule-container">
+    <section id="schedule-tuesday" class="schedule-container" style="display: none;">
       <div class="time-block">
         <div class="time">8:00 - 9:00 AM</div>
         <div id="card-general-surgery" class="subject-card">
@@ -430,10 +430,10 @@
           </div>
         </div>
       </div>
-    </main>
+    </section>
 
     <!-- Wednesday Schedule Cards -->
-    <main id="schedule-wednesday" class="schedule-container">
+    <section id="schedule-wednesday" class="schedule-container" style="display: none;">
       <div class="time-block">
         <div class="time">8:00 - 9:00 AM</div>
         <div id="card_conservative" class="subject-card">
@@ -468,7 +468,7 @@
           </div>
         </div>
       </div>
-    </main>
+    </section>
   
 </main> <!-- Closing the main app container -->
   <script type="module" src="script.js"></script>
