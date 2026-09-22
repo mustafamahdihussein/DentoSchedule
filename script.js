@@ -273,46 +273,62 @@ if (btnSubmitAnnouncement) {
   });
 }
 // ==========================================
-// 4. LOGIN & LOCAL STORAGE LOGIC
+// ==========================================
+// 4. LOGIN & LOCAL STORAGE LOGIC (UPDATED)
 // ==========================================
 const loginOverlay = document.getElementById("login-overlay");
-const studentLoginForm = document.getElementById("student-login-form");
+const btnLogin = document.getElementById("btn-login");
+const btnSignup = document.getElementById("btn-signup");
 const studentUsernameInput = document.getElementById("student-username");
 const studentPinInput = document.getElementById("student-pin");
 const loginErrorMsg = document.getElementById("login-error-msg");
 
-// 1. Check if the student is already logged in when they open the app
-window.addEventListener("DOMContentLoaded", () => {
-  const savedUser = localStorage.getItem("dento_student");
-  
-  if (savedUser) {
-    // The student's device remembers them! Hide the login screen immediately.
-    loginOverlay.style.display = "none";
-  }
-});
+// --> IMPORTANT: Change these to match the actual IDs in your Welcome Screen HTML
+const btnWelcomeUser = document.getElementById("btn-welcome-user"); 
+const welcomeScreen = document.getElementById("welcome-screen"); 
 
-// 2. Handle the Login form submission
-if (studentLoginForm) {
-  studentLoginForm.addEventListener("submit", (event) => {
-    event.preventDefault();
+// 1. When the "User" button is clicked on the Welcome Screen
+if (btnWelcomeUser) {
+  btnWelcomeUser.addEventListener("click", () => {
+    const savedUser = localStorage.getItem("dento_student");
+    
+    if (savedUser) {
+      // If they already have an account, hide the welcome screen and show the schedule!
+      if (welcomeScreen) welcomeScreen.style.display = "none";
+    } else {
+      // If they are new, show the 6-digit PIN login screen
+      loginOverlay.style.display = "flex";
+    }
+  });
+}
+
+// 2. Handle the Login Button click inside the Gateway
+if (btnLogin) {
+  btnLogin.addEventListener("click", () => {
     const username = studentUsernameInput.value.trim();
     const pin = studentPinInput.value.trim();
-
-    // Check if username is typed and PIN is exactly 6 numbers
     const isPinValid = /^\d{6}$/.test(pin); 
 
     if (username === "" || !isPinValid) {
-      // Show error if they left it blank or didn't use a 6-digit PIN
       loginErrorMsg.style.display = "block";
     } else {
-      // Success! Hide the error message
       loginErrorMsg.style.display = "none";
-      
-      // Save the username to the phone's local memory
       localStorage.setItem("dento_student", username);
       
-      // Hide the login screen to reveal the schedule
+      // Hide both the login screen and the welcome screen to reveal the schedule
       loginOverlay.style.display = "none";
+      if (welcomeScreen) welcomeScreen.style.display = "none";
     }
+  });
+}
+
+// 3. Handle the "Sign Up / Reset" Button
+if (btnSignup) {
+  btnSignup.addEventListener("click", () => {
+    // Erase the old memory
+    localStorage.removeItem("dento_student");
+    studentUsernameInput.value = "";
+    studentPinInput.value = "";
+    alert("Account memory cleared! You can now sign up with a new Username and PIN.");
   });
 }
