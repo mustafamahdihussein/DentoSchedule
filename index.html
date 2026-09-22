@@ -7,6 +7,23 @@
   <link href="style.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
+      <!-- Login Gateway Overlay -->
+    <div id="login-overlay" class="login-wrapper">
+      <div class="login-card">
+        <h2>🦷 Al-Ameen DentoSchedule</h2>
+        <p>Enter your credentials to access the 4th-year portal.</p>
+        
+        <label for="student-username">Username</label>
+        <input type="text" id="student-username" class="login-input" placeholder="e.g., Ali_Ahmed">
+        
+        <label for="student-pin">6-Digit PIN</label>
+        <input type="password" id="student-pin" class="login-input" placeholder="••••••" maxlength="6" inputmode="numeric">
+        
+        <button id="btn-login" class="admin-btn">Login</button>
+        <p id="login-error-msg" style="color: red; font-size: 13px; display: none; margin-top: 10px;">Please enter a username and a 6-digit PIN.</p>
+      </div>
+    </div>
+  
   <!-- Entry Gateway Overlay -->
 <div id="entry-gateway" class="gateway-overlay">
   <div class="gateway-card" id="role-selection">

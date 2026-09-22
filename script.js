@@ -271,3 +271,46 @@ if (btnSubmitAnnouncement) {
     announcementInputText.value = ""; 
   });
 }
+// ==========================================
+// 4. LOGIN & LOCAL STORAGE LOGIC
+// ==========================================
+const loginOverlay = document.getElementById("login-overlay");
+const btnLogin = document.getElementById("btn-login");
+const studentUsernameInput = document.getElementById("student-username");
+const studentPinInput = document.getElementById("student-pin");
+const loginErrorMsg = document.getElementById("login-error-msg");
+
+// 1. Check if the student is already logged in when they open the app
+window.addEventListener("DOMContentLoaded", () => {
+  const savedUser = localStorage.getItem("dento_student");
+  
+  if (savedUser) {
+    // The student's device remembers them! Hide the login screen immediately.
+    loginOverlay.style.display = "none";
+  }
+});
+
+// 2. Handle the Login Button click
+if (btnLogin) {
+  btnLogin.addEventListener("click", () => {
+    const username = studentUsernameInput.value.trim();
+    const pin = studentPinInput.value.trim();
+
+    // Check if username is typed and PIN is exactly 6 numbers
+    const isPinValid = /^\d{6}$/.test(pin); 
+
+    if (username === "" || !isPinValid) {
+      // Show error if they left it blank or didn't use a 6-digit PIN
+      loginErrorMsg.style.display = "block";
+    } else {
+      // Success! Hide the error message
+      loginErrorMsg.style.display = "none";
+      
+      // Save the username to the phone's local memory
+      localStorage.setItem("dento_student", username);
+      
+      // Hide the login screen to reveal the schedule
+      loginOverlay.style.display = "none";
+    }
+  });
+}
