@@ -320,3 +320,90 @@ if (btnSignup) {
     alert("Account memory cleared! You can now sign up with a new Username and PIN.");
   });
 }
+// ==========================================
+// 5. POMODORO TIMER LOGIC
+// ==========================================
+const pomodoroModal = document.getElementById('pomodoro-modal');
+const btnOpenPomodoro = document.getElementById('btn-open-pomodoro');
+const btnClosePomodoro = document.getElementById('btn-close-pomodoro');
+const timeDisplay = document.getElementById('time-display');
+const btnModeStudy = document.getElementById('btn-mode-study');
+const btnModeBreak = document.getElementById('btn-mode-break');
+const btnTimerStart = document.getElementById('btn-timer-start');
+const btnTimerPause = document.getElementById('btn-timer-pause');
+const btnTimerReset = document.getElementById('btn-timer-reset');
+
+let timerInterval;
+let timeLeft = 25 * 60; // Default to 25 minutes in seconds
+let isRunning = false;
+let currentMode = 'study'; 
+
+// Format the seconds into MM:SS
+function updateDisplay() {
+  const minutes = Math.floor(timeLeft / 60);
+  const seconds = timeLeft % 60;
+  timeDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// Start button
+btnTimerStart.addEventListener('click', () => {
+  if (isRunning) return;
+  isRunning = true;
+  
+  timerInterval = setInterval(() => {
+    if (timeLeft > 0) {
+      timeLeft--;
+      updateDisplay();
+    } else {
+      clearInterval(timerInterval);
+      isRunning = false;
+      alert(currentMode === 'study' ? "Study session complete! Take a 5-minute break." : "Break over! Back to studying.");
+    }
+  }, 1000);
+});
+
+// Pause button
+btnTimerPause.addEventListener('click', () => {
+  clearInterval(timerInterval);
+  isRunning = false;
+});
+
+// Reset button
+function resetTimer() {
+  clearInterval(timerInterval);
+  isRunning = false;
+  timeLeft = currentMode === 'study' ? 25 * 60 : 5 * 60;
+  updateDisplay();
+}
+btnTimerReset.addEventListener('click', resetTimer);
+
+// Mode switching
+btnModeStudy.addEventListener('click', () => {
+  currentMode = 'study';
+  btnModeStudy.classList.add('active');
+  btnModeBreak.classList.remove('active');
+  resetTimer();
+});
+
+btnModeBreak.addEventListener('click', () => {
+  currentMode = 'break';
+  btnModeBreak.classList.add('active');
+  btnModeStudy.classList.remove('active');
+  resetTimer();
+});
+
+// Open and Close Modal
+if (btnOpenPomodoro) {
+  btnOpenPomodoro.addEventListener('click', () => {
+    pomodoroModal.style.display = 'flex';
+  });
+}
+
+btnClosePomodoro.addEventListener('click', () => {
+  pomodoroModal.style.display = 'none';
+  // Optional: You can choose to pause the timer when closed by uncommenting the line below
+  // btnTimerPause.click(); 
+});
+
+// Initialize the display
+updateDisplay();
