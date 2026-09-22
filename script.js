@@ -33,12 +33,12 @@ const loginError = document.getElementById('login-error');
 // 1. User Button Click
 btnUser.addEventListener('click', () => {
   entryGateway.style.display = 'none';
-  const savedUser = localStorage.getItem('dento_student');
+  mainApp.style.display = 'none';
+  loginOverlay.style.display = 'flex';
 
+  const savedUser = localStorage.getItem('dento_student');
   if (savedUser) {
-    mainApp.style.display = 'block';
-  } else {
-    loginOverlay.style.display = 'flex';
+    studentUsernameInput.value = savedUser;
   }
 });
 
