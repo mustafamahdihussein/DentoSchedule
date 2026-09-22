@@ -1,10 +1,11 @@
-# [Project name]
+# Al-Ameen DentoSchedule
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A React/Vite dental class schedule for Al-Ameen University’s College of Dentistry.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/dento-schedule run dev` — run the frontend schedule (the managed Replit workflow provides `PORT` and `BASE_PATH`)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (requires `DATABASE_URL`)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
@@ -22,23 +23,32 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/dento-schedule/src/App.tsx` — schedule UI, role gateway, admin controls, and modal interactions
+- `artifacts/dento-schedule/src/index.css` — frontend styles
+- `artifacts/dento-schedule/vite.config.ts` — Vite configuration and Replit artifact routing
+- `artifacts/api-server/src/` — separate Express API service
+- `lib/db/` — Drizzle/PostgreSQL database package used by the API
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The imported React/Vite frontend remains the primary runnable artifact; the legacy root-level HTML/CSS/JavaScript files are preserved.
+- The frontend currently keeps schedule and admin demo state in React state and does not require the API or database to render.
+- The API server remains a separate service and must not be started without a configured PostgreSQL `DATABASE_URL`.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Students can enter the schedule, browse a ten-day date ribbon, and open subject resources.
+- Admins can sign in, edit temporary alerts, post announcements, upload-note placeholders, and add quiz placeholders.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Preserve the imported project’s existing structure and stack unless a later request calls for a larger change.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- The frontend Vite config requires `PORT` and `BASE_PATH`; the managed artifact workflow supplies both automatically.
+- `pnpm --filter @workspace/dento-schedule run build` requires explicit `PORT` and `BASE_PATH` when run manually, for example `PORT=5173 BASE_PATH=/ ...`.
+- The API service requires `DATABASE_URL` at startup because the database package validates it during import.
 
 ## Pointers
 
