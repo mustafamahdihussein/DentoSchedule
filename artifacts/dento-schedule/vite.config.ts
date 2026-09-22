@@ -59,7 +59,9 @@ export default defineConfig({
     },
     dedupe: ['react', 'react-dom'],
   },
-  root: path.resolve(import.meta.dirname),
+  // The imported project keeps its runnable static app at the workspace root.
+  // Serve that source directly so the preview reflects the user's latest edits.
+  root: path.resolve(import.meta.dirname, '..', '..'),
   build: {
     outDir: path.resolve(import.meta.dirname, 'dist/public'),
     emptyOutDir: true,

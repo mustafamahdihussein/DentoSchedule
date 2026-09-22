@@ -22,7 +22,7 @@ const alertDate = document.getElementById('alert-date');
 // Buttons
 const btnUser = document.getElementById('btn-user');
 const btnAdminPrompt = document.getElementById('btn-admin-prompt');
-const btnLogin = document.getElementById('btn-login');
+const adminLoginForm = document.getElementById('login-form');
 const btnBack = document.getElementById('btn-back');
 
 // Inputs and Error Message
@@ -50,7 +50,8 @@ btnBack.addEventListener('click', () => {
 });
 
 // 4. Admin Login Logic
-btnLogin.addEventListener('click', () => {
+adminLoginForm.addEventListener('submit', (event) => {
+  event.preventDefault();
   const userVal = usernameInput.value.trim();
   const passVal = passwordInput.value.trim();
 
@@ -275,7 +276,7 @@ if (btnSubmitAnnouncement) {
 // 4. LOGIN & LOCAL STORAGE LOGIC
 // ==========================================
 const loginOverlay = document.getElementById("login-overlay");
-const btnLogin = document.getElementById("btn-login");
+const studentLoginForm = document.getElementById("student-login-form");
 const studentUsernameInput = document.getElementById("student-username");
 const studentPinInput = document.getElementById("student-pin");
 const loginErrorMsg = document.getElementById("login-error-msg");
@@ -290,9 +291,10 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// 2. Handle the Login Button click
-if (btnLogin) {
-  btnLogin.addEventListener("click", () => {
+// 2. Handle the Login form submission
+if (studentLoginForm) {
+  studentLoginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
     const username = studentUsernameInput.value.trim();
     const pin = studentPinInput.value.trim();
 

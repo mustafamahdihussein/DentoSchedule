@@ -4,24 +4,25 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dental Schedule</title>
+  <link rel="icon" href="Al-ameen-Logo-350.png" type="image/png">
   <link href="style.css" rel="stylesheet" type="text/css" />
 </head>
 <body>
       <!-- Login Gateway Overlay -->
     <div id="login-overlay" class="login-wrapper">
-      <div class="login-card">
+      <form class="login-card" id="student-login-form">
         <h2>🦷 Al-Ameen DentoSchedule</h2>
         <p>Enter your credentials to access the 4th-year portal.</p>
         
         <label for="student-username">Username</label>
-        <input type="text" id="student-username" class="login-input" placeholder="e.g., Ali_Ahmed">
+        <input type="text" id="student-username" class="login-input" placeholder="e.g., Ali_Ahmed" autocomplete="username">
         
         <label for="student-pin">6-Digit PIN</label>
-        <input type="password" id="student-pin" class="login-input" placeholder="••••••" maxlength="6" inputmode="numeric">
+        <input type="password" id="student-pin" class="login-input" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="current-password">
         
-        <button id="btn-login" class="admin-btn">Login</button>
+        <button id="btn-student-login" class="admin-btn" type="submit">Login</button>
         <p id="login-error-msg" style="color: red; font-size: 13px; display: none; margin-top: 10px;">Please enter a username and a 6-digit PIN.</p>
-      </div>
+      </form>
     </div>
   
   <!-- Entry Gateway Overlay -->
@@ -39,14 +40,14 @@
     <button id="btn-admin-prompt" class="gateway-btn outline">Admin Login</button>
   </div>
 
-  <div class="gateway-card" id="login-form" style="display: none;">
+  <form class="gateway-card" id="login-form" style="display: none;">
     <h2>Admin Login</h2>
-    <input type="text" id="admin-username" placeholder="Username" class="gateway-input">
-    <input type="password" id="admin-password" placeholder="Password" class="gateway-input">
+    <input type="text" id="admin-username" placeholder="Username" class="gateway-input" autocomplete="username">
+    <input type="password" id="admin-password" placeholder="Password" class="gateway-input" autocomplete="current-password">
     <p id="login-error" class="error-msg" style="display: none;">Incorrect username or password.</p>
-    <button id="btn-login" class="gateway-btn">Login</button>
-    <button id="btn-back" class="gateway-btn text-only">Back</button>
-  </div>
+    <button id="btn-admin-login" class="gateway-btn" type="button">Login</button>
+    <button id="btn-back" class="gateway-btn text-only" type="button">Back</button>
+  </form>
 </div>
 
 <!-- Wrap your existing app content inside this main container -->
@@ -470,6 +471,6 @@
     </main>
   
 </main> <!-- Closing the main app container -->
-  <script src="script.js"></script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
