@@ -451,11 +451,77 @@ window.closeGameMenu = function() {
   if (menu) menu.style.display = "none";
 };
 
-window.startGame = function(selectedCar) {
-  // This will eventually hide the menu and open the HTML5 Canvas
-  alert("You selected the " + selectedCar.toUpperCase() + "! Loading track...");
+// ==========================================
+// 7. DRIFT GAME ENGINE (PHASE 1: RENDERING)
+// ==========================================
+const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
+const canvas = document.getElementById("drift-canvas");
+const ctx = canvas ? canvas.getContext("2d") : null;
 
-  // Close menu after selection for now
+let gameLoopId;
+let activeCar = "";
+
+// Temporary starting coordinates
+let carX = 400;
+let carY = 300;
+
+// The updated Start function
+window.startGame = function(selectedCar) {
+  activeCar = selectedCar;
+
+  // 1. Hide the selection menu
   closeGameMenu();
 
+  // Stop any previous run before starting a fresh animation loop.
+  cancelAnimationFrame(gameLoopId);
+
+  // 2. Show the game canvas
+  if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
+
+  // 3. Reset the car to the center of the screen
+  if (canvas) {
+    carX = canvas.width / 2;
+    carY = canvas.height / 2;
+  }
+
+  // 4. Boot up the engine (Start the 60 FPS loop)
+  gameLoop();
 };
+
+window.quitGame = function() {
+  // Turn off the loop so it doesn't drain the phone battery in the background
+  cancelAnimationFrame(gameLoopId);
+  if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
+};
+
+// The heartbeat of the game (Runs 60 times a second)
+function gameLoop() {
+  if (!ctx) return;
+
+  // 1. WIPE THE SCREEN CLEAN
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 2. DRAW THE ASPHALT (Track background)
+  ctx.fillStyle = "#34495e";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 3. DRAW THE CAR (Placeholder Box)
+  // Check which car was tapped to set the color
+  if (activeCar === 'g37') {
+    ctx.fillStyle = "#111111"; // Black
+  } else if (activeCar === 'skyline') {
+    ctx.fillStyle = "#2980b9"; // Blue
+  } else if (activeCar === 'accent') {
+    ctx.fillStyle = "#ecf0f1"; // White
+  }
+
+  // Draw the car body
+  ctx.fillRect(carX - 15, carY - 25, 30, 50);
+
+  // Draw yellow headlights so we know which side is the front
+  ctx.fillStyle = "yellow";
+  ctx.fillRect(carX - 10, carY - 25, 20, 5);
+
+  // 4. REQUEST NEXT FRAME
+  gameLoopId = requestAnimationFrame(gameLoop);
+}
