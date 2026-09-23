@@ -223,7 +223,7 @@ subjectCardsList.forEach(card => {
     }
 
     // Show the pop-up
-    subjectModal.style.display = "block";
+    subjectModal.style.display = "flex";
   });
 });
 
@@ -247,7 +247,7 @@ const announcementText = document.getElementById("announcement-text");
 // 1. Open the modal when the admin clicks "Post Announcement"
 if (btnPostAnnouncement) {
   btnPostAnnouncement.addEventListener("click", () => {
-    modalAnnouncement.style.display = "block";
+    modalAnnouncement.style.display = "flex";
   });
 }
 
@@ -280,7 +280,7 @@ if (btnSubmitAnnouncement) {
 }
 // ==========================================
 // ==========================================
-// 4. LOGIN & LOCAL STORAGE LOGIC (UPDATED)
+// 4. LOGIN & LOCAL STORAGE LOGIC
 // ==========================================
 const loginOverlay = document.getElementById("login-overlay");
 const studentLoginForm = document.getElementById("student-login-form");
@@ -288,19 +288,44 @@ const btnSignup = document.getElementById("btn-signup");
 const studentUsernameInput = document.getElementById("student-username");
 const studentPinInput = document.getElementById("student-pin");
 const loginErrorMsg = document.getElementById("login-error-msg");
+const studentAccountStorageKey = "dento_student_account";
 
-// 2. Handle the Login form submission inside the student login screen
+function getSavedStudentAccount() {
+  try {
+    const savedAccount = localStorage.getItem(studentAccountStorageKey);
+    return savedAccount ? JSON.parse(savedAccount) : null;
+  } catch (error) {
+    console.error("Unable to read the saved student account.", error);
+    return null;
+  }
+}
+
+function showStudentLoginError(message) {
+  loginErrorMsg.style.color = "red";
+  loginErrorMsg.textContent = message;
+  loginErrorMsg.style.display = "block";
+}
+
+// Handle the Login form submission inside the student login screen
 if (studentLoginForm) {
   studentLoginForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const username = studentUsernameInput.value.trim();
     const pin = studentPinInput.value.trim();
     const isPinValid = /^\d{6}$/.test(pin); 
+    const savedAccount = getSavedStudentAccount();
 
     if (username === "" || !isPinValid) {
-      loginErrorMsg.style.display = "block";
+      showStudentLoginError("Enter a username and a 6-digit PIN.");
+    } else if (
+      !savedAccount ||
+      savedAccount.username !== username ||
+      savedAccount.pin !== pin
+    ) {
+      showStudentLoginError("Incorrect username or PIN. Sign up first or try again.");
     } else {
       loginErrorMsg.style.display = "none";
+      loginErrorMsg.style.color = "red";
       localStorage.setItem("dento_student", username);
       
       // Hide the login screen and reveal the schedule
@@ -310,14 +335,25 @@ if (studentLoginForm) {
   });
 }
 
-// 3. Handle the "Sign Up / Reset" button
+// Save a new local student account, replacing the previous one.
 if (btnSignup) {
   btnSignup.addEventListener("click", () => {
-    // Erase the old memory
-    localStorage.removeItem("dento_student");
-    studentUsernameInput.value = "";
-    studentPinInput.value = "";
-    alert("Account memory cleared! You can now sign up with a new Username and PIN.");
+    const username = studentUsernameInput.value.trim();
+    const pin = studentPinInput.value.trim();
+
+    if (username === "" || !/^\d{6}$/.test(pin)) {
+      showStudentLoginError("Choose a username and enter a 6-digit PIN to sign up.");
+      return;
+    }
+
+    localStorage.setItem(
+      studentAccountStorageKey,
+      JSON.stringify({ username, pin }),
+    );
+    localStorage.setItem("dento_student", username);
+    loginErrorMsg.style.color = "#198754";
+    loginErrorMsg.textContent = "Account saved. Use these credentials to log in.";
+    loginErrorMsg.style.display = "block";
   });
 }
 // ==========================================

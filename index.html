@@ -24,7 +24,7 @@
         <button id="btn-login" class="admin-btn" type="submit">Login</button>
         <button id="btn-signup" class="admin-btn cancel-btn" type="button" style="margin-top: 10px;">Sign Up / Reset Account</button>
         
-        <p id="login-error-msg" style="color: red; font-size: 13px; display: none; margin-top: 10px;">Please enter a username and a 6-digit PIN.</p>
+        <p id="login-error-msg" style="color: red; font-size: 13px; display: none; margin-top: 10px;">Enter a username and a 6-digit PIN.</p>
       </form>
     </div>
 
@@ -203,6 +203,24 @@
         <div class="modal-actions">
           <button id="btn-close-subject-view" class="admin-btn admin-btn-cancel">Close</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Study Timer Modal -->
+    <div id="pomodoro-modal" class="pomodoro-wrapper" style="display: none;">
+      <div class="pomodoro-card">
+        <h2>Study Timer</h2>
+        <div id="time-display" class="timer-display">25:00</div>
+        <div class="timer-modes">
+          <button id="btn-mode-study" class="mode-btn active" type="button">Study</button>
+          <button id="btn-mode-break" class="mode-btn" type="button">Break</button>
+        </div>
+        <div class="timer-controls">
+          <button id="btn-timer-start" class="admin-btn" type="button">Start</button>
+          <button id="btn-timer-pause" class="admin-btn" type="button">Pause</button>
+          <button id="btn-timer-reset" class="admin-btn cancel-btn" type="button">Reset</button>
+        </div>
+        <button id="btn-close-pomodoro" class="admin-btn cancel-btn" type="button" style="margin-top: 12px;">Close</button>
       </div>
     </div>
   
@@ -390,11 +408,6 @@
       </div>
     </div>
   </section>
-    <!-- Subtle Contact Footer -->
-  <footer class="app-footer">
-    <p>Developed & Managed by <strong>Tqy Malik</strong> & <strong>Mustafa Mahdi</strong></p>
-    <a href="mailto:mustafa.mahdi.hu@gmail.com" class="contact-link">Contact Admin (mustafa.mahdi.hu@gmail.com)</a>
-  </footer>
     <!-- Tuesday Schedule Cards -->
     <section id="schedule-tuesday" class="schedule-container" style="display: none;">
       <div class="time-block">
@@ -477,6 +490,11 @@
       </div>
     </section>
   
+    <!-- Subtle Contact Footer -->
+  <footer class="app-footer">
+    <p>Developed & Managed by <strong>Tqy Malik</strong> & <strong>Mustafa Mahdi</strong></p>
+    <a href="mailto:mustafa.mahdi.hu@gmail.com" class="contact-link">Contact Admin (mustafa.mahdi.hu@gmail.com)</a>
+  </footer>
 </main> <!-- Closing the main app container -->
   <script type="module" src="script.js"></script>
 </body>
