@@ -438,3 +438,24 @@ if (pomodoroModal && btnOpenPomodoro) {
 
   updateDisplay();
 }
+// ==========================================
+// 6. DRIFT GAME SELECTION MENU
+// ==========================================
+window.openGameMenu = function() {
+  const menu = document.getElementById("game-selection-overlay");
+  if (menu) menu.style.display = "flex";
+};
+
+window.closeGameMenu = function() {
+  const menu = document.getElementById("game-selection-overlay");
+  if (menu) menu.style.display = "none";
+};
+
+window.startGame = function(selectedCar) {
+  // This will eventually hide the menu and open the HTML5 Canvas
+  alert("You selected the " + selectedCar.toUpperCase() + "! Loading track...");
+
+  // Close menu after selection for now
+  closeGameMenu();
+
+};

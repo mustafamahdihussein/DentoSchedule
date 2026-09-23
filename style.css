@@ -585,3 +585,21 @@ header p {
   flex: 1;
   margin: 0;
 }
+/* ==========================================
+   6. DRIFT GAME MENU
+   ========================================== */
+.car-hitbox {
+  position: absolute;
+  background-color: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  z-index: 10;
+  transition: background-color 0.2s, border 0.2s;
+}
+
+/* Adds a yellow flash when the user taps or hovers over a car */
+.car-hitbox:hover, .car-hitbox:active {
+  background-color: rgba(255, 215, 0, 0.2);
+  border: 2px solid rgba(255, 215, 0, 0.8);
+}
