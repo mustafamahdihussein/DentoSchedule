@@ -1,10 +1,11 @@
 # Al-Ameen DentoSchedule
 
-A React/Vite dental class schedule for Al-Ameen University’s College of Dentistry.
+A dental class schedule for Al-Ameen University’s College of Dentistry. The live frontend is the imported root-level HTML, CSS, and JavaScript, served through Vite.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/dento-schedule run dev` — run the frontend schedule (the managed Replit workflow provides `PORT` and `BASE_PATH`)
+- `pnpm install --frozen-lockfile` — restore workspace dependencies after importing
+- Start the managed `artifacts/dento-schedule: web` workflow to run the frontend schedule (it provides `PORT` and `BASE_PATH`).
 - `pnpm --filter @workspace/api-server run dev` — run the API server (requires `DATABASE_URL`)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
@@ -23,16 +24,16 @@ A React/Vite dental class schedule for Al-Ameen University’s College of Dentis
 
 ## Where things live
 
-- `artifacts/dento-schedule/src/App.tsx` — schedule UI, role gateway, admin controls, and modal interactions
-- `artifacts/dento-schedule/src/index.css` — frontend styles
-- `artifacts/dento-schedule/vite.config.ts` — Vite configuration and Replit artifact routing
+- `index.html`, `style.css`, `script.js` — live schedule UI, styling, and interactions
+- `artifacts/dento-schedule/src/` — separate React implementation, not currently served by the frontend workflow
+- `artifacts/dento-schedule/vite.config.ts` — Vite configuration; serves the workspace root via the Replit artifact route
 - `artifacts/api-server/src/` — separate Express API service
 - `lib/db/` — Drizzle/PostgreSQL database package used by the API
 
 ## Architecture decisions
 
-- The imported React/Vite frontend remains the primary runnable artifact; the legacy root-level HTML/CSS/JavaScript files are preserved.
-- The frontend currently keeps schedule and admin demo state in React state and does not require the API or database to render.
+- The imported root-level HTML/CSS/JavaScript is the live frontend; the separate React implementation remains preserved.
+- The live frontend does not require the API or database to render. Student account details are stored in the browser's local storage; they are not shared across devices.
 - The API server remains a separate service and must not be started without a configured PostgreSQL `DATABASE_URL`.
 
 ## Product
