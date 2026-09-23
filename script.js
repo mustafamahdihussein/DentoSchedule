@@ -321,46 +321,35 @@ if (btnSignup) {
   });
 }
 // ==========================================
-// 5. POMODORO TIMER LOGIC
+// 5. POMODORO TIMER LOGIC (SAFE VERSION)
 // ==========================================
 const pomodoroModal = document.getElementById('pomodoro-modal');
 const btnOpenPomodoro = document.getElementById('btn-open-pomodoro');
-const btnClosePomodoro = document.getElementById('btn-close-pomodoro');
-const timeDisplay = document.getElementById('time-display');
-const btnModeStudy = document.getElementById('btn-mode-study');
-const btnModeBreak = document.getElementById('btn-mode-break');
-const btnTimerStart = document.getElementById('btn-timer-start');
-const btnTimerPause = document.getElementById('btn-timer-pause');
-const btnTimerReset = document.getElementById('btn-timer-reset');
 
-let timerInterval;
-let timeLeft = 25 * 60; // Default to 25 minutes in seconds
-let isRunning = false;
-let currentMode = 'study'; 
+// This guarantees the script only runs if both the modal and button actually exist
+if (pomodoroModal && btnOpenPomodoro) {
+  const btnClosePomodoro = document.getElementById('btn-close-pomodoro');
+  const timeDisplay = document.getElementById('time-display');
+  const btnModeStudy = document.getElementById('btn-mode-study');
+  const btnModeBreak = document.getElementById('btn-mode-break');
+  const btnTimerStart = document.getElementById('btn-timer-start');
+  const btnTimerPause = document.getElementById('btn-timer-pause');
+  const btnTimerReset = document.getElementById('btn-timer-reset');
 
-// The imported page currently includes the button that opens the timer but not
-// the timer modal itself. Keep the optional feature from preventing the rest
-// of the schedule from loading when those controls are absent.
-if (
-  timeDisplay &&
-  btnTimerStart &&
-  btnTimerPause &&
-  btnTimerReset &&
-  btnModeStudy &&
-  btnModeBreak
-) {
-  // Format the seconds into MM:SS
+  let timerInterval;
+  let timeLeft = 25 * 60;
+  let isRunning = false;
+  let currentMode = 'study';
+
   function updateDisplay() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
     timeDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
 
-  // Start button
   btnTimerStart.addEventListener('click', () => {
     if (isRunning) return;
     isRunning = true;
-
     timerInterval = setInterval(() => {
       if (timeLeft > 0) {
         timeLeft--;
@@ -373,22 +362,20 @@ if (
     }, 1000);
   });
 
-  // Pause button
   btnTimerPause.addEventListener('click', () => {
     clearInterval(timerInterval);
     isRunning = false;
   });
 
-  // Reset button
   function resetTimer() {
     clearInterval(timerInterval);
     isRunning = false;
     timeLeft = currentMode === 'study' ? 25 * 60 : 5 * 60;
     updateDisplay();
   }
+
   btnTimerReset.addEventListener('click', resetTimer);
 
-  // Mode switching
   btnModeStudy.addEventListener('click', () => {
     currentMode = 'study';
     btnModeStudy.classList.add('active');
@@ -403,21 +390,15 @@ if (
     resetTimer();
   });
 
-  // Initialize the display
-  updateDisplay();
-}
-
-// Open and Close Modal
-if (btnOpenPomodoro && pomodoroModal) {
   btnOpenPomodoro.addEventListener('click', () => {
     pomodoroModal.style.display = 'flex';
   });
-}
 
-if (btnClosePomodoro && pomodoroModal) {
-  btnClosePomodoro.addEventListener('click', () => {
-    pomodoroModal.style.display = 'none';
-    // Optional: you can pause the timer when closed if the controls exist.
-    // btnTimerPause.click();
-  });
+  if (btnClosePomodoro) {
+    btnClosePomodoro.addEventListener('click', () => {
+      pomodoroModal.style.display = 'none';
+    });
+  }
+
+  updateDisplay();
 }
