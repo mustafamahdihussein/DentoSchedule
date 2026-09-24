@@ -1,4 +1,65 @@
 // Get elements
+// --- WEB DATABASE API (Production Ready) ---
+// TODO LATER: Replace this string with your actual backend URL (e.g., Firebase, Supabase, Node/Express)
+const API_URL = "https://your-future-backend.com/api";
+
+async function submitScoreToDB(playerName, playerScore) {
+  try {
+    // This is the actual code that will send the score to your web server later
+    const response = await fetch(`${API_URL}/submit-score`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: playerName, score: playerScore })
+    });
+    
+    if (!response.ok) throw new Error("Server not connected yet.");
+    console.log("Success: Score submitted to live web database!");
+    
+  } catch (error) {
+    // Fails silently while in local development
+    console.log("Web server offline. Score ready for future DB transmission.");
+  }
+}
+
+async function fetchLiveLeaderboard() {
+  const leaderboardList = document.getElementById("leaderboard-list");
+  leaderboardList.innerHTML = `<div style="text-align: center; color: #f1c40f; font-family: monospace;">Connecting to server...</div>`;
+  
+  try {
+    // This is the actual code that will pull the Top 10 from your web server later
+    const response = await fetch(`${API_URL}/get-leaderboard`);
+    if (!response.ok) throw new Error("Server not connected yet.");
+    
+    const liveData = await response.json(); 
+    renderLeaderboardUI(liveData);
+    
+  } catch (error) {
+    console.log("Web server offline. Loading UI with placeholder data.");
+    // This timeout simulates a network delay so you can test the UI loading state
+    setTimeout(() => {
+      renderLeaderboardUI([
+        { name: "Ali M. (Gr. A)", score: 14500 },
+        { name: "Sara K. (Gr. B)", score: 13200 },
+        { name: "Ahmed", score: 11050 }
+      ]);
+    }, 800);
+  }
+}
+
+// Reusable UI renderer for the modal
+function renderLeaderboardUI(dataArray) {
+  const leaderboardList = document.getElementById("leaderboard-list");
+  leaderboardList.innerHTML = "";
+  dataArray.forEach((player, index) => {
+    leaderboardList.innerHTML += `
+      <div style="display: flex; justify-content: space-between; color: white; font-family: monospace; margin-bottom: 5px;">
+        <span>${index + 1}. ${player.name}</span>
+        <span style="color: #2ecc71;">${player.score}</span>
+      </div>
+    `;
+  });
+}
+
 const adminPanel = document.getElementById('admin-panel');
 const modalUploadPdf = document.getElementById('modal-upload-pdf');
 const btnUploadPdf = document.getElementById('btn-upload-pdf');
@@ -452,76 +513,304 @@ window.closeGameMenu = function() {
 };
 
 // ==========================================
-// 7. DRIFT GAME ENGINE (PHASE 1: RENDERING)
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+  // ==========================================
+// ==========================================
+// 7. DRIFT GAME ENGINE (PHASE 21: 4-WHEEL TIRE TRACKS)
 // ==========================================
 const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
 const canvas = document.getElementById("drift-canvas");
+const scoreboardModal = document.getElementById("scoreboard-modal");
+const finalScoreDisplay = document.getElementById("final-score-display");
 const ctx = canvas ? canvas.getContext("2d") : null;
 
 let gameLoopId;
 let activeCar = "";
 
-// Temporary starting coordinates
-let carX = 400;
-let carY = 300;
+// --- PRE-LOAD CAR SPRITES ---
+const imgG37 = new Image(); 
+imgG37.src = 'IMG_20260923_185615.png';
 
-// The updated Start function
+const imgSkyline = new Image(); 
+imgSkyline.src = 'IMG_20260923_185726.png';
+
+const imgAccent = new Image(); 
+imgAccent.src = 'IMG_20260923_185655.png';
+
+// --- MP3 AUDIO SETUP ---
+const engineAudio = new Audio('engine.mp3');
+engineAudio.loop = true;
+engineAudio.volume = 0;
+
+const driftAudio = new Audio('drift.mp3');
+driftAudio.loop = true;
+driftAudio.volume = 0;
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const sfx = {
+  init: function() { if (audioCtx.state === 'suspended') audioCtx.resume(); },
+  playDing: function() {
+    let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+  },
+  playCrash: function() {
+    let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+  }
+};
+
+// --- GAME STATE ---
+let carX = 0, carY = 26000; 
+let speed = 0;
+let carAngle = -Math.PI / 2;    
+let travelAngle = -Math.PI / 2; 
+let lastSafeX = 0, lastSafeY = 26000;
+let score = 0; let startTime = 0; let raceFinished = false; let finalTimeText = "";
+let skidmarks = []; let floatingTexts = []; let driftGraceTimer = 0; let currentGrip = 0.015; 
+window.input = { gas: false, left: false, right: false };
+
+const trackPoints = [
+  { x: 0, y: 26200 }, { x: 0, y: 25000 }, { x: 2000, y: 23500 }, 
+  { x: -2000, y: 21500 }, { x: 2500, y: 19500 }, { x: -2500, y: 17500 }, 
+  { x: 2800, y: 15500 }, { x: 500, y: 14000 }, { x: -2800, y: 12500 }, 
+  { x: 2500, y: 10500 }, { x: -2000, y: 8500 }, { x: 1500, y: 6500 }, 
+  { x: -1000, y: 4500 }, { x: 500, y: 2500 }, { x: 0, y: 1000 }, { x: 0, y: -800 }
+];
+
+const trackPath = new Path2D();
+trackPath.moveTo(trackPoints[0].x, trackPoints[0].y);
+for (let i = 1; i < trackPoints.length - 1; i++) {
+  let xc = (trackPoints[i].x + trackPoints[i + 1].x) / 2;
+  let yc = (trackPoints[i].y + trackPoints[i + 1].y) / 2;
+  trackPath.quadraticCurveTo(trackPoints[i].x, trackPoints[i].y, xc, yc);
+}
+trackPath.lineTo(trackPoints[trackPoints.length - 1].x, trackPoints[trackPoints.length - 1].y);
+
+let scenery = [];
+for (let i = 0; i < 4000; i++) {
+  scenery.push({
+    x: -4000 + Math.random() * 9000, y: -1000 + Math.random() * 28000,
+    r: 30 + Math.random() * 80, c: ["#0c1a11", "#09140d", "#112417", "#0a1710", "#0e1c13"][Math.floor(Math.random() * 5)]
+  });
+}
+
 window.startGame = function(selectedCar) {
   activeCar = selectedCar;
-
-  // 1. Hide the selection menu
   closeGameMenu();
-
-  // Stop any previous run before starting a fresh animation loop.
-  cancelAnimationFrame(gameLoopId);
-
-  // 2. Show the game canvas
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
+  if (scoreboardModal) scoreboardModal.style.display = "none";
 
-  // 3. Reset the car to the center of the screen
   if (canvas) {
-    carX = canvas.width / 2;
-    carY = canvas.height / 2;
-  }
+    carX = 0; carY = 26000; speed = 0;
+    carAngle = -Math.PI / 2; travelAngle = -Math.PI / 2;
+    lastSafeX = 0; lastSafeY = 26000;
+    score = 0; startTime = Date.now(); raceFinished = false;
+    skidmarks = []; floatingTexts = []; driftGraceTimer = 0; currentGrip = 0.015;
 
-  // 4. Boot up the engine (Start the 60 FPS loop)
+    sfx.init(); 
+    engineAudio.volume = 0; engineAudio.play().catch(e => console.log("Audio blocked by browser:", e));
+    driftAudio.volume = 0; driftAudio.play().catch(e => console.log("Audio blocked by browser:", e));
+  }
   gameLoop();
 };
 
 window.quitGame = function() {
-  // Turn off the loop so it doesn't drain the phone battery in the background
-  cancelAnimationFrame(gameLoopId);
+  cancelAnimationFrame(gameLoopId); 
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
+  engineAudio.pause(); driftAudio.pause(); 
 };
 
-// The heartbeat of the game (Runs 60 times a second)
+function spawnText(x, y, text, r, g, b) {
+  floatingTexts.push({ x: x, y: y, text: text, r: r, g: g, b: b, life: 40 });
+}
+
 function gameLoop() {
   if (!ctx) return;
 
-  // 1. WIPE THE SCREEN CLEAN
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!raceFinished) {
+    if (window.input.gas) { speed += 0.2; if (speed > 7.0) speed = 7.0; } else { speed *= 0.988; }
+    if (speed > 1) {
+      if (window.input.left) carAngle -= 0.08;
+      if (window.input.right) carAngle += 0.08;
+    }
+    let angleDiff = carAngle - travelAngle;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+    if (angleDiff > 1.15) { carAngle = travelAngle + 1.15; angleDiff = 1.15; } 
+    else if (angleDiff < -1.15) { carAngle = travelAngle - 1.15; angleDiff = -1.15; }
 
-  // 2. DRAW THE ASPHALT (Track background)
-  ctx.fillStyle = "#34495e";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // 3. DRAW THE CAR (Placeholder Box)
-  // Check which car was tapped to set the color
-  if (activeCar === 'g37') {
-    ctx.fillStyle = "#111111"; // Black
-  } else if (activeCar === 'skyline') {
-    ctx.fillStyle = "#2980b9"; // Blue
-  } else if (activeCar === 'accent') {
-    ctx.fillStyle = "#ecf0f1"; // White
+    currentGrip += ((window.input.gas ? 0.015 : 0.065) - currentGrip) * 0.08; 
+    travelAngle += angleDiff * currentGrip;
+    carX += Math.cos(travelAngle) * speed; carY += Math.sin(travelAngle) * speed;
+  } else {
+    speed *= 0.95; carX += Math.cos(travelAngle) * speed; carY += Math.sin(travelAngle) * speed;
   }
 
-  // Draw the car body
-  ctx.fillRect(carX - 15, carY - 25, 30, 50);
+  let isDrifting = speed > 3 && Math.abs(carAngle - travelAngle) > 0.35;
 
-  // Draw yellow headlights so we know which side is the front
-  ctx.fillStyle = "yellow";
-  ctx.fillRect(carX - 10, carY - 25, 20, 5);
+  if (!raceFinished) {
+    if (speed > 0.5) {
+      engineAudio.volume = Math.min(1.0, 0.1 + (speed / 12)); 
+      engineAudio.playbackRate = 0.8 + (speed / 10);          
+    } else { engineAudio.volume = 0; }
+    if (isDrifting) { driftAudio.volume = 0.5; } else { driftAudio.volume = 0; }
+  } else {
+    engineAudio.volume = 0; driftAudio.volume = 0; 
+  }
 
-  // 4. REQUEST NEXT FRAME
+  if (!raceFinished) {
+    ctx.lineWidth = 450; let isOnAsphalt = ctx.isPointInStroke(trackPath, carX, carY);
+    ctx.lineWidth = 250; let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
+
+    if (!isOnAsphalt) {
+      score -= 200; spawnText(carX, carY, "-200", 231, 76, 60); 
+      sfx.playCrash(); 
+      carX = lastSafeX; carY = lastSafeY; speed = 0;
+      carAngle = travelAngle = -Math.PI / 2; window.input.gas = false; 
+    } else {
+      if (isInSafeZone) { lastSafeX = carX; lastSafeY = carY; }
+      if (isDrifting) {
+        if (!isInSafeZone) {
+          score += 5;
+          if (Math.random() < 0.15) { spawnText(carX, carY, "+5", 46, 204, 113); sfx.playDing(); }
+        } else { score += 1; }
+      }
+    }
+
+    if (carY <= 0) {
+      raceFinished = true;
+      let timeTaken = (Date.now() - startTime) / 1000;
+      let timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 50)); 
+      score += timeBonus;
+      finalTimeText = `Finished in ${timeTaken.toFixed(2)}s! Bonus: +${timeBonus}`;
+
+      engineAudio.volume = 0; driftAudio.volume = 0;
+      if (scoreboardModal) {
+        finalScoreDisplay.innerText = score;
+        scoreboardModal.style.display = "flex";
+        setTimeout(() => { 
+          let playerName = prompt(`Race Complete! You scored ${score}!\nEnter your name for the live leaderboard:`) || "Guest";
+          submitScoreToDB(playerName, score).then(() => { fetchLiveLeaderboard(); });
+        }, 100); 
+      }
+    }
+  }
+
+  if (isDrifting) { driftGraceTimer = 20; } else if (!window.input.gas && driftGraceTimer > 0) { driftGraceTimer -= 2; }
+
+  // --- 4-WHEEL TIRE TRACK MATH ---
+  if (driftGraceTimer > 0 && !raceFinished) {
+    let cosA = Math.cos(carAngle);
+    let sinA = Math.sin(carAngle);
+
+    // X is wheelbase (front/back), Y is track width (left/right)
+    let tires = [
+      { lx: 18, ly: -12 }, // Front Left
+      { lx: 18, ly: 12 },  // Front Right
+      { lx: -18, ly: -12 },// Rear Left
+      { lx: -18, ly: 12 }  // Rear Right
+    ];
+
+    tires.forEach(t => {
+      skidmarks.push({ 
+        x: carX + (t.lx * cosA - t.ly * sinA), 
+        y: carY + (t.lx * sinA + t.ly * cosA), 
+        opacity: 0.5 
+      });
+    });
+
+    if (window.input.gas) driftGraceTimer--; 
+  }
+
+  let camX = carX - canvas.width / 2; let camY = carY - canvas.height * 0.75;
+  ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(-camX, -camY); 
+
+  ctx.fillStyle = "#060908"; ctx.fillRect(camX - 500, camY - 500, canvas.width + 1000, canvas.height + 1000);
+  for (let tree of scenery) {
+    if (tree.x > camX - 200 && tree.x < camX + canvas.width + 200 && tree.y > camY - 200 && tree.y < camY + canvas.height + 200) {
+      ctx.fillStyle = tree.c; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  ctx.lineWidth = 480; ctx.strokeStyle = "#7f8c8d"; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke(trackPath);
+  ctx.lineWidth = 450; ctx.strokeStyle = "#161b22"; ctx.stroke(trackPath);
+  ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; ctx.setLineDash([30, 60]); ctx.stroke(trackPath); ctx.setLineDash([]); 
+  ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(-225, 26000, 450, 15); 
+  ctx.fillStyle = "#c0392b"; ctx.fillRect(-225, 0, 450, 20);    
+
+  // Render individual 6x6 tire marks
+  for (let i = skidmarks.length - 1; i >= 0; i--) {
+    let mark = skidmarks[i];
+    ctx.fillStyle = `rgba(0, 0, 0, ${mark.opacity})`; 
+    ctx.fillRect(mark.x - 3, mark.y - 3, 6, 6); 
+    mark.opacity -= 0.010; if (mark.opacity <= 0) skidmarks.splice(i, 1);
+  }
+
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    let ft = floatingTexts[i]; ctx.font = "bold 24px monospace"; ctx.fillStyle = `rgba(${ft.r}, ${ft.g}, ${ft.b}, ${ft.life / 40})`;
+    ctx.fillText(ft.text, ft.x, ft.y); ft.y -= 2; ft.life--; if (ft.life <= 0) floatingTexts.splice(i, 1);
+  }
+
+  // --- RENDER CAR SPRITE ---
+  ctx.save(); 
+  ctx.translate(carX, carY); 
+  ctx.rotate(carAngle); 
+
+  let lightGradient = ctx.createLinearGradient(30, 0, 250, 0);
+  lightGradient.addColorStop(0, "rgba(255, 255, 200, 0.4)"); lightGradient.addColorStop(1, "rgba(255, 255, 200, 0)");   
+  ctx.fillStyle = lightGradient; ctx.beginPath(); ctx.moveTo(30, -15); ctx.lineTo(300, -80); ctx.lineTo(300, 80); ctx.lineTo(30, 15); ctx.fill();
+
+  ctx.rotate(Math.PI / 2);
+
+  let carImg = null;
+  if (activeCar === 'g37') carImg = imgG37;
+  else if (activeCar === 'skyline') carImg = imgSkyline;
+  else if (activeCar === 'accent') carImg = imgAccent;
+
+  if (carImg && carImg.complete) {
+    ctx.drawImage(carImg, -15, -30, 30, 60);
+  } else {
+    ctx.fillStyle = "#e74c3c"; 
+    ctx.fillRect(-15, -30, 30, 60); 
+  }
+
+  ctx.restore(); 
+  ctx.restore(); 
+
+  let progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
+  let timerText = raceFinished ? finalTimeText : ((Date.now() - startTime) / 1000).toFixed(1) + "s";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 0, canvas.width, 70); 
+  ctx.font = "bold 20px monospace"; ctx.fillStyle = "white"; ctx.textAlign = "left";
+  ctx.fillText(`Score: ${score}`, 20, 30); ctx.fillText(`Time: ${timerText}`, 20, 55);
+  ctx.textAlign = "right"; ctx.fillText(`Progress: ${progress.toFixed(1)}%`, canvas.width - 20, 42);
+  ctx.fillStyle = "#333"; ctx.fillRect(canvas.width/2 - 100, 25, 200, 20);
+  ctx.fillStyle = "#e74c3c"; ctx.fillRect(canvas.width/2 - 100, 25, progress * 2, 20);
+  ctx.textAlign = "left";
+
   gameLoopId = requestAnimationFrame(gameLoop);
 }
