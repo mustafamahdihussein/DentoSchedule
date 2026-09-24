@@ -1,50 +1,7 @@
 // Get elements
 // --- WEB DATABASE API (Production Ready) ---
 // TODO LATER: Replace this string with your actual backend URL (e.g., Firebase, Supabase, Node/Express)
-const API_URL = "https://your-future-backend.com/api";
 
-async function submitScoreToDB(playerName, playerScore) {
-  try {
-    // This is the actual code that will send the score to your web server later
-    const response = await fetch(`${API_URL}/submit-score`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: playerName, score: playerScore })
-    });
-    
-    if (!response.ok) throw new Error("Server not connected yet.");
-    console.log("Success: Score submitted to live web database!");
-    
-  } catch (error) {
-    // Fails silently while in local development
-    console.log("Web server offline. Score ready for future DB transmission.");
-  }
-}
-
-async function fetchLiveLeaderboard() {
-  const leaderboardList = document.getElementById("leaderboard-list");
-  leaderboardList.innerHTML = `<div style="text-align: center; color: #f1c40f; font-family: monospace;">Connecting to server...</div>`;
-  
-  try {
-    // This is the actual code that will pull the Top 10 from your web server later
-    const response = await fetch(`${API_URL}/get-leaderboard`);
-    if (!response.ok) throw new Error("Server not connected yet.");
-    
-    const liveData = await response.json(); 
-    renderLeaderboardUI(liveData);
-    
-  } catch (error) {
-    console.log("Web server offline. Loading UI with placeholder data.");
-    // This timeout simulates a network delay so you can test the UI loading state
-    setTimeout(() => {
-      renderLeaderboardUI([
-        { name: "Ali M. (Gr. A)", score: 14500 },
-        { name: "Sara K. (Gr. B)", score: 13200 },
-        { name: "Ahmed", score: 11050 }
-      ]);
-    }, 800);
-  }
-}
 
 // Reusable UI renderer for the modal
 function renderLeaderboardUI(dataArray) {
@@ -532,7 +489,12 @@ window.closeGameMenu = function() {
 // ==========================================
   // ==========================================
 // ==========================================
-// 7. DRIFT GAME ENGINE (PHASE 21: 4-WHEEL TIRE TRACKS)
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// 7. DRIFT GAME ENGINE (PHASE 26: DYNAMIC CORNERING & CENTER RESPAWN)
 // ==========================================
 const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
 const canvas = document.getElementById("drift-canvas");
@@ -544,16 +506,15 @@ let gameLoopId;
 let activeCar = "";
 
 // --- PRE-LOAD CAR SPRITES ---
-const imgG37 = new Image(); 
-imgG37.src = 'IMG_20260923_185615.png';
-
-const imgSkyline = new Image(); 
-imgSkyline.src = 'IMG_20260923_185726.png';
-
-const imgAccent = new Image(); 
-imgAccent.src = 'IMG_20260923_185655.png';
+const imgG37 = new Image(); imgG37.src = 'IMG_20260923_185615.png';
+const imgSkyline = new Image(); imgSkyline.src = 'IMG_20260923_185726.png';
+const imgAccent = new Image(); imgAccent.src = 'IMG_20260923_185655.png';
 
 // --- MP3 AUDIO SETUP ---
+const soundtrack = new Audio('soundtrack.mp3');
+soundtrack.loop = true;
+soundtrack.volume = 0.4;
+
 const engineAudio = new Audio('engine.mp3');
 engineAudio.loop = true;
 engineAudio.volume = 0;
@@ -562,28 +523,90 @@ const driftAudio = new Audio('drift.mp3');
 driftAudio.loop = true;
 driftAudio.volume = 0;
 
+document.addEventListener('click', function(e) {
+  let element = e.target.closest('button') || e.target;
+  if (element && element.innerText && element.innerText.includes('Play Drift')) {
+    try { soundtrack.play().catch(err => console.log("Autoplay blocked:", err)); } catch(err){}
+  }
+});
+
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const sfx = {
-  init: function() { if (audioCtx.state === 'suspended') audioCtx.resume(); },
+  init: function() { 
+    if (audioCtx.state === 'suspended') { audioCtx.resume().catch(e => console.log(e)); }
+  },
   playDing: function() {
-    let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
-    osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    try {
+      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+    } catch(e) {}
   },
   playCrash: function() {
-    let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
-    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
-    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    try {
+      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+    } catch(e) {}
   }
 };
+
+// --- WEB DATABASE API ---
+const DRIFT_API_URL = "https://your-future-backend.com/api";
+
+async function submitDriftScore(playerName, playerScore) {
+  try {
+    const response = await fetch(`${DRIFT_API_URL}/submit-score`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: playerName, score: playerScore })
+    });
+    if (!response.ok) throw new Error("Server not connected yet.");
+  } catch (error) {
+    console.log("Web server offline. Score ready for future DB transmission.");
+  }
+}
+
+async function fetchDriftLeaderboard() {
+  const leaderboardList = document.getElementById("leaderboard-list");
+  if(leaderboardList) leaderboardList.innerHTML = `<div style="text-align: center; color: #f1c40f; font-family: monospace;">Connecting to server...</div>`;
+  try {
+    const response = await fetch(`${DRIFT_API_URL}/get-leaderboard`);
+    if (!response.ok) throw new Error("Server not connected yet.");
+    const liveData = await response.json(); 
+    renderDriftLeaderboardUI(liveData);
+  } catch (error) {
+    setTimeout(() => {
+      renderDriftLeaderboardUI([
+        { name: "Ali M. (Gr. A)", score: 14500 },
+        { name: "Sara K. (Gr. B)", score: 13200 },
+        { name: "Ahmed", score: 11050 }
+      ]);
+    }, 800);
+  }
+}
+
+function renderDriftLeaderboardUI(dataArray) {
+  const leaderboardList = document.getElementById("leaderboard-list");
+  if(!leaderboardList) return;
+  leaderboardList.innerHTML = "";
+  dataArray.forEach((player, index) => {
+    leaderboardList.innerHTML += `
+      <div style="display: flex; justify-content: space-between; color: white; font-family: monospace; margin-bottom: 5px;">
+        <span>${index + 1}. ${player.name}</span>
+        <span style="color: #2ecc71;">${player.score}</span>
+      </div>
+    `;
+  });
+}
 
 // --- GAME STATE ---
 let carX = 0, carY = 26000; 
@@ -602,6 +625,22 @@ const trackPoints = [
   { x: 2500, y: 10500 }, { x: -2000, y: 8500 }, { x: 1500, y: 6500 }, 
   { x: -1000, y: 4500 }, { x: 500, y: 2500 }, { x: 0, y: 1000 }, { x: 0, y: -800 }
 ];
+
+// Dynamically calculates the track's angle, center point, and curve sharpness at any Y-coordinate
+function getTrackData(targetY) {
+  for (let i = 0; i < trackPoints.length - 1; i++) {
+    if (targetY <= trackPoints[i].y && targetY >= trackPoints[i+1].y) {
+      let dx = trackPoints[i+1].x - trackPoints[i].x;
+      let dy = trackPoints[i+1].y - trackPoints[i].y;
+      let angle = Math.atan2(dy, dx);
+      let sharpness = Math.abs(dx);
+      let t = (trackPoints[i].y - targetY) / (trackPoints[i].y - trackPoints[i+1].y);
+      let centerX = trackPoints[i].x + t * dx;
+      return { angle: angle, sharpness: sharpness, centerX: centerX };
+    }
+  }
+  return { angle: -Math.PI / 2, sharpness: 0, centerX: 0 };
+}
 
 const trackPath = new Path2D();
 trackPath.moveTo(trackPoints[0].x, trackPoints[0].y);
@@ -634,8 +673,9 @@ window.startGame = function(selectedCar) {
     skidmarks = []; floatingTexts = []; driftGraceTimer = 0; currentGrip = 0.015;
 
     sfx.init(); 
-    engineAudio.volume = 0; engineAudio.play().catch(e => console.log("Audio blocked by browser:", e));
-    driftAudio.volume = 0; driftAudio.play().catch(e => console.log("Audio blocked by browser:", e));
+    try { soundtrack.play().catch(e => console.log(e)); } catch(e){}
+    try { engineAudio.volume = 0; engineAudio.play().catch(e => console.log(e)); } catch(e){}
+    try { driftAudio.volume = 0; driftAudio.play().catch(e => console.log(e)); } catch(e){}
   }
   gameLoop();
 };
@@ -643,7 +683,10 @@ window.startGame = function(selectedCar) {
 window.quitGame = function() {
   cancelAnimationFrame(gameLoopId); 
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
-  engineAudio.pause(); driftAudio.pause(); 
+  try { 
+    engineAudio.pause(); driftAudio.pause(); 
+    soundtrack.pause(); soundtrack.currentTime = 0; 
+  } catch(e){}
 };
 
 function spawnText(x, y, text, r, g, b) {
@@ -653,36 +696,72 @@ function spawnText(x, y, text, r, g, b) {
 function gameLoop() {
   if (!ctx) return;
 
-  if (!raceFinished) {
-    if (window.input.gas) { speed += 0.2; if (speed > 7.0) speed = 7.0; } else { speed *= 0.988; }
-    if (speed > 1) {
-      if (window.input.left) carAngle -= 0.08;
-      if (window.input.right) carAngle += 0.08;
-    }
-    let angleDiff = carAngle - travelAngle;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-    if (angleDiff > 1.15) { carAngle = travelAngle + 1.15; angleDiff = 1.15; } 
-    else if (angleDiff < -1.15) { carAngle = travelAngle - 1.15; angleDiff = -1.15; }
+  // Real-time track analysis for dynamic physics
+  let trackData = getTrackData(carY);
+  let isSharpCorner = trackData.sharpness > 2500;
 
-    currentGrip += ((window.input.gas ? 0.015 : 0.065) - currentGrip) * 0.08; 
+  // --- 1. DYNAMIC CORNERING PHYSICS ---
+  if (!raceFinished) {
+    if (window.input.gas) { 
+      speed += 0.22; 
+      if (speed > 7.6) speed = 7.6; 
+    } else { 
+      speed *= 0.98; 
+    }
+
+    if (speed > 1) {
+      // Snappier steering on sharp corners
+      let steeringPower = isSharpCorner ? 0.12 : 0.10;
+      if (window.input.left) carAngle -= steeringPower;
+      if (window.input.right) carAngle += steeringPower;
+    }
+
+    let angleDiff = carAngle - travelAngle;
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; 
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+    // Tighter max slip angle on sharp corners to prevent spinning out
+    let maxSlip = isSharpCorner ? 1.15 : 1.4; 
+    if (angleDiff > maxSlip) { carAngle = travelAngle + maxSlip; angleDiff = maxSlip; } 
+    else if (angleDiff < -maxSlip) { carAngle = travelAngle - maxSlip; angleDiff = -maxSlip; }
+
+    // Revert to tighter grip (Phase 21 feel) during sharp switchbacks
+    let targetGrip = window.input.gas ? (isSharpCorner ? 0.015 : 0.003) : (isSharpCorner ? 0.065 : 0.07); 
+    currentGrip += (targetGrip - currentGrip) * 0.15; 
     travelAngle += angleDiff * currentGrip;
-    carX += Math.cos(travelAngle) * speed; carY += Math.sin(travelAngle) * speed;
+
+    let pushX = Math.cos(travelAngle) * speed; 
+    let pushY = Math.sin(travelAngle) * speed;
+
+    // Disable aggressive forward thrust on sharp corners to allow for tighter drifts
+    let thrustMultiplier = isSharpCorner ? 0.5 : 3.0;
+    if (window.input.gas && Math.abs(angleDiff) > 0.1) {
+      pushX += Math.cos(carAngle) * thrustMultiplier;
+      pushY += Math.sin(carAngle) * thrustMultiplier;
+    }
+
+    carX += pushX; 
+    carY += pushY;
   } else {
-    speed *= 0.95; carX += Math.cos(travelAngle) * speed; carY += Math.sin(travelAngle) * speed;
+    speed *= 0.95; 
+    carX += Math.cos(travelAngle) * speed; 
+    carY += Math.sin(travelAngle) * speed;
   }
 
-  let isDrifting = speed > 3 && Math.abs(carAngle - travelAngle) > 0.35;
+  let isDrifting = speed > 2 && Math.abs(carAngle - travelAngle) > 0.1;
 
   if (!raceFinished) {
     if (speed > 0.5) {
       engineAudio.volume = Math.min(1.0, 0.1 + (speed / 12)); 
       engineAudio.playbackRate = 0.8 + (speed / 10);          
     } else { engineAudio.volume = 0; }
-    if (isDrifting) { driftAudio.volume = 0.5; } else { driftAudio.volume = 0; }
+
+    if (isDrifting) { driftAudio.volume = 0.06; } else { driftAudio.volume = 0; }
   } else {
     engineAudio.volume = 0; driftAudio.volume = 0; 
   }
 
+  // --- 2. COLLISIONS & CENTER RESPAWN ---
   if (!raceFinished) {
     ctx.lineWidth = 450; let isOnAsphalt = ctx.isPointInStroke(trackPath, carX, carY);
     ctx.lineWidth = 250; let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
@@ -690,8 +769,16 @@ function gameLoop() {
     if (!isOnAsphalt) {
       score -= 200; spawnText(carX, carY, "-200", 231, 76, 60); 
       sfx.playCrash(); 
-      carX = lastSafeX; carY = lastSafeY; speed = 0;
-      carAngle = travelAngle = -Math.PI / 2; window.input.gas = false; 
+
+      // Get the exact mathematical center and angle of the track at your last safe Y-coordinate
+      let safeTrackData = getTrackData(lastSafeY);
+
+      // Respawn perfectly centered and facing downhill
+      carX = safeTrackData.centerX; 
+      carY = lastSafeY; 
+      speed = 0;
+      carAngle = travelAngle = safeTrackData.angle; 
+      window.input.gas = false; 
     } else {
       if (isInSafeZone) { lastSafeX = carX; lastSafeY = carY; }
       if (isDrifting) {
@@ -710,40 +797,30 @@ function gameLoop() {
       finalTimeText = `Finished in ${timeTaken.toFixed(2)}s! Bonus: +${timeBonus}`;
 
       engineAudio.volume = 0; driftAudio.volume = 0;
+
       if (scoreboardModal) {
         finalScoreDisplay.innerText = score;
         scoreboardModal.style.display = "flex";
+        let storedName = localStorage.getItem("username") || localStorage.getItem("loggedInUser") || "Student";
         setTimeout(() => { 
-          let playerName = prompt(`Race Complete! You scored ${score}!\nEnter your name for the live leaderboard:`) || "Guest";
-          submitScoreToDB(playerName, score).then(() => { fetchLiveLeaderboard(); });
+          submitDriftScore(storedName, score).then(() => { fetchDriftLeaderboard(); });
         }, 100); 
       }
     }
   }
 
+  // --- 3. RENDERING ENGINE ---
   if (isDrifting) { driftGraceTimer = 20; } else if (!window.input.gas && driftGraceTimer > 0) { driftGraceTimer -= 2; }
 
-  // --- 4-WHEEL TIRE TRACK MATH ---
   if (driftGraceTimer > 0 && !raceFinished) {
     let cosA = Math.cos(carAngle);
     let sinA = Math.sin(carAngle);
-
-    // X is wheelbase (front/back), Y is track width (left/right)
     let tires = [
-      { lx: 18, ly: -12 }, // Front Left
-      { lx: 18, ly: 12 },  // Front Right
-      { lx: -18, ly: -12 },// Rear Left
-      { lx: -18, ly: 12 }  // Rear Right
+      { lx: 18, ly: -12 }, { lx: 18, ly: 12 }, { lx: -18, ly: -12 }, { lx: -18, ly: 12 } 
     ];
-
     tires.forEach(t => {
-      skidmarks.push({ 
-        x: carX + (t.lx * cosA - t.ly * sinA), 
-        y: carY + (t.lx * sinA + t.ly * cosA), 
-        opacity: 0.5 
-      });
+      skidmarks.push({ x: carX + (t.lx * cosA - t.ly * sinA), y: carY + (t.lx * sinA + t.ly * cosA), opacity: 0.5 });
     });
-
     if (window.input.gas) driftGraceTimer--; 
   }
 
@@ -763,11 +840,9 @@ function gameLoop() {
   ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(-225, 26000, 450, 15); 
   ctx.fillStyle = "#c0392b"; ctx.fillRect(-225, 0, 450, 20);    
 
-  // Render individual 6x6 tire marks
   for (let i = skidmarks.length - 1; i >= 0; i--) {
     let mark = skidmarks[i];
-    ctx.fillStyle = `rgba(0, 0, 0, ${mark.opacity})`; 
-    ctx.fillRect(mark.x - 3, mark.y - 3, 6, 6); 
+    ctx.fillStyle = `rgba(0, 0, 0, ${mark.opacity})`; ctx.fillRect(mark.x - 3, mark.y - 3, 6, 6); 
     mark.opacity -= 0.010; if (mark.opacity <= 0) skidmarks.splice(i, 1);
   }
 
@@ -776,7 +851,6 @@ function gameLoop() {
     ctx.fillText(ft.text, ft.x, ft.y); ft.y -= 2; ft.life--; if (ft.life <= 0) floatingTexts.splice(i, 1);
   }
 
-  // --- RENDER CAR SPRITE ---
   ctx.save(); 
   ctx.translate(carX, carY); 
   ctx.rotate(carAngle); 
@@ -792,11 +866,11 @@ function gameLoop() {
   else if (activeCar === 'skyline') carImg = imgSkyline;
   else if (activeCar === 'accent') carImg = imgAccent;
 
-  if (carImg && carImg.complete) {
-    ctx.drawImage(carImg, -15, -30, 30, 60);
+  if (carImg && carImg.complete && carImg.naturalWidth > 0) {
+    try { ctx.drawImage(carImg, -15, -30, 30, 60); } 
+    catch (e) { ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); }
   } else {
-    ctx.fillStyle = "#e74c3c"; 
-    ctx.fillRect(-15, -30, 30, 60); 
+    ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); 
   }
 
   ctx.restore(); 
