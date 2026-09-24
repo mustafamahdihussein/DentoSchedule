@@ -117,6 +117,74 @@ btnEditSchedule.addEventListener('click', () => {
 btnCancelEdit.addEventListener('click', () => {
   modalEditSchedule.style.display = 'none';
 });
+
+// ==========================================
+// 8. ADMIN PANEL: DATA LOGIC (PDFs & Quizzes)
+// ==========================================
+// 1. Initialize local storage array
+let savedPDFs = JSON.parse(localStorage.getItem("dentalPDFs")) || [];
+
+// 2. Identify your HTML elements (You may need to check your index.html and update these exact IDs)
+const inputPdfTitle = document.getElementById("pdf-title-input"); 
+const inputPdfLink = document.getElementById("pdf-link-input"); 
+const btnSubmitPdf = document.getElementById("submit-pdf-btn"); // The button inside the modal that actually saves it
+const pdfContainer = document.getElementById("pdf-display-container"); // The div where the PDFs should appear on the screen
+
+// 3. Save PDF Logic
+if (btnSubmitPdf) {
+  btnSubmitPdf.addEventListener("click", () => {
+    let title = inputPdfTitle ? inputPdfTitle.value : "New Lecture PDF";
+    let link = inputPdfLink ? inputPdfLink.value : "#";
+    
+    // Add to array and save to local storage
+    savedPDFs.push({ title: title, link: link });
+    localStorage.setItem("dentalPDFs", JSON.stringify(savedPDFs));
+    
+    // Refresh the UI and close the modal
+    renderPDFs();
+    modalUploadPdf.style.display = 'none'; 
+    
+    // Clear the inputs for the next time
+    if(inputPdfTitle) inputPdfTitle.value = "";
+    if(inputPdfLink) inputPdfLink.value = "";
+  });
+}
+
+// 4. Render & Delete Logic
+function renderPDFs() {
+  if (!pdfContainer) return;
+  pdfContainer.innerHTML = ""; 
+  
+  savedPDFs.forEach((pdf, index) => {
+    pdfContainer.innerHTML += `
+      <div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #334155;">
+        
+        <!-- target="_blank" opens the PDF in a new tab so they don't lose their place in the app -->
+        <a href="${pdf.link}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+          📄 ${pdf.title}
+        </a>
+        
+        <!-- Admin Delete Button -->
+        <button onclick="deletePDF(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
+          🗑️ Remove
+        </button>
+      </div>
+    `;
+  });
+}
+
+// Global delete function attached to the window so the inline HTML button can trigger it
+window.deletePDF = function(index) {
+  if (confirm("Are you sure you want to permanently remove this PDF?")) {
+    savedPDFs.splice(index, 1);
+    localStorage.setItem("dentalPDFs", JSON.stringify(savedPDFs));
+    renderPDFs();
+  }
+};
+
+// 5. Initial render when the app loads
+renderPDFs();
+
 // 8. Submit Alert Logic (Visual Mockup & Expiration)
 btnSubmitEdit.addEventListener('click', () => {
   const subjectId = editSubject.value; // e.g., 'general-medicine'
@@ -494,7 +562,10 @@ window.closeGameMenu = function() {
 // ==========================================
 // ==========================================
 // ==========================================
-// 7. DRIFT GAME ENGINE (PHASE 26: DYNAMIC CORNERING & CENTER RESPAWN)
+// ==========================================
+// ==========================================
+// ==========================================
+// 7. DRIFT GAME ENGINE (PHASE 29: FINAL AUDIO REBALANCE)
 // ==========================================
 const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
 const canvas = document.getElementById("drift-canvas");
@@ -616,6 +687,8 @@ let travelAngle = -Math.PI / 2;
 let lastSafeX = 0, lastSafeY = 26000;
 let score = 0; let startTime = 0; let raceFinished = false; let finalTimeText = "";
 let skidmarks = []; let floatingTexts = []; let driftGraceTimer = 0; let currentGrip = 0.015; 
+let crashCooldown = 0; 
+let smoothedSharpness = 0; 
 window.input = { gas: false, left: false, right: false };
 
 const trackPoints = [
@@ -626,7 +699,6 @@ const trackPoints = [
   { x: -1000, y: 4500 }, { x: 500, y: 2500 }, { x: 0, y: 1000 }, { x: 0, y: -800 }
 ];
 
-// Dynamically calculates the track's angle, center point, and curve sharpness at any Y-coordinate
 function getTrackData(targetY) {
   for (let i = 0; i < trackPoints.length - 1; i++) {
     if (targetY <= trackPoints[i].y && targetY >= trackPoints[i+1].y) {
@@ -634,12 +706,10 @@ function getTrackData(targetY) {
       let dy = trackPoints[i+1].y - trackPoints[i].y;
       let angle = Math.atan2(dy, dx);
       let sharpness = Math.abs(dx);
-      let t = (trackPoints[i].y - targetY) / (trackPoints[i].y - trackPoints[i+1].y);
-      let centerX = trackPoints[i].x + t * dx;
-      return { angle: angle, sharpness: sharpness, centerX: centerX };
+      return { angle: angle, sharpness: sharpness };
     }
   }
-  return { angle: -Math.PI / 2, sharpness: 0, centerX: 0 };
+  return { angle: -Math.PI / 2, sharpness: 0 };
 }
 
 const trackPath = new Path2D();
@@ -671,6 +741,7 @@ window.startGame = function(selectedCar) {
     lastSafeX = 0; lastSafeY = 26000;
     score = 0; startTime = Date.now(); raceFinished = false;
     skidmarks = []; floatingTexts = []; driftGraceTimer = 0; currentGrip = 0.015;
+    crashCooldown = 0; smoothedSharpness = 0;
 
     sfx.init(); 
     try { soundtrack.play().catch(e => console.log(e)); } catch(e){}
@@ -696,11 +767,12 @@ function spawnText(x, y, text, r, g, b) {
 function gameLoop() {
   if (!ctx) return;
 
-  // Real-time track analysis for dynamic physics
-  let trackData = getTrackData(carY);
-  let isSharpCorner = trackData.sharpness > 2500;
+  if (crashCooldown > 0) crashCooldown--;
 
-  // --- 1. DYNAMIC CORNERING PHYSICS ---
+  let trackData = getTrackData(carY);
+  smoothedSharpness += (trackData.sharpness - smoothedSharpness) * 0.05;
+  let cornerIntensity = Math.min(1.0, smoothedSharpness / 3500); 
+
   if (!raceFinished) {
     if (window.input.gas) { 
       speed += 0.22; 
@@ -710,8 +782,7 @@ function gameLoop() {
     }
 
     if (speed > 1) {
-      // Snappier steering on sharp corners
-      let steeringPower = isSharpCorner ? 0.12 : 0.10;
+      let steeringPower = 0.10 + (0.02 * cornerIntensity);
       if (window.input.left) carAngle -= steeringPower;
       if (window.input.right) carAngle += steeringPower;
     }
@@ -720,21 +791,20 @@ function gameLoop() {
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; 
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-    // Tighter max slip angle on sharp corners to prevent spinning out
-    let maxSlip = isSharpCorner ? 1.15 : 1.4; 
+    let maxSlip = 1.4 - (0.25 * cornerIntensity); 
     if (angleDiff > maxSlip) { carAngle = travelAngle + maxSlip; angleDiff = maxSlip; } 
     else if (angleDiff < -maxSlip) { carAngle = travelAngle - maxSlip; angleDiff = -maxSlip; }
 
-    // Revert to tighter grip (Phase 21 feel) during sharp switchbacks
-    let targetGrip = window.input.gas ? (isSharpCorner ? 0.015 : 0.003) : (isSharpCorner ? 0.065 : 0.07); 
+    let gripGas = 0.003 + (0.012 * cornerIntensity);
+    let gripCoast = 0.070 - (0.005 * cornerIntensity);
+    let targetGrip = window.input.gas ? gripGas : gripCoast; 
     currentGrip += (targetGrip - currentGrip) * 0.15; 
     travelAngle += angleDiff * currentGrip;
 
     let pushX = Math.cos(travelAngle) * speed; 
     let pushY = Math.sin(travelAngle) * speed;
 
-    // Disable aggressive forward thrust on sharp corners to allow for tighter drifts
-    let thrustMultiplier = isSharpCorner ? 0.5 : 3.0;
+    let thrustMultiplier = 3.0 - (2.5 * cornerIntensity);
     if (window.input.gas && Math.abs(angleDiff) > 0.1) {
       pushX += Math.cos(carAngle) * thrustMultiplier;
       pushY += Math.sin(carAngle) * thrustMultiplier;
@@ -752,7 +822,8 @@ function gameLoop() {
 
   if (!raceFinished) {
     if (speed > 0.5) {
-      engineAudio.volume = Math.min(1.0, 0.1 + (speed / 12)); 
+      // Significantly lowered the engine volume here so it stays softly in the background
+      engineAudio.volume = Math.min(0.20, 0.02 + (speed / 40)); 
       engineAudio.playbackRate = 0.8 + (speed / 10);          
     } else { engineAudio.volume = 0; }
 
@@ -761,27 +832,31 @@ function gameLoop() {
     engineAudio.volume = 0; driftAudio.volume = 0; 
   }
 
-  // --- 2. COLLISIONS & CENTER RESPAWN ---
+  // --- 2. BREADCRUMB COLLISIONS & GHOST RESPAWN ---
   if (!raceFinished) {
     ctx.lineWidth = 450; let isOnAsphalt = ctx.isPointInStroke(trackPath, carX, carY);
-    ctx.lineWidth = 250; let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
+    ctx.lineWidth = 200; let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
 
-    if (!isOnAsphalt) {
+    if (!isOnAsphalt && crashCooldown === 0) {
       score -= 200; spawnText(carX, carY, "-200", 231, 76, 60); 
       sfx.playCrash(); 
 
-      // Get the exact mathematical center and angle of the track at your last safe Y-coordinate
-      let safeTrackData = getTrackData(lastSafeY);
-
-      // Respawn perfectly centered and facing downhill
-      carX = safeTrackData.centerX; 
+      carX = lastSafeX; 
       carY = lastSafeY; 
       speed = 0;
+
+      let safeTrackData = getTrackData(lastSafeY);
       carAngle = travelAngle = safeTrackData.angle; 
       window.input.gas = false; 
+
+      crashCooldown = 60; 
     } else {
-      if (isInSafeZone) { lastSafeX = carX; lastSafeY = carY; }
-      if (isDrifting) {
+      if (isInSafeZone && crashCooldown === 0) { 
+        lastSafeX = carX; 
+        lastSafeY = carY; 
+      }
+
+      if (isDrifting && crashCooldown === 0) {
         if (!isInSafeZone) {
           score += 5;
           if (Math.random() < 0.15) { spawnText(carX, carY, "+5", 46, 204, 113); sfx.playDing(); }
@@ -812,7 +887,7 @@ function gameLoop() {
   // --- 3. RENDERING ENGINE ---
   if (isDrifting) { driftGraceTimer = 20; } else if (!window.input.gas && driftGraceTimer > 0) { driftGraceTimer -= 2; }
 
-  if (driftGraceTimer > 0 && !raceFinished) {
+  if (driftGraceTimer > 0 && !raceFinished && crashCooldown === 0) {
     let cosA = Math.cos(carAngle);
     let sinA = Math.sin(carAngle);
     let tires = [
@@ -851,29 +926,35 @@ function gameLoop() {
     ctx.fillText(ft.text, ft.x, ft.y); ft.y -= 2; ft.life--; if (ft.life <= 0) floatingTexts.splice(i, 1);
   }
 
-  ctx.save(); 
-  ctx.translate(carX, carY); 
-  ctx.rotate(carAngle); 
-
-  let lightGradient = ctx.createLinearGradient(30, 0, 250, 0);
-  lightGradient.addColorStop(0, "rgba(255, 255, 200, 0.4)"); lightGradient.addColorStop(1, "rgba(255, 255, 200, 0)");   
-  ctx.fillStyle = lightGradient; ctx.beginPath(); ctx.moveTo(30, -15); ctx.lineTo(300, -80); ctx.lineTo(300, 80); ctx.lineTo(30, 15); ctx.fill();
-
-  ctx.rotate(Math.PI / 2);
-
-  let carImg = null;
-  if (activeCar === 'g37') carImg = imgG37;
-  else if (activeCar === 'skyline') carImg = imgSkyline;
-  else if (activeCar === 'accent') carImg = imgAccent;
-
-  if (carImg && carImg.complete && carImg.naturalWidth > 0) {
-    try { ctx.drawImage(carImg, -15, -30, 30, 60); } 
-    catch (e) { ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); }
-  } else {
-    ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); 
+  let shouldDrawCar = true;
+  if (crashCooldown > 0) {
+    if (crashCooldown % 10 < 5) shouldDrawCar = false;
   }
 
-  ctx.restore(); 
+  if (shouldDrawCar) {
+    ctx.save(); 
+    ctx.translate(carX, carY); 
+    ctx.rotate(carAngle); 
+
+    let lightGradient = ctx.createLinearGradient(30, 0, 250, 0);
+    lightGradient.addColorStop(0, "rgba(255, 255, 200, 0.4)"); lightGradient.addColorStop(1, "rgba(255, 255, 200, 0)");   
+    ctx.fillStyle = lightGradient; ctx.beginPath(); ctx.moveTo(30, -15); ctx.lineTo(300, -80); ctx.lineTo(300, 80); ctx.lineTo(30, 15); ctx.fill();
+
+    ctx.rotate(Math.PI / 2);
+
+    let carImg = null;
+    if (activeCar === 'g37') carImg = imgG37;
+    else if (activeCar === 'skyline') carImg = imgSkyline;
+    else if (activeCar === 'accent') carImg = imgAccent;
+
+    if (carImg && carImg.complete && carImg.naturalWidth > 0) {
+      try { ctx.drawImage(carImg, -15, -30, 30, 60); } 
+      catch (e) { ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); }
+    } else {
+      ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); 
+    }
+    ctx.restore(); 
+  }
   ctx.restore(); 
 
   let progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
@@ -888,3 +969,125 @@ function gameLoop() {
 
   gameLoopId = requestAnimationFrame(gameLoop);
 }
+
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// ==========================================
+// 9. DYNAMIC 10-DAY CALENDAR & SCHEDULE FILTER
+// ==========================================
+function renderDynamicCalendar() {
+  const iraqTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Baghdad"}));
+
+  let currentDay = iraqTime.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  let diffToSaturday;
+
+  // Smart Week Detection: Jump forward to next week if it's currently Thursday or Friday
+  if (currentDay === 4) {
+    diffToSaturday = 2; // Thu -> Next Sat
+  } else if (currentDay === 5) {
+    diffToSaturday = 1; // Fri -> Next Sat
+  } else if (currentDay === 6) {
+    diffToSaturday = 0; // Today is Sat
+  } else {
+    diffToSaturday = -(currentDay + 1); // Sun to Wed -> Go back to current week's Sat
+  }
+
+  let startOfWeek = new Date(iraqTime);
+  startOfWeek.setDate(iraqTime.getDate() + diffToSaturday);
+  startOfWeek.setHours(0,0,0,0); 
+
+  const calendarContainer = document.getElementById("dynamic-calendar-container");
+  if (!calendarContainer) return;
+  calendarContainer.innerHTML = ""; 
+
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let validDaysFound = 0;
+  let loopDate = new Date(startOfWeek);
+
+  while (validDaysFound < 10) {
+    let loopDayOfWeek = loopDate.getDay();
+
+    // Skip Thursday (4) and Friday (5)
+    if (loopDayOfWeek !== 4 && loopDayOfWeek !== 5) {
+      let dayName = dayNames[loopDayOfWeek];
+      let dateNum = loopDate.getDate();
+
+      let isToday = (loopDate.toDateString() === iraqTime.toDateString());
+
+      let tomorrowDate = new Date(iraqTime);
+      tomorrowDate.setDate(iraqTime.getDate() + 1);
+      let isTomorrow = (loopDate.toDateString() === tomorrowDate.toDateString());
+
+      let badgeHtml = `<div style="height: 20px; margin-top: 4px;"></div>`; 
+      if (isToday) {
+        badgeHtml = `<div style="background: white; color: #4a81f5; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-top: 4px; font-weight: bold; box-shadow: 0px 2px 4px rgba(0,0,0,0.1);">Today</div>`;
+      } else if (isTomorrow) {
+        badgeHtml = `<div style="background: white; color: #4a81f5; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-top: 4px; font-weight: bold; border: 1px solid #4a81f5;">Tomorrow</div>`;
+      }
+
+      let dayHTML = `
+        <div class="day-selector-btn" data-day="${dayName}" data-date="${loopDate.toDateString()}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 62px; height: 85px; background-color: #f1f5f9; color: #64748b; border-radius: 12px; cursor: pointer; transition: 0.2s; flex-shrink: 0;">
+          <span style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">${dayName}</span>
+          <span style="font-size: 22px; font-weight: 800;">${dateNum}</span>
+          ${badgeHtml}
+        </div>
+      `;
+      calendarContainer.innerHTML += dayHTML;
+      validDaysFound++;
+    }
+    loopDate.setDate(loopDate.getDate() + 1);
+  }
+
+  const allDayBtns = document.querySelectorAll('.day-selector-btn');
+
+  allDayBtns.forEach(btn => {
+    btn.addEventListener('click', function() {
+      allDayBtns.forEach(b => {
+        b.style.backgroundColor = "#f1f5f9";
+        b.style.color = "#64748b";
+      });
+
+      this.style.backgroundColor = "#4a81f5";
+      this.style.color = "white";
+
+      this.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+      let selectedDay = this.getAttribute('data-day');
+      filterSchedule(selectedDay);
+    });
+  });
+
+  // --- AUTO-SELECTION LOGIC ON PAGE LOAD ---
+  let successfullyClickedToday = false;
+
+  allDayBtns.forEach(btn => {
+    if (btn.getAttribute('data-date') === iraqTime.toDateString()) {
+      setTimeout(() => btn.click(), 50);
+      successfullyClickedToday = true;
+    }
+  });
+
+  // If it's a weekend, default to clicking the upcoming Saturday
+  if (!successfullyClickedToday && allDayBtns.length > 0) {
+    setTimeout(() => allDayBtns[0].click(), 50);
+  }
+}
+
+// ------------------------------------------
+// 9B. SCHEDULE FILTERING LOGIC
+// ------------------------------------------
+function filterSchedule(dayName) {
+  const dayMap = { "Sat": "saturday", "Sun": "sunday", "Mon": "monday", "Tue": "tuesday", "Wed": "wednesday" };
+
+  const allSchedules = document.querySelectorAll('.schedule-container');
+  allSchedules.forEach(sec => { sec.style.display = 'none'; });
+
+  const targetId = `schedule-${dayMap[dayName]}`;
+  const targetSection = document.getElementById(targetId);
+  if (targetSection) { targetSection.style.display = 'block'; }
+}
+
+// THIS IS THE TRIGGER THAT MAKES IT DRAW ON THE SCREEN
+window.addEventListener('DOMContentLoaded', renderDynamicCalendar);
