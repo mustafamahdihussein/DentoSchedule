@@ -388,7 +388,7 @@ function showStudentLoginError(message) {
 
 // Handle the Login form submission inside the student login screen
 if (studentLoginForm) {
-  studentLoginForm.addEventListener("submit", (event) => {
+  studentLoginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const username = studentUsernameInput.value.trim();
     const pin = studentPinInput.value.trim();
@@ -407,6 +407,16 @@ if (studentLoginForm) {
       loginErrorMsg.style.display = "none";
       loginErrorMsg.style.color = "red";
       localStorage.setItem("dento_student", username);
+
+      try {
+        if (!window.auth.currentUser) {
+          await window.signInAnonymously(window.auth);
+        }
+      } catch (error) {
+        console.error("Unable to connect the student to the leaderboard.", error);
+        showStudentLoginError("Unable to connect to the leaderboard. Please try again.");
+        return;
+      }
       
       // Hide the login screen and reveal the schedule
       loginOverlay.style.display = "none";
@@ -638,11 +648,13 @@ async function submitDriftScore(playerName, playerScore) {
 
                                 // 2. Silently grab their logged-in email and create a short display name
                                     const userEmail = window.auth.currentUser.email;
-                                        const displayName = userEmail.split('@')[0]; // Turns "ali@gmail.com" into "ali"
+                                      const isAdmin = userEmail === "admin@dentoschedule.tech";
+                                        const displayName = isAdmin ? userEmail.split('@')[0] : playerName;
+                                          const playerKey = isAdmin ? userEmail : playerName.trim().toLowerCase();
                                             
                                                 try {
                                                         // Use the email as the unique document ID to prevent duplicate entries
-                                                                const docRef = window.doc(window.db, "DriftScores", userEmail);
+                                                                const docRef = window.doc(window.db, "DriftScores", playerKey);
                                                                         const docSnap = await window.getDoc(docRef);
                                                                                 
                                                                                         let cumulativeScore = playerScore;
