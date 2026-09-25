@@ -67,11 +67,13 @@
   <div class="gateway-card" id="role-selection">
     <!-- University Branding -->
     <div class="uni-branding">
-      <img src="Al-ameen-Logo-350.png" alt="Al-Ameen University Logo" class="uni-logo">
+      <img src="Al-ameen-Logo-350.png" alt="Al-Ameen University Logo" class="uni-logo" onclick="handleSecretTrigger()" style="user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;" draggable="false">
+
       <p class="uni-subtitle">Al-Ameen University • College of Dentistry</p>
     </div>
 
-    <h2>Welcome to DentoSchedule</h2>
+    <h2 onclick="handleSecretTrigger()" style="user-select: none; -webkit-user-select: none;">Welcome to DentoSchedule</h2>
+
     <p>Please select your role to continue:</p>
     <button id="btn-user" class="gateway-btn">Student / User</button>
     <button id="btn-admin-prompt" class="gateway-btn outline">Admin Login</button>
@@ -257,14 +259,17 @@
       </div>
     </div>
       <div style="text-align: center; margin-bottom: 15px; display: flex; justify-content: center; gap: 10px;">
-      <button id="btn-open-pomodoro" class="admin-btn" style="background-color: #e74c3c; color: white; border: none; margin: 0;">🍅 Study Timer</button>
+      <button id="btn-open-pomodoro" class="admin-btn" style="background-color: #e74c3c; color: white; border: none; margin: 0;">🍅 Study Time</button>
+
       <button id="btn-open-game" class="admin-btn" onclick="openGameMenu()" style="background-color: #2c3e50; color: white; border: none; margin: 0;">🎮 Play Drift</button>
+      
       </div>
 
 <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->
   
   <header>
-    <h1 onclick="handleSecretTrigger()">Class Schedule</h1>
+    <h1>Class Schedule</h1>
+
     <p>4th Year Dentistry</p>
   </header>
     <!-- Live Announcement Banner (Hidden by default) -->
