@@ -198,48 +198,7 @@ window.deletePDF = function(index) {
 // 5. Initial render when the app loads
 renderPDFs();
 
-// 8. Submit Alert Logic (Visual Mockup & Expiration)
-btnSubmitEdit.addEventListener('click', () => {
-  const subjectId = editSubject.value; // e.g., 'general-medicine'
-  const text = alertText.value.trim();
-  const expDateStr = alertDate.value;
 
-  if (text !== '') {
-    // 1. Check if the date has passed
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
-    
-    let isExpired = false;
-    if (expDateStr) {
-      const expirationDate = new Date(expDateStr);
-      // If today's date is strictly greater than the expiration date, it's expired
-      if (today > expirationDate) {
-        isExpired = true;
-      }
-    }
-
-    // 2. If not expired, show the alert on the screen
-    if (!isExpired) {
-      const targetCard = document.getElementById(`card-${subjectId}`);
-      if (targetCard) {
-        // Create the red badge
-        const alertBadge = document.createElement('span');
-        alertBadge.className = 'class-alert';
-        alertBadge.innerText = text; // This will perfectly render "امتحان فصلي"
-        
-        // Add it to the card
-        targetCard.appendChild(alertBadge);
-      }
-    } else {
-      console.log("Alert not added: The expiration date has already passed.");
-    }
-  }
-
-  // 3. Hide modal and clear inputs
-  modalEditSchedule.style.display = 'none';
-  alertText.value = '';
-  alertDate.value = '';
-});
 // ==========================================
 // 1. DAY SWITCHER LOGIC
 // ==========================================
@@ -1226,4 +1185,69 @@ document.getElementById("btn-post-announcement").addEventListener("click", () =>
                                                                                                                                                                                                     banner.style.display = "none"; 
                                                                                                                                                                                                         }
                                                                                                                                                                                                         });
-                                                                                                                                                                                                        
+                                                                                                      // ==========================================
+// ==========================================
+// --- EDIT SCHEDULE & ALERTS LOGIC ---
+// ==========================================
+
+// 1. Toggle the Modal
+document.getElementById("btn-edit-schedule").addEventListener("click", () => {
+    document.getElementById("modal-edit-schedule").style.display = "block";
+    });
+    document.getElementById("btn-cancel-edit").addEventListener("click", () => {
+        document.getElementById("modal-edit-schedule").style.display = "none";
+        });
+
+        // 2. Upload to Firestore (Admin Only)
+        document.getElementById("btn-submit-edit").addEventListener("click", async () => {
+            const subject = document.getElementById("edit-subject").value;
+                const alertText = document.getElementById("alert-text").value;
+                    const expDate = document.getElementById("alert-date").value;
+
+                        if (!subject || !alertText || !expDate) {
+                                alert("Please fill in the subject, alert text, and expiration date.");
+                                        return;
+                                            }
+
+                                                try {
+                                                        await window.setDoc(window.doc(window.db, "ScheduleNotes", subject), {
+                                                                    note: alertText,
+                                                                                expiration: expDate,
+                                                                                            timestamp: new Date().toISOString()
+                                                                                                    });
+                                                                                                            
+                                                                                                                    alert(`Database confirmed: Note added to main ${subject.toUpperCase()} lecture!`);
+                                                                                                                            document.getElementById("modal-edit-schedule").style.display = "none";
+                                                                                                                                    document.getElementById("alert-text").value = "";
+                                                                                                                                            document.getElementById("alert-date").value = "";
+                                                                                                                                                } catch (error) {
+                                                                                                                                                        alert("UPLOAD FAILED: " + error.message); 
+                                                                                                                                                            }
+                                                                                                                                                            });
+
+                                                                                                                                                            // 3. Live Sync & Expiration Logic (All Students)
+                                                                                                                                                            window.onSnapshot(window.collection(window.db, "ScheduleNotes"), (snapshot) => {
+                                                                                                                                                                // Get today's date in YYYY-MM-DD format to check if the note is expired
+                                                                                                                                                                    const today = new Date().toISOString().split('T')[0]; 
+
+                                                                                                                                                                        snapshot.forEach((docSnap) => {
+                                                                                                                                                                                const data = docSnap.data();
+                                                                                                                                                                                        const subject = docSnap.id; 
+                                                                                                                                                                                                
+                                                                                                                                                                                                        // This will ONLY look for the main lecture badge, ignoring groups entirely
+                                                                                                                                                                                                                const badge = document.getElementById("badge-" + subject);
+                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                if (badge) {
+                                                                                                                                                                                                                                            if (data.expiration >= today && data.note.trim() !== "") {
+                                                                                                                                                                                                                                                            // Show the dark turquoise pulsating badge
+                                                                                                                                                                                                                                                                            badge.innerText = data.note;
+                                                                                                                                                                                                                                                                                            badge.style.cssText = "display: inline-block; background-color: #0b8793; color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 12px; letter-spacing: 0.5px; animation: pulse 1.5s infinite; box-shadow: 0 0 10px rgba(11, 135, 147, 0.6); vertical-align: middle;";
+                                                                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                                                                                        // Hide it if the date has passed or text is empty
+                                                                                                                                                                                                                                                                                                                                        badge.style.display = "none";
+                                                                                                                                                                                                                                                                                                                                                        badge.innerText = "";
+                                                                                                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                                                                });
+                                                                                                                                                                                                                                                                                                                                                                                });
+                                                                                                                                                                                                                                                                                                                                                                                
