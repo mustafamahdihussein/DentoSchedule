@@ -13,7 +13,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
           import { getAuth, signInWithEmailAndPassword, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-                import { getFirestore, doc, setDoc, collection, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+                import { getFirestore, doc, setDoc, collection, getDocs, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 
                 // Your web app's Firebase configuration
@@ -38,6 +38,7 @@
                                                                 window.collection = collection;
                                                                 window.getDocs = getDocs;
                                                                 window.onSnapshot = onSnapshot;
+                                                                window.deleteDoc = deleteDoc;
                                                                 window.updatePassword = updatePassword;
                                                                 
                                                                 
