@@ -333,50 +333,7 @@ if (closeSubjectBtn) {
   });
 }
 // ==========================================
-// 3. LIVE ANNOUNCEMENT LOGIC
-// ==========================================
-const btnPostAnnouncement = document.getElementById("btn-post-announcement");
-const modalAnnouncement = document.getElementById("modal-post-announcement");
-const btnCancelAnnouncement = document.getElementById("btn-cancel-announcement");
-const btnSubmitAnnouncement = document.getElementById("btn-submit-announcement");
-const announcementInputText = document.getElementById("announcement-input-text");
-const announcementBanner = document.getElementById("announcement-banner");
-const announcementText = document.getElementById("announcement-text");
 
-// 1. Open the modal when the admin clicks "Post Announcement"
-if (btnPostAnnouncement) {
-  btnPostAnnouncement.addEventListener("click", () => {
-    modalAnnouncement.style.display = "flex";
-  });
-}
-
-// 2. Close the modal when "Cancel" is clicked
-if (btnCancelAnnouncement) {
-  btnCancelAnnouncement.addEventListener("click", () => {
-    modalAnnouncement.style.display = "none";
-    announcementInputText.value = ""; // Clear the text box
-  });
-}
-
-// 3. Post the alert to the banner
-if (btnSubmitAnnouncement) {
-  btnSubmitAnnouncement.addEventListener("click", () => {
-    const message = announcementInputText.value.trim();
-
-    if (message !== "") {
-      // Update the text and show the yellow banner
-      announcementText.innerText = message;
-      announcementBanner.style.display = "flex"; 
-    } else {
-      // If the admin submits an empty box, hide the banner
-      announcementBanner.style.display = "none";
-    }
-
-    // Close modal and clear text box
-    modalAnnouncement.style.display = "none";
-    announcementInputText.value = ""; 
-  });
-}
 // ==========================================
 // ==========================================
 // 4. LOGIN & LOCAL STORAGE LOGIC
