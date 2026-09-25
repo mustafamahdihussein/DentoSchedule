@@ -682,8 +682,31 @@ const sfx = {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
+async function fetchDriftLeaderboard() {
+  const leaderboardList = document.getElementById("leaderboard-list");
+  if (leaderboardList) {
+    leaderboardList.innerHTML = `<div style="text-align: center; color: white; font-family: monospace;">Fetching Live Scores...</div>`;
+  }
 
-                                                                                                                                                                                                                                                                                                                                                                                                                        function renderDriftLeaderboardUI(dataArray) {
+  try {
+    const scoresQuery = window.query(
+      window.collection(window.db, "DriftScores"),
+      window.orderBy("score", "desc"),
+      window.limit(10),
+    );
+    const snapshot = await window.getDocs(scoresQuery);
+    const dataArray = [];
+    snapshot.forEach((docSnap) => dataArray.push(docSnap.data()));
+    renderDriftLeaderboardUI(dataArray);
+  } catch (error) {
+    console.error("Failed to fetch leaderboard: ", error);
+    if (leaderboardList) {
+      leaderboardList.innerHTML = `<div style="text-align: center; color: red;">Unable to load scores.</div>`;
+    }
+  }
+}
+
+function renderDriftLeaderboardUI(dataArray) {
                                                                                                                                                                                                                                                                                                                                                                                                                             const leaderboardList = document.getElementById("leaderboard-list");
                                                                                                                                                                                                                                                                                                                                                                                                                                 if (!leaderboardList) return;
                                                                                                                                                                                                                                                                                                                                                                                                                                     
