@@ -1222,28 +1222,37 @@ document.getElementById("btn-post-announcement").addEventListener("click", () =>
             });
 
             // --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
-            document.getElementById("btn-submit-announcement").addEventListener("click", async () => {
-                const text = document.getElementById("announcement-input-text").value;
+            // --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
+                                                                                                                                                document.getElementById("btn-submit-announcement").addEventListener("click", async () => {
+                                                                                                                                                    const text = document.getElementById("announcement-input-text").value;
+                                                                                                                                                        
+                                                                                                                                                            if (!text) {
+                                                                                                                                                                    alert("Please type an announcement first.");
+                                                                                                                                                                            return;
+                                                                                                                                                                                }
 
-                        if (!text) {
-                                alert("Please type an announcement first.");
-                                        return;
-                                            }
+                                                                                                                                                                                    try {
+                                                                                                                                                                                            // Quick check to ensure Firebase loaded correctly
+                                                                                                                                                                                                    if (!window.db || !window.setDoc || !window.doc) {
+                                                                                                                                                                                                                alert("CRITICAL ERROR: Firebase tools (db, setDoc, doc) are missing from the window object.");
+                                                                                                                                                                                                                            return;
+                                                                                                                                                                                                                                    }
 
-                                                try {
-                                                        // Save to Firestore 'Announcements' collection
-                                                                await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
-                                                                            message: text,
-                                                                                        timestamp: new Date().toISOString()
-                                                                                                });
+                                                                                                                                                                                                                                            // Attempt to save to Firestore
+                                                                                                                                                                                                                                                    await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
+                                                                                                                                                                                                                                                                message: text,
+                                                                                                                                                                                                                                                                            timestamp: new Date().toISOString()
+                                                                                                                                                                                                                                                                                    });
+                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                    alert("Database confirmed: Alert saved to server!");
+                                                                                                                                                                                                                                                                                                            document.getElementById("modal-post-announcement").style.display = "none";
+                                                                                                                                                                                                                                                                                                                    document.getElementById("announcement-input-text").value = ""; 
+                                                                                                                                                                                                                                                                                                                        } catch (error) {
+                                                                                                                                                                                                                                                                                                                                // This will pop up and tell us EXACTLY why it failed
+                                                                                                                                                                                                                                                                                                                                        alert("UPLOAD FAILED: " + error.message); 
+                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                            });
 
-                                                                                                                alert("Alert posted successfully to all students!");
-                                                                                                                        document.getElementById("modal-post-announcement").style.display = "none";
-                                                                                                                                document.getElementById("announcement-input-text").value = ""; 
-                                                                                                                                    } catch (error) {
-                                                                                                                                            alert("Access Denied. Database rejected the upload.");
-                                                                                                                                                }
-                                                                                                                                                });
 
                                                                                                                                                 // --- 3. LIVE LISTENER (ALL STUDENTS) ---
                                                                                                                                                 // Runs continuously to show/hide the banner when the database changes
@@ -1258,4 +1267,3 @@ document.getElementById("btn-post-announcement").addEventListener("click", () =>
                                                                                                                                                                                             banner.style.display = "none"; 
                                                                                                                                                                                                 }
                                                                                                                                                                                                 });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
