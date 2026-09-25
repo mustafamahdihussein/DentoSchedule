@@ -135,7 +135,7 @@ btnCancelEdit.addEventListener('click', () => {
 // 8. ADMIN PANEL: DATA LOGIC (PDFs & Quizzes)
 // ==========================================
 // 1. Initialize local storage array
-let savedPDFs = JSON.parse(localStorage.getItem("dentalPDFs")) || [];
+
 
 // 2. Identify your HTML elements (You may need to check your index.html and update these exact IDs)
 const inputPdfTitle = document.getElementById("pdf-title-input"); 
@@ -144,60 +144,9 @@ const btnSubmitPdf = document.getElementById("submit-pdf-btn"); // The button in
 const pdfContainer = document.getElementById("pdf-display-container"); // The div where the PDFs should appear on the screen
 
 // 3. Save PDF Logic
-if (btnSubmitPdf) {
-  btnSubmitPdf.addEventListener("click", () => {
-    let title = inputPdfTitle ? inputPdfTitle.value : "New Lecture PDF";
-    let link = inputPdfLink ? inputPdfLink.value : "#";
-    
-    // Add to array and save to local storage
-    savedPDFs.push({ title: title, link: link });
-    localStorage.setItem("dentalPDFs", JSON.stringify(savedPDFs));
-    
-    // Refresh the UI and close the modal
-    renderPDFs();
-    modalUploadPdf.style.display = 'none'; 
-    
-    // Clear the inputs for the next time
-    if(inputPdfTitle) inputPdfTitle.value = "";
-    if(inputPdfLink) inputPdfLink.value = "";
-  });
-}
 
-// 4. Render & Delete Logic
-function renderPDFs() {
-  if (!pdfContainer) return;
-  pdfContainer.innerHTML = ""; 
+    
   
-  savedPDFs.forEach((pdf, index) => {
-    pdfContainer.innerHTML += `
-      <div style="display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 10px; margin-bottom: 8px; border-radius: 6px; border: 1px solid #334155;">
-        
-        <!-- target="_blank" opens the PDF in a new tab so they don't lose their place in the app -->
-        <a href="${pdf.link}" target="_blank" style="color: #60a5fa; text-decoration: none; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-          📄 ${pdf.title}
-        </a>
-        
-        <!-- Admin Delete Button -->
-        <button onclick="deletePDF(${index})" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold;">
-          🗑️ Remove
-        </button>
-      </div>
-    `;
-  });
-}
-
-// Global delete function attached to the window so the inline HTML button can trigger it
-window.deletePDF = function(index) {
-  if (confirm("Are you sure you want to permanently remove this PDF?")) {
-    savedPDFs.splice(index, 1);
-    localStorage.setItem("dentalPDFs", JSON.stringify(savedPDFs));
-    renderPDFs();
-  }
-};
-
-// 5. Initial render when the app loads
-renderPDFs();
-
 
 // ==========================================
 // 1. DAY SWITCHER LOGIC
@@ -279,6 +228,47 @@ subjectCardsList.forEach(card => {
       // If it is a split lab group (Group A/B), use a general title
       subjectTitle.innerText = "Clinical Lab Session";
     }
+
+
+
+        // --- NEW: FIREBASE PDF SYNC ---
+                // Grab the name of the subject the user just clicked (and format it to lowercase to match our database)
+                        let clickedSubject = subjectTitle.innerText.toLowerCase().trim();
+                                // Replace any spaces with dashes (e.g., "oral surgery" becomes "oral-surgery")
+                                        clickedSubject = clickedSubject.replace(/\s+/g, '-');
+
+                                                const pdfContainer = document.getElementById("list-pdfs");
+                                                        
+                                                                // 1. Clear the container immediately so old links from other subjects don't show up
+                                                                        if (pdfContainer) {
+                                                                                    pdfContainer.innerHTML = "";
+                                                                                                
+                                                                                                            // 2. Fetch the links for this specific subject from the live database
+                                                                                                                        window.getDocs(window.collection(window.db, "PDFNotes")).then((snapshot) => {
+                                                                                                                                        snapshot.forEach((docSnap) => {
+                                                                                                                                                            const data = docSnap.data();
+                                                                                                                                                                                
+                                                                                                                                                                                                    // Only build the button if the database entry matches the clicked subject
+                                                                                                                                                                                                                        if (data.subject === clickedSubject) {
+                                                                                                                                                                                                                                                const linkBtn = document.createElement("a");
+                                                                                                                                                                                                                                                                        linkBtn.href = data.url;
+                                                                                                                                                                                                                                                                                                linkBtn.target = "_blank"; // Forces the link to open in a new tab/window
+                                                                                                                                                                                                                                                                                                                        linkBtn.style.cssText = "display: block; background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; text-decoration: none; color: #2c3e50; font-weight: 600; font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 8px;";
+                                                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                                                                                                                                        // Add a document icon next to the text
+                                                                                                                                                                                                                                                                                                                                                                                                linkBtn.innerHTML = `📄 ${data.name}`;
+                                                                                                                                                                                                                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                                                                                                                                                                                                                                pdfContainer.appendChild(linkBtn);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                // --- END FIREBASE PDF SYNC ---
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+
+
+
+
 
     // Show the pop-up
     subjectModal.style.display = "flex";
@@ -1250,4 +1240,35 @@ document.getElementById("btn-edit-schedule").addEventListener("click", () => {
                                                                                                                                                                                                                                                                                                                                                                             }
                                                                                                                                                                                                                                                                                                                                                                                 });
                                                                                                                                                                                                                                                                                                                                                                                 });
-                                                                                                                                                                                                                                                                                                                                                                                
+   // ==========================================
+// --- UPLOAD PDF LINKS LOGIC ---
+// ==========================================
+
+document.getElementById("btn-submit-pdf").addEventListener("click", async () => {
+    const subject = document.getElementById("upload-subject") ? document.getElementById("upload-subject").value : document.getElementById("pdf-subject").value; 
+    const pdfName = document.getElementById("pdf-name").value;
+    const pdfLink = document.getElementById("pdf-link").value;
+
+    if (!subject || !pdfName || !pdfLink) {
+        alert("Please select a subject, name the document, and paste the Drive link.");
+        return;
+    }
+
+    try {
+        const newPdfRef = window.doc(window.collection(window.db, "PDFNotes"));
+        await window.setDoc(newPdfRef, {
+            subject: subject,
+            name: pdfName,
+            url: pdfLink,
+            timestamp: new Date().toISOString()
+        });
+        
+        alert(`Database confirmed: ${pdfName} saved to ${subject.toUpperCase()}`);
+        document.getElementById("modal-upload-pdf").style.display = "none";
+        document.getElementById("pdf-name").value = "";
+        document.getElementById("pdf-link").value = "";
+    } catch (error) {
+        alert("UPLOAD FAILED: " + error.message); 
+    }
+});
+                                                                                                                                                                                                                                                                                                                                                                             

@@ -547,7 +547,7 @@ function Home() {
               <ul className="resource-list">
                 <li>
                   <a href="#" onClick={(event) => event.preventDefault()} target="_blank">
-                    Lec 1: Introduction
+                    
                   </a>
                   <button className="delete-resource-btn admin-ui" type="button">
                     🗑️
@@ -561,7 +561,7 @@ function Home() {
               <ul className="resource-list">
                 <li>
                   <a href="#" onClick={(event) => event.preventDefault()} target="_blank">
-                    Midterm MCQs
+                    
                   </a>
                   <button className="delete-resource-btn admin-ui" type="button">
                     🗑️

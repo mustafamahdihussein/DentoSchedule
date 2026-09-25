@@ -126,8 +126,12 @@
           <!-- We can add the rest of the 4th-year subjects here later -->
         </select>
 
-        <label for="pdf-file">Choose File:</label>
-        <input type="file" id="pdf-file" accept=".pdf" class="admin-input">
+<label for="pdf-name">Document Name:</label>
+<input type="text" id="pdf-name" class="admin-input" placeholder="e.g., Lec 1: Introduction">
+
+<label for="pdf-link">Google Drive Link:</label>
+<input type="url" id="pdf-link" class="admin-input" placeholder="Paste shareable link here">
+
 
         <div class="modal-actions">
           <button id="btn-submit-pdf" class="admin-btn">Upload</button>
@@ -220,13 +224,9 @@
 
         <div class="resource-section">
           <h4>📚 Lecture PDFs</h4>
-          <ul id="list-pdfs" class="resource-list">
-            <!-- Example Item: JavaScript will fill this later -->
-            <li>
-              <a href="#" target="_blank">Lec 1: Introduction</a>
-              <button class="delete-resource-btn admin-ui">🗑️</button>
-            </li>
-          </ul>
+        <div id="list-pdfs" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+          </div>
+          
         </div>
 
         <div class="resource-section">
