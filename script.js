@@ -1213,14 +1213,17 @@ document.getElementById("btn-post-announcement").addEventListener("click", () =>
 
                                                                                                                                                 // --- 3. LIVE LISTENER (ALL STUDENTS) ---
                                                                                                                                                 // Runs continuously to show/hide the banner when the database changes
+                                                                                                                                                // --- 3. LIVE LISTENER (ALL STUDENTS) ---
                                                                                                                                                 window.onSnapshot(window.doc(window.db, "Announcements", "latest"), (docSnap) => {
                                                                                                                                                     const banner = document.getElementById("live-alert-banner");
-                                                                                                                                                        const displayText = document.getElementById("announcement-display-text");
-
-                                                                                                                                                                if (docSnap.exists() && docSnap.data().message !== "") {
+                                                                                                                                                        const displayText = document.getElementById("live-alert-text");
+                                                                                                                                                            
+                                                                                                                                                                if (docSnap.exists() && docSnap.data().message && docSnap.data().message.trim() !== "") {
                                                                                                                                                                         displayText.innerText = docSnap.data().message;
-                                                                                                                                                                                banner.style.display = "block";
-                                                                                                                                                                                    } else {
-                                                                                                                                                                                            banner.style.display = "none"; 
-                                                                                                                                                                                                }
-                                                                                                                                                                                                });
+                                                                                                                                                                                // Display as flex to keep the bell icon and text perfectly aligned
+                                                                                                                                                                                        banner.style.display = "flex"; 
+                                                                                                                                                                                            } else {
+                                                                                                                                                                                                    banner.style.display = "none"; 
+                                                                                                                                                                                                        }
+                                                                                                                                                                                                        });
+                                                                                                                                                                                                        
