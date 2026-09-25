@@ -11,7 +11,6 @@ function getDeviceID() {
 // --- WEB DATABASE API (Production Ready) ---
 // TODO LATER: Replace this string with your actual backend URL (e.g., Firebase, Supabase, Node/Express)
 
-
 // Reusable UI renderer for the modal
 function renderLeaderboardUI(dataArray) {
   const leaderboardList = document.getElementById("leaderboard-list");
@@ -26,110 +25,119 @@ function renderLeaderboardUI(dataArray) {
   });
 }
 
-const adminPanel = document.getElementById('admin-panel');
-const modalUploadPdf = document.getElementById('modal-upload-pdf');
-const btnUploadPdf = document.getElementById('btn-upload-pdf');
-const btnCancelPdf = document.getElementById('btn-cancel-pdf');
+const adminPanel = document.getElementById("admin-panel");
+const modalUploadPdf = document.getElementById("modal-upload-pdf");
+const btnUploadPdf = document.getElementById("btn-upload-pdf");
+const btnCancelPdf = document.getElementById("btn-cancel-pdf");
 
-const entryGateway = document.getElementById('entry-gateway');
-const roleSelection = document.getElementById('role-selection');
-const loginForm = document.getElementById('login-form');
-const mainApp = document.getElementById('main-app');
-const modalAddQuiz = document.getElementById('modal-add-quiz');
-const btnAddQuiz = document.getElementById('btn-add-quiz');
-const btnCancelQuiz = document.getElementById('btn-cancel-quiz');
-const modalEditSchedule = document.getElementById('modal-edit-schedule');
-const btnEditSchedule = document.getElementById('btn-edit-schedule');
-const btnCancelEdit = document.getElementById('btn-cancel-edit');
-const btnSubmitEdit = document.getElementById('btn-submit-edit');
-const editSubject = document.getElementById('edit-subject');
-const alertText = document.getElementById('alert-text');
-const alertDate = document.getElementById('alert-date');
+const entryGateway = document.getElementById("entry-gateway");
+const roleSelection = document.getElementById("role-selection");
+const loginForm = document.getElementById("login-form");
+const mainApp = document.getElementById("main-app");
+const modalAddQuiz = document.getElementById("modal-add-quiz");
+const btnAddQuiz = document.getElementById("btn-add-quiz");
+const btnCancelQuiz = document.getElementById("btn-cancel-quiz");
+const modalEditSchedule = document.getElementById("modal-edit-schedule");
+const btnEditSchedule = document.getElementById("btn-edit-schedule");
+const btnCancelEdit = document.getElementById("btn-cancel-edit");
+const btnSubmitEdit = document.getElementById("btn-submit-edit");
+const editSubject = document.getElementById("edit-subject");
+const alertText = document.getElementById("alert-text");
+const alertDate = document.getElementById("alert-date");
 
 // Buttons
-const btnUser = document.getElementById('btn-user');
-const btnAdminPrompt = document.getElementById('btn-admin-prompt');
-const adminLoginForm = document.getElementById('login-form');
-const btnBack = document.getElementById('btn-back');
+const btnUser = document.getElementById("btn-user");
+const btnAdminPrompt = document.getElementById("btn-admin-prompt");
+const adminLoginForm = document.getElementById("login-form");
+const btnBack = document.getElementById("btn-back");
 
 // Inputs and Error Message
-const usernameInput = document.getElementById('admin-username');
-const passwordInput = document.getElementById('admin-password');
-const loginError = document.getElementById('login-error');
+const usernameInput = document.getElementById("admin-username");
+const passwordInput = document.getElementById("admin-password");
+const loginError = document.getElementById("login-error");
 
 // 1. User Button Click
-btnUser.addEventListener('click', () => {
-  entryGateway.style.display = 'none';
-  mainApp.style.display = 'none';
-  loginOverlay.style.display = 'flex';
+btnUser.addEventListener("click", () => {
+  entryGateway.style.display = "none";
+  mainApp.style.display = "none";
+  loginOverlay.style.display = "flex";
 
-  const savedUser = localStorage.getItem('dento_student');
+  const savedUser = localStorage.getItem("dento_student");
   if (savedUser) {
     studentUsernameInput.value = savedUser;
   }
 });
 
 // 2. Admin Prompt Click (Show login form)
-btnAdminPrompt.addEventListener('click', () => {
-  roleSelection.style.display = 'none';
-  loginForm.style.display = 'block';
+btnAdminPrompt.addEventListener("click", () => {
+  roleSelection.style.display = "none";
+  loginForm.style.display = "block";
 });
 
 // 3. Back Button Click (Go back to role selection)
-btnBack.addEventListener('click', () => {
-  loginForm.style.display = 'none';
-  roleSelection.style.display = 'block';
-  loginError.style.display = 'none'; // reset error message
+btnBack.addEventListener("click", () => {
+  loginForm.style.display = "none";
+  roleSelection.style.display = "block";
+  loginError.style.display = "none"; // reset error message
 });
 
 // 4. Admin Login Logic
-adminLoginForm.addEventListener('submit', (event) => {
+adminLoginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const passVal = passwordInput.value.trim();
 
-  window.signInWithEmailAndPassword(window.auth, 'admin@dentoschedule.tech', passVal)
+  window
+    .signInWithEmailAndPassword(
+      window.auth,
+      "admin@dentoschedule.tech",
+      passVal,
+    )
     .then(() => {
       const currentDevice = getDeviceID();
-      return window.setDoc(window.doc(window.db, 'DeviceHistory', currentDevice), {
-        lastLogin: new Date().toISOString(),
-        userAgent: navigator.userAgent
-      }, { merge: true });
+      return window.setDoc(
+        window.doc(window.db, "DeviceHistory", currentDevice),
+        {
+          lastLogin: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+        },
+        { merge: true },
+      );
     })
     .then(() => {
-      entryGateway.style.display = 'none';
-      mainApp.style.display = 'block';
-      adminPanel.style.display = 'block';
-      loginError.style.display = 'none';
-      console.log('Logged in as Admin from:', getDeviceID());
+      entryGateway.style.display = "none";
+      mainApp.style.display = "block";
+      adminPanel.style.display = "block";
+      loginError.style.display = "none";
+      console.log("Logged in as Admin from:", getDeviceID());
     })
     .catch(() => {
-    loginError.style.display = 'block';
+      loginError.style.display = "block";
     });
 });
 // 5. Admin Panel Logic: Upload PDF Modal
-btnUploadPdf.addEventListener('click', () => {
-  modalUploadPdf.style.display = 'flex'; // We use flex here to keep it centered
+btnUploadPdf.addEventListener("click", () => {
+  modalUploadPdf.style.display = "flex"; // We use flex here to keep it centered
 });
 
-btnCancelPdf.addEventListener('click', () => {
-  modalUploadPdf.style.display = 'none';
+btnCancelPdf.addEventListener("click", () => {
+  modalUploadPdf.style.display = "none";
 });
 // 6. Admin Panel Logic: Add Quiz Modal
-btnAddQuiz.addEventListener('click', () => {
-  modalAddQuiz.style.display = 'flex';
+btnAddQuiz.addEventListener("click", () => {
+  modalAddQuiz.style.display = "flex";
 });
 
-btnCancelQuiz.addEventListener('click', () => {
-  modalAddQuiz.style.display = 'none';
+btnCancelQuiz.addEventListener("click", () => {
+  modalAddQuiz.style.display = "none";
 });
 
 // 7. Admin Panel Logic: Edit Schedule Modal
-btnEditSchedule.addEventListener('click', () => {
-  modalEditSchedule.style.display = 'flex';
+btnEditSchedule.addEventListener("click", () => {
+  modalEditSchedule.style.display = "flex";
 });
 
-btnCancelEdit.addEventListener('click', () => {
-  modalEditSchedule.style.display = 'none';
+btnCancelEdit.addEventListener("click", () => {
+  modalEditSchedule.style.display = "none";
 });
 
 // ==========================================
@@ -137,17 +145,13 @@ btnCancelEdit.addEventListener('click', () => {
 // ==========================================
 // 1. Initialize local storage array
 
-
 // 2. Identify your HTML elements (You may need to check your index.html and update these exact IDs)
-const inputPdfTitle = document.getElementById("pdf-title-input"); 
-const inputPdfLink = document.getElementById("pdf-link-input"); 
+const inputPdfTitle = document.getElementById("pdf-title-input");
+const inputPdfLink = document.getElementById("pdf-link-input");
 const btnSubmitPdf = document.getElementById("submit-pdf-btn"); // The button inside the modal that actually saves it
 const pdfContainer = document.getElementById("pdf-display-container"); // The div where the PDFs should appear on the screen
 
 // 3. Save PDF Logic
-
-    
-  
 
 // ==========================================
 // 1. DAY SWITCHER LOGIC
@@ -158,16 +162,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // A dictionary to match the 3-letter abbreviations to your HTML IDs
   const dayMap = {
-    "sat": "saturday",
-    "sun": "sunday",
-    "mon": "monday",
-    "tue": "tuesday",
-    "wed": "wednesday"
+    sat: "saturday",
+    sun: "sunday",
+    mon: "monday",
+    tue: "tuesday",
+    wed: "wednesday",
   };
 
   function switchDay(fullDayName) {
     // Hide all schedule containers first
-    schedules.forEach(schedule => {
+    schedules.forEach((schedule) => {
       schedule.style.display = "none";
     });
 
@@ -179,10 +183,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Add click behavior to every date card
-  dateCards.forEach(card => {
+  dateCards.forEach((card) => {
     card.addEventListener("click", () => {
       // 1. Reset all date cards to their default look
-      dateCards.forEach(c => {
+      dateCards.forEach((c) => {
         c.classList.remove("active-tomorrow", "today"); // Removes hardcoded classes from HTML
         c.style.backgroundColor = "transparent";
         c.style.color = ""; // Resets text color
@@ -191,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // 2. Make the clicked card look active with your clinical blue theme
       card.style.backgroundColor = "#4A90E2";
       card.style.color = "white";
-      card.style.borderRadius = "8px"; 
+      card.style.borderRadius = "8px";
 
       // 3. Get the 3-letter day text inside the clicked card (e.g., "Mon")
       const daySpan = card.querySelector(".day");
@@ -218,7 +222,7 @@ const closeSubjectBtn = document.getElementById("btn-close-subject-view");
 const subjectTitle = document.getElementById("view-subject-title");
 
 // 1. Open the modal when any subject card is clicked
-subjectCardsList.forEach(card => {
+subjectCardsList.forEach((card) => {
   card.addEventListener("click", () => {
     // Look for the subject name inside the <h2> tag
     const heading = card.querySelector("h2");
@@ -230,125 +234,147 @@ subjectCardsList.forEach(card => {
       subjectTitle.innerText = "Clinical Lab Session";
     }
 
+    // --- NEW: FIREBASE PDF SYNC ---
 
+    // --- NEW: FIREBASE PDF SYNC ---
+    let clickedSubject = subjectTitle.innerText.toLowerCase().trim();
+    clickedSubject = clickedSubject.replace(/\s+/g, "-");
 
-        // --- NEW: FIREBASE PDF SYNC ---
+    const pdfContainer = document.getElementById("list-pdfs");
 
+    if (pdfContainer) {
+      pdfContainer.innerHTML = "";
 
-        // --- NEW: FIREBASE PDF SYNC ---
-                let clickedSubject = subjectTitle.innerText.toLowerCase().trim();
-                        clickedSubject = clickedSubject.replace(/\s+/g, '-');
+      window
+        .getDocs(window.collection(window.db, "PDFNotes"))
+        .then((snapshot) => {
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
 
-                                const pdfContainer = document.getElementById("list-pdfs");
-                                        
-                                                if (pdfContainer) {
-                                                            pdfContainer.innerHTML = "";
-                                                                        
-                                                                                    window.getDocs(window.collection(window.db, "PDFNotes")).then((snapshot) => {
-                                                                                                    snapshot.forEach((docSnap) => {
-                                                                                                                        const data = docSnap.data();
-                                                                                                                                            
-                                                                                                                                                                if (data.subject === clickedSubject) {
-                                                                                                                                                                                        // 1. Create a container row to hold both the link and the button
-                                                                                                                                                                                                                const itemRow = document.createElement("div");
-                                                                                                                                                                                                                                        itemRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
-                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                        // 2. Create the PDF Link
-                                                                                                                                                                                                                                                                                                                const linkBtn = document.createElement("a");
-                                                                                                                                                                                                                                                                                                                                        linkBtn.href = data.url;
-                                                                                                                                                                                                                                                                                                                                                                linkBtn.target = "_blank"; 
-                                                                                                                                                                                                                                                                                                                                                                                        linkBtn.style.cssText = "text-decoration: none; color: #2c3e50; font-weight: 600; font-size: 14px; flex-grow: 1;";
-                                                                                                                                                                                                                                                                                                                                                                                                                linkBtn.innerHTML = `📄 ${data.name}`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                // 3. Create the Delete Button
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const deleteBtn = document.createElement("button");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        deleteBtn.className = "delete-resource-btn";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                deleteBtn.innerHTML = "🗑️";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        deleteBtn.style.cssText = "background: none; border: none; cursor: pointer; font-size: 16px; padding-left: 10px; display: " + (window.auth?.currentUser?.email === "admin@dentoschedule.tech" ? "block" : "none") + ";";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // 4. Attach the Firebase Delete Logic to the button
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                deleteBtn.addEventListener("click", async () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            if (confirm(`Are you sure you want to remove ${data.name}?`)) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            try {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                // Deletes the specific file from the Firestore database using its unique ID
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    await window.deleteDoc(window.doc(window.db, "PDFNotes", docSnap.id));
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        itemRow.remove(); // Instantly removes it from the screen
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        } catch (error) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      alert(`Unable to remove lecture: ${error.message}`);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                });
+            if (data.subject === clickedSubject) {
+              // 1. Create a container row to hold both the link and the button
+              const itemRow = document.createElement("div");
+              itemRow.style.cssText =
+                "display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // Append both items to the row, and the row to the main list
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                itemRow.appendChild(linkBtn);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  // Only show the trash can if the currently logged-in user is the Admin
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  if (window.auth && window.auth.currentUser && window.auth.currentUser.email === 'admin@dentoschedule.tech') {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      itemRow.appendChild(deleteBtn);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      }itemRow
+              // 2. Create the PDF Link
+              const linkBtn = document.createElement("a");
+              linkBtn.href = data.url;
+              linkBtn.target = "_blank";
+              linkBtn.style.cssText =
+                "text-decoration: none; color: #2c3e50; font-weight: 600; font-size: 14px; flex-grow: 1;";
+              linkBtn.innerHTML = `📄 ${data.name}`;
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                pdfContainer.appendChild(itemRow);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                // --- END FIREBASE PDF SYNC ---
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // --- NEW: FIREBASE QUIZ SYNC ---
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                const quizContainer = document.getElementById("list-quizzes");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                if (quizContainer) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            quizContainer.innerHTML = "";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    window.getDocs(window.collection(window.db, "QuizLinks")).then((snapshot) => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    snapshot.forEach((docSnap) => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const data = docSnap.data();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                if (data.subject === clickedSubject) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        const itemRow = document.createElement("div");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                itemRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #fff3cd; border: 1px solid #ffe69c; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                const linkBtn = document.createElement("a");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        linkBtn.href = data.url;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                linkBtn.target = "_blank"; 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        linkBtn.style.cssText = "text-decoration: none; color: #856404; font-weight: 600; font-size: 14px; flex-grow: 1;";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                linkBtn.innerHTML = `📝 ${data.name}`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                const deleteBtn = document.createElement("button");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        deleteBtn.innerHTML = "🗑️";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                deleteBtn.style.cssText = "background: none; border: none; cursor: pointer; font-size: 16px; padding-left: 10px; display: " + (window.auth?.currentUser?.email === "admin@dentoschedule.tech" ? "block" : "none") + ";";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                deleteBtn.addEventListener("click", async () => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            if (confirm(`Are you sure you want to remove ${data.name}?`)) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            try {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                await window.deleteDoc(window.doc(window.db, "QuizLinks", docSnap.id));
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    itemRow.remove();
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    } catch (error) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        alert("Access Denied: Only the Admin can delete quizzes.");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            });
+              // 3. Create the Delete Button
+              const deleteBtn = document.createElement("button");
+              deleteBtn.className = "delete-resource-btn";
+              deleteBtn.innerHTML = "🗑️";
+              deleteBtn.style.cssText =
+                "background: none; border: none; cursor: pointer; font-size: 16px; padding-left: 10px; display: " +
+                (window.auth?.currentUser?.email === "admin@dentoschedule.tech"
+                  ? "block"
+                  : "none") +
+                ";";
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    itemRow.appendChild(linkBtn);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            // Only show the trash can if the currently logged-in user is the Admin
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            if (window.auth && window.auth.currentUser && window.auth.currentUser.email === 'admin@dentoschedule.tech') {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                itemRow.appendChild(deleteBtn);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    quizContainer.appendChild(itemRow);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    // --- END FIREBASE QUIZ SYNC ---
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
+              // 4. Attach the Firebase Delete Logic to the button
+              deleteBtn.addEventListener("click", async () => {
+                if (confirm(`Are you sure you want to remove ${data.name}?`)) {
+                  try {
+                    // Deletes the specific file from the Firestore database using its unique ID
+                    await window.deleteDoc(
+                      window.doc(window.db, "PDFNotes", docSnap.id),
+                    );
+                    itemRow.remove(); // Instantly removes it from the screen
+                  } catch (error) {
+                    alert(`Unable to remove lecture: ${error.message}`);
+                  }
+                }
+              });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            subjectModal.style.display = "flex";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        });
+              // Append both items to the row, and the row to the main list
+              itemRow.appendChild(linkBtn);
+              // Only show the trash can if the currently logged-in user is the Admin
+              if (
+                window.auth &&
+                window.auth.currentUser &&
+                window.auth.currentUser.email === "admin@dentoschedule.tech"
+              ) {
+                itemRow.appendChild(deleteBtn);
+              }
+              itemRow;
 
+              pdfContainer.appendChild(itemRow);
+            }
+          });
+        });
+    }
+    // --- END FIREBASE PDF SYNC ---
+    // --- NEW: FIREBASE QUIZ SYNC ---
+    const quizContainer = document.getElementById("list-quizzes");
 
+    if (quizContainer) {
+      quizContainer.innerHTML = "";
 
+      window
+        .getDocs(window.collection(window.db, "QuizLinks"))
+        .then((snapshot) => {
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
 
+            if (data.subject === clickedSubject) {
+              const itemRow = document.createElement("div");
+              itemRow.style.cssText =
+                "display: flex; align-items: center; justify-content: space-between; background: #fff3cd; border: 1px solid #ffe69c; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
+
+              const linkBtn = document.createElement("a");
+              linkBtn.href = data.url;
+              linkBtn.target = "_blank";
+              linkBtn.style.cssText =
+                "text-decoration: none; color: #856404; font-weight: 600; font-size: 14px; flex-grow: 1;";
+              linkBtn.innerHTML = `📝 ${data.name}`;
+
+              const deleteBtn = document.createElement("button");
+              deleteBtn.innerHTML = "🗑️";
+              deleteBtn.style.cssText =
+                "background: none; border: none; cursor: pointer; font-size: 16px; padding-left: 10px; display: " +
+                (window.auth?.currentUser?.email === "admin@dentoschedule.tech"
+                  ? "block"
+                  : "none") +
+                ";";
+
+              deleteBtn.addEventListener("click", async () => {
+                if (confirm(`Are you sure you want to remove ${data.name}?`)) {
+                  try {
+                    await window.deleteDoc(
+                      window.doc(window.db, "QuizLinks", docSnap.id),
+                    );
+                    itemRow.remove();
+                  } catch (error) {
+                    alert("Access Denied: Only the Admin can delete quizzes.");
+                  }
+                }
+              });
+
+              itemRow.appendChild(linkBtn);
+              // Only show the trash can if the currently logged-in user is the Admin
+              if (
+                window.auth &&
+                window.auth.currentUser &&
+                window.auth.currentUser.email === "admin@dentoschedule.tech"
+              ) {
+                itemRow.appendChild(deleteBtn);
+              }
+
+              quizContainer.appendChild(itemRow);
+            }
+          });
+        });
+    }
+    // --- END FIREBASE QUIZ SYNC ---
+
+    subjectModal.style.display = "flex";
+  });
+});
 
 // 2. Close the modal when 'Close' is clicked
 if (closeSubjectBtn) {
@@ -392,7 +418,7 @@ if (studentLoginForm) {
     event.preventDefault();
     const username = studentUsernameInput.value.trim();
     const pin = studentPinInput.value.trim();
-    const isPinValid = /^\d{6}$/.test(pin); 
+    const isPinValid = /^\d{6}$/.test(pin);
     const savedAccount = getSavedStudentAccount();
 
     if (username === "" || !isPinValid) {
@@ -402,7 +428,9 @@ if (studentLoginForm) {
       savedAccount.username !== username ||
       savedAccount.pin !== pin
     ) {
-      showStudentLoginError("Incorrect username or PIN. Sign up first or try again.");
+      showStudentLoginError(
+        "Incorrect username or PIN. Sign up first or try again.",
+      );
     } else {
       loginErrorMsg.style.display = "none";
       loginErrorMsg.style.color = "red";
@@ -416,11 +444,16 @@ if (studentLoginForm) {
           await window.signInAnonymously(window.auth);
         }
       } catch (error) {
-        console.error("Unable to connect the student to the leaderboard.", error);
-        showStudentLoginError("Unable to connect to the leaderboard. Please try again.");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            return false; 
+        console.error(
+          "Unable to connect the student to the leaderboard.",
+          error,
+        );
+        showStudentLoginError(
+          "Unable to connect to the leaderboard. Please try again.",
+        );
+        return false;
       }
-      
+
       // Hide the login screen and reveal the schedule
       loginOverlay.style.display = "none";
       mainApp.style.display = "block";
@@ -435,7 +468,9 @@ if (btnSignup) {
     const pin = studentPinInput.value.trim();
 
     if (username === "" || !/^\d{6}$/.test(pin)) {
-      showStudentLoginError("Choose a username and enter a 6-digit PIN to sign up.");
+      showStudentLoginError(
+        "Choose a username and enter a 6-digit PIN to sign up.",
+      );
       return;
     }
 
@@ -445,38 +480,39 @@ if (btnSignup) {
     );
     localStorage.setItem("dento_student", username);
     loginErrorMsg.style.color = "#198754";
-    loginErrorMsg.textContent = "Account saved. Use these credentials to log in.";
+    loginErrorMsg.textContent =
+      "Account saved. Use these credentials to log in.";
     loginErrorMsg.style.display = "block";
   });
 }
 // ==========================================
 // 5. POMODORO TIMER LOGIC (SAFE VERSION)
 // ==========================================
-const pomodoroModal = document.getElementById('pomodoro-modal');
-const btnOpenPomodoro = document.getElementById('btn-open-pomodoro');
+const pomodoroModal = document.getElementById("pomodoro-modal");
+const btnOpenPomodoro = document.getElementById("btn-open-pomodoro");
 
 // This guarantees the script only runs if both the modal and button actually exist
 if (pomodoroModal && btnOpenPomodoro) {
-  const btnClosePomodoro = document.getElementById('btn-close-pomodoro');
-  const timeDisplay = document.getElementById('time-display');
-  const btnModeStudy = document.getElementById('btn-mode-study');
-  const btnModeBreak = document.getElementById('btn-mode-break');
-  const btnTimerStart = document.getElementById('btn-timer-start');
-  const btnTimerPause = document.getElementById('btn-timer-pause');
-  const btnTimerReset = document.getElementById('btn-timer-reset');
+  const btnClosePomodoro = document.getElementById("btn-close-pomodoro");
+  const timeDisplay = document.getElementById("time-display");
+  const btnModeStudy = document.getElementById("btn-mode-study");
+  const btnModeBreak = document.getElementById("btn-mode-break");
+  const btnTimerStart = document.getElementById("btn-timer-start");
+  const btnTimerPause = document.getElementById("btn-timer-pause");
+  const btnTimerReset = document.getElementById("btn-timer-reset");
 
   let timerInterval;
   let timeLeft = 25 * 60;
   let isRunning = false;
-  let currentMode = 'study';
+  let currentMode = "study";
 
   function updateDisplay() {
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    timeDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    timeDisplay.textContent = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }
 
-  btnTimerStart.addEventListener('click', () => {
+  btnTimerStart.addEventListener("click", () => {
     if (isRunning) return;
     isRunning = true;
     timerInterval = setInterval(() => {
@@ -486,12 +522,16 @@ if (pomodoroModal && btnOpenPomodoro) {
       } else {
         clearInterval(timerInterval);
         isRunning = false;
-        alert(currentMode === 'study' ? "Study session complete! Take a 5-minute break." : "Break over! Back to studying.");
+        alert(
+          currentMode === "study"
+            ? "Study session complete! Take a 5-minute break."
+            : "Break over! Back to studying.",
+        );
       }
     }, 1000);
   });
 
-  btnTimerPause.addEventListener('click', () => {
+  btnTimerPause.addEventListener("click", () => {
     clearInterval(timerInterval);
     isRunning = false;
   });
@@ -499,33 +539,33 @@ if (pomodoroModal && btnOpenPomodoro) {
   function resetTimer() {
     clearInterval(timerInterval);
     isRunning = false;
-    timeLeft = currentMode === 'study' ? 25 * 60 : 5 * 60;
+    timeLeft = currentMode === "study" ? 25 * 60 : 5 * 60;
     updateDisplay();
   }
 
-  btnTimerReset.addEventListener('click', resetTimer);
+  btnTimerReset.addEventListener("click", resetTimer);
 
-  btnModeStudy.addEventListener('click', () => {
-    currentMode = 'study';
-    btnModeStudy.classList.add('active');
-    btnModeBreak.classList.remove('active');
+  btnModeStudy.addEventListener("click", () => {
+    currentMode = "study";
+    btnModeStudy.classList.add("active");
+    btnModeBreak.classList.remove("active");
     resetTimer();
   });
 
-  btnModeBreak.addEventListener('click', () => {
-    currentMode = 'break';
-    btnModeBreak.classList.add('active');
-    btnModeStudy.classList.remove('active');
+  btnModeBreak.addEventListener("click", () => {
+    currentMode = "break";
+    btnModeBreak.classList.add("active");
+    btnModeStudy.classList.remove("active");
     resetTimer();
   });
 
-  btnOpenPomodoro.addEventListener('click', () => {
-    pomodoroModal.style.display = 'flex';
+  btnOpenPomodoro.addEventListener("click", () => {
+    pomodoroModal.style.display = "flex";
   });
 
   if (btnClosePomodoro) {
-    btnClosePomodoro.addEventListener('click', () => {
-      pomodoroModal.style.display = 'none';
+    btnClosePomodoro.addEventListener("click", () => {
+      pomodoroModal.style.display = "none";
     });
   }
 
@@ -534,12 +574,12 @@ if (pomodoroModal && btnOpenPomodoro) {
 // ==========================================
 // 6. DRIFT GAME SELECTION MENU
 // ==========================================
-window.openGameMenu = function() {
+window.openGameMenu = function () {
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "flex";
 };
 
-window.closeGameMenu = function() {
+window.closeGameMenu = function () {
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "none";
 };
@@ -562,7 +602,7 @@ window.closeGameMenu = function() {
 // ==========================================
 // ==========================================
 // ==========================================
-  // ==========================================
+// ==========================================
 // ==========================================
 // ==========================================
 // ==========================================
@@ -584,57 +624,82 @@ let gameLoopId;
 let activeCar = "";
 
 // --- PRE-LOAD CAR SPRITES ---
-const imgG37 = new Image(); imgG37.src = 'IMG_20260923_185615.png';
-const imgSkyline = new Image(); imgSkyline.src = 'IMG_20260923_185726.png';
-const imgAccent = new Image(); imgAccent.src = 'IMG_20260923_185655.png';
+const imgG37 = new Image();
+imgG37.src = "IMG_20260923_185615.png";
+const imgSkyline = new Image();
+imgSkyline.src = "IMG_20260923_185726.png";
+const imgAccent = new Image();
+imgAccent.src = "IMG_20260923_185655.png";
 
 // --- MP3 AUDIO SETUP ---
-const soundtrack = new Audio('soundtrack.mp3');
+const soundtrack = new Audio("soundtrack.mp3");
 soundtrack.loop = true;
 soundtrack.volume = 0.4;
 
-const engineAudio = new Audio('engine.mp3');
+const engineAudio = new Audio("engine.mp3");
 engineAudio.loop = true;
 engineAudio.volume = 0;
 
-const driftAudio = new Audio('drift.mp3');
+const driftAudio = new Audio("drift.mp3");
 driftAudio.loop = true;
 driftAudio.volume = 0;
 
-document.addEventListener('click', function(e) {
-  let element = e.target.closest('button') || e.target;
-  if (element && element.innerText && element.innerText.includes('Play Drift')) {
-    try { soundtrack.play().catch(err => console.log("Autoplay blocked:", err)); } catch(err){}
+document.addEventListener("click", function (e) {
+  let element = e.target.closest("button") || e.target;
+  if (
+    element &&
+    element.innerText &&
+    element.innerText.includes("Play Drift")
+  ) {
+    try {
+      soundtrack.play().catch((err) => console.log("Autoplay blocked:", err));
+    } catch (err) {}
   }
 });
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const sfx = {
-  init: function() { 
-    if (audioCtx.state === 'suspended') { audioCtx.resume().catch(e => console.log(e)); }
+  init: function () {
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch((e) => console.log(e));
+    }
   },
-  playDing: function() {
+  playDing: function () {
     try {
-      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
-      osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.1);
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(
+        1200,
+        audioCtx.currentTime + 0.1,
+      );
       gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.2);
-    } catch(e) {}
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.2);
+    } catch (e) {}
   },
-  playCrash: function() {
+  playCrash: function () {
     try {
-      let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
-      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+      let osc = audioCtx.createOscillator();
+      let gain = audioCtx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(
+        40,
+        audioCtx.currentTime + 0.3,
+      );
       gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-    } catch(e) {}
-  }
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    } catch (e) {}
+  },
 };
 
 // --- WEB DATABASE API ---
@@ -642,54 +707,41 @@ const sfx = {
 // --- LIVE DRIFT SCOREBOARD (FIREBASE) ---
 // ==========================================
 async function submitDriftScore(playerName, playerScore) {
-      let displayName = "Student";
-          let docId = "";
+  const studentName =
+    localStorage.getItem("dento_student") || playerName || "Student";
+  const currentUser = window.auth?.currentUser;
+  const isAdmin = currentUser?.email === "admin@dentoschedule.tech";
+  const displayName = isAdmin ? "Admin" : studentName;
+  const docId = isAdmin
+    ? "admin_master"
+    : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
-              // 1. Identify the Player (Admin vs Student)
-                  if (window.auth && window.auth.currentUser && window.auth.currentUser.email) {
-                          // If it's you (Admin), use your Firebase ID
-                                  displayName = window.auth.currentUser.email.split('@')[0];
-                                          docId = window.auth.currentUser.uid;
-                                              } else {
-                                                      // If it's a normal student, grab the name they typed at the login screen
-                                                              displayName = localStorage.getItem("dento_student") || playerName || "Driver";
-                                                                      
-                                                                              // Clean up their name to use as a unique database ID (e.g., "Ali M" becomes "ali_m")
-                                                                                      docId = displayName.replace(/\s+/g, '_').toLowerCase(); 
-                                                                                          }
+  if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
+    console.error("Firebase score services are unavailable.");
+    return false;
+  }
 
-                                                                                              try {
-                                                                                                      // 2. Find this specific player's score file
-                                                                                                              const docRef = window.doc(window.db, "DriftScores", docId);
-                                                                                                                      const docSnap = await window.getDoc(docRef);
-                                                                                                                              
-                                                                                                                                      let cumulativeScore = playerScore;
-                                                                                                                                              
-                                                                                                                                                      // 3. Add the new score to their lifetime total
-                                                                                                                                                              if (docSnap.exists()) {
-                                                                                                                                                                          cumulativeScore += docSnap.data().score;
-                                                                                                                                                                                  }
-                                                                                                                                                                                          
-                                                                                                                                                                                                  // 4. Save it!
-                                                                                                                                                                                                          await window.setDoc(docRef, {
-                                                                                                                                                                                                                      name: displayName,
-                                                                                                                                                                                                                                  score: cumulativeScore,
-                                                                                                                                                                                                                                              timestamp: new Date().toISOString()
-                                                                                                                                                                                                                                                      });
-                                                                                                                                                                                                                                                              
-                                                                                                                                                                                                                                                                      console.log(`Saved! New Total for ${displayName}: ${cumulativeScore}`);
-                                                                                                                                                                                                                                                                              
-                                                                                                                                                                                                                                                                                      // Hide Copilot's red error message if it's currently on screen
-                                                                                                                                                                                                                                                                                              const errorText = document.querySelector("#scoreboard-modal div[style*='color: red']");
-                                                                                                                                                                                                                                                                                                      if (errorText) errorText.style.display = "none";
-                                                                                                                                                                                                                                                                                                              
-                                                                                                                                                                                                                                                                                                                                } catch (error) {
-                                                                                                                                                                                                                                                                                                                                  console.error("Failed to save cumulative score: ", error);
-                                                                                                                                                                                                                                                                                                                                    return false;
-                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                    return true;
-                                                                                                                                                                                                                                                                                                                              }
-                                                                                                                                                                                                                                                                                                                              
+  try {
+    const docRef = window.doc(window.db, "DriftScores", docId);
+    const docSnap = await window.getDoc(docRef);
+    const previousScore = docSnap.exists()
+      ? Number(docSnap.data().score) || 0
+      : 0;
+    const cumulativeScore = previousScore + Number(playerScore) || 0;
+
+    await window.setDoc(docRef, {
+      name: displayName,
+      score: cumulativeScore,
+      timestamp: new Date().toISOString(),
+    });
+
+    console.log(`Saved! New Total for ${displayName}: ${cumulativeScore}`);
+    return true;
+  } catch (error) {
+    console.error("Firebase score error:", error);
+    return false;
+  }
+}
 async function fetchDriftLeaderboard() {
   const leaderboardList = document.getElementById("leaderboard-list");
   if (leaderboardList) {
@@ -715,56 +767,74 @@ async function fetchDriftLeaderboard() {
 }
 
 function renderDriftLeaderboardUI(dataArray) {
-                                                                                                                                                                                                                                                                                                                                                                                                                            const leaderboardList = document.getElementById("leaderboard-list");
-                                                                                                                                                                                                                                                                                                                                                                                                                                if (!leaderboardList) return;
-                                                                                                                                                                                                                                                                                                                                                                                                                                    
-                                                                                                                                                                                                                                                                                                                                                                                                                                        leaderboardList.innerHTML = "";
-                                                                                                                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                                                                                                if (dataArray.length === 0) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                        leaderboardList.innerHTML = `<div style="text-align: center; color: #bdc3c7; font-family: monospace;">No scores yet. Set the record!</div>`;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                return;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                            // 6. Build the UI for the Top 10
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                dataArray.forEach((player, index) => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // Add a gold crown emoji for 1st place!
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                leaderboardList.innerHTML += `
+  const leaderboardList = document.getElementById("leaderboard-list");
+  if (!leaderboardList) return;
+
+  leaderboardList.innerHTML = "";
+
+  if (dataArray.length === 0) {
+    leaderboardList.innerHTML = `<div style="text-align: center; color: #bdc3c7; font-family: monospace;">No scores yet. Set the record!</div>`;
+    return;
+  }
+
+  // 6. Build the UI for the Top 10
+  dataArray.forEach((player, index) => {
+    // Add a gold crown emoji for 1st place!
+    const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
+
+    leaderboardList.innerHTML += `
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         <div style="display: flex; justify-content: space-between; color: white; margin-bottom: 8px; font-family: monospace; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     <span>${rankPrefix}${player.name}</span>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 <span style="color: #2ecc71; font-weight: bold;">${player.score}</span>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         </div>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 `;
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+  });
+}
 
 // --- GAME STATE ---
-let carX = 0, carY = 26000; 
+let carX = 0,
+  carY = 26000;
 let speed = 0;
-let carAngle = -Math.PI / 2;    
-let travelAngle = -Math.PI / 2; 
-let lastSafeX = 0, lastSafeY = 26000;
-let score = 0; let startTime = 0; let raceFinished = false; let finalTimeText = "";
-let skidmarks = []; let floatingTexts = []; let driftGraceTimer = 0; let currentGrip = 0.015; 
-let crashCooldown = 0; 
-let smoothedSharpness = 0; 
+let carAngle = -Math.PI / 2;
+let travelAngle = -Math.PI / 2;
+let lastSafeX = 0,
+  lastSafeY = 26000;
+let score = 0;
+let startTime = 0;
+let raceFinished = false;
+let finalTimeText = "";
+let skidmarks = [];
+let floatingTexts = [];
+let driftGraceTimer = 0;
+let currentGrip = 0.015;
+let crashCooldown = 0;
+let smoothedSharpness = 0;
 window.input = { gas: false, left: false, right: false };
 
 const trackPoints = [
-  { x: 0, y: 26200 }, { x: 0, y: 25000 }, { x: 2000, y: 23500 }, 
-  { x: -2000, y: 21500 }, { x: 2500, y: 19500 }, { x: -2500, y: 17500 }, 
-  { x: 2800, y: 15500 }, { x: 500, y: 14000 }, { x: -2800, y: 12500 }, 
-  { x: 2500, y: 10500 }, { x: -2000, y: 8500 }, { x: 1500, y: 6500 }, 
-  { x: -1000, y: 4500 }, { x: 500, y: 2500 }, { x: 0, y: 1000 }, { x: 0, y: -800 }
+  { x: 0, y: 26200 },
+  { x: 0, y: 25000 },
+  { x: 2000, y: 23500 },
+  { x: -2000, y: 21500 },
+  { x: 2500, y: 19500 },
+  { x: -2500, y: 17500 },
+  { x: 2800, y: 15500 },
+  { x: 500, y: 14000 },
+  { x: -2800, y: 12500 },
+  { x: 2500, y: 10500 },
+  { x: -2000, y: 8500 },
+  { x: 1500, y: 6500 },
+  { x: -1000, y: 4500 },
+  { x: 500, y: 2500 },
+  { x: 0, y: 1000 },
+  { x: 0, y: -800 },
 ];
 
 function getTrackData(targetY) {
   for (let i = 0; i < trackPoints.length - 1; i++) {
-    if (targetY <= trackPoints[i].y && targetY >= trackPoints[i+1].y) {
-      let dx = trackPoints[i+1].x - trackPoints[i].x;
-      let dy = trackPoints[i+1].y - trackPoints[i].y;
+    if (targetY <= trackPoints[i].y && targetY >= trackPoints[i + 1].y) {
+      let dx = trackPoints[i + 1].x - trackPoints[i].x;
+      let dy = trackPoints[i + 1].y - trackPoints[i].y;
       let angle = Math.atan2(dy, dx);
       let sharpness = Math.abs(dx);
       return { angle: angle, sharpness: sharpness };
@@ -780,45 +850,72 @@ for (let i = 1; i < trackPoints.length - 1; i++) {
   let yc = (trackPoints[i].y + trackPoints[i + 1].y) / 2;
   trackPath.quadraticCurveTo(trackPoints[i].x, trackPoints[i].y, xc, yc);
 }
-trackPath.lineTo(trackPoints[trackPoints.length - 1].x, trackPoints[trackPoints.length - 1].y);
+trackPath.lineTo(
+  trackPoints[trackPoints.length - 1].x,
+  trackPoints[trackPoints.length - 1].y,
+);
 
 let scenery = [];
 for (let i = 0; i < 4000; i++) {
   scenery.push({
-    x: -4000 + Math.random() * 9000, y: -1000 + Math.random() * 28000,
-    r: 30 + Math.random() * 80, c: ["#0c1a11", "#09140d", "#112417", "#0a1710", "#0e1c13"][Math.floor(Math.random() * 5)]
+    x: -4000 + Math.random() * 9000,
+    y: -1000 + Math.random() * 28000,
+    r: 30 + Math.random() * 80,
+    c: ["#0c1a11", "#09140d", "#112417", "#0a1710", "#0e1c13"][
+      Math.floor(Math.random() * 5)
+    ],
   });
 }
 
-window.startGame = function(selectedCar) {
+window.startGame = function (selectedCar) {
   activeCar = selectedCar;
   closeGameMenu();
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
   if (scoreboardModal) scoreboardModal.style.display = "none";
 
   if (canvas) {
-    carX = 0; carY = 26000; speed = 0;
-    carAngle = -Math.PI / 2; travelAngle = -Math.PI / 2;
-    lastSafeX = 0; lastSafeY = 26000;
-    score = 0; startTime = Date.now(); raceFinished = false;
-    skidmarks = []; floatingTexts = []; driftGraceTimer = 0; currentGrip = 0.015;
-    crashCooldown = 0; smoothedSharpness = 0;
+    carX = 0;
+    carY = 26000;
+    speed = 0;
+    carAngle = -Math.PI / 2;
+    travelAngle = -Math.PI / 2;
+    lastSafeX = 0;
+    lastSafeY = 26000;
+    score = 0;
+    startTime = Date.now();
+    raceFinished = false;
+    skidmarks = [];
+    floatingTexts = [];
+    driftGraceTimer = 0;
+    currentGrip = 0.015;
+    crashCooldown = 0;
+    smoothedSharpness = 0;
 
-    sfx.init(); 
-    try { soundtrack.play().catch(e => console.log(e)); } catch(e){}
-    try { engineAudio.volume = 0; engineAudio.play().catch(e => console.log(e)); } catch(e){}
-    try { driftAudio.volume = 0; driftAudio.play().catch(e => console.log(e)); } catch(e){}
+    sfx.init();
+    try {
+      soundtrack.play().catch((e) => console.log(e));
+    } catch (e) {}
+    try {
+      engineAudio.volume = 0;
+      engineAudio.play().catch((e) => console.log(e));
+    } catch (e) {}
+    try {
+      driftAudio.volume = 0;
+      driftAudio.play().catch((e) => console.log(e));
+    } catch (e) {}
   }
   gameLoop();
 };
 
-window.quitGame = function() {
-  cancelAnimationFrame(gameLoopId); 
+window.quitGame = function () {
+  cancelAnimationFrame(gameLoopId);
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
-  try { 
-    engineAudio.pause(); driftAudio.pause(); 
-    soundtrack.pause(); soundtrack.currentTime = 0; 
-  } catch(e){}
+  try {
+    engineAudio.pause();
+    driftAudio.pause();
+    soundtrack.pause();
+    soundtrack.currentTime = 0;
+  } catch (e) {}
 };
 
 function spawnText(x, y, text, r, g, b) {
@@ -832,50 +929,55 @@ function gameLoop() {
 
   let trackData = getTrackData(carY);
   smoothedSharpness += (trackData.sharpness - smoothedSharpness) * 0.05;
-  let cornerIntensity = Math.min(1.0, smoothedSharpness / 3500); 
+  let cornerIntensity = Math.min(1.0, smoothedSharpness / 3500);
 
   if (!raceFinished) {
-    if (window.input.gas) { 
-      speed += 0.22; 
-      if (speed > 7.6) speed = 7.6; 
-    } else { 
-      speed *= 0.98; 
+    if (window.input.gas) {
+      speed += 0.22;
+      if (speed > 7.6) speed = 7.6;
+    } else {
+      speed *= 0.98;
     }
 
     if (speed > 1) {
-      let steeringPower = 0.10 + (0.02 * cornerIntensity);
+      let steeringPower = 0.1 + 0.02 * cornerIntensity;
       if (window.input.left) carAngle -= steeringPower;
       if (window.input.right) carAngle += steeringPower;
     }
 
     let angleDiff = carAngle - travelAngle;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2; 
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-    let maxSlip = 1.4 - (0.25 * cornerIntensity); 
-    if (angleDiff > maxSlip) { carAngle = travelAngle + maxSlip; angleDiff = maxSlip; } 
-    else if (angleDiff < -maxSlip) { carAngle = travelAngle - maxSlip; angleDiff = -maxSlip; }
+    let maxSlip = 1.4 - 0.25 * cornerIntensity;
+    if (angleDiff > maxSlip) {
+      carAngle = travelAngle + maxSlip;
+      angleDiff = maxSlip;
+    } else if (angleDiff < -maxSlip) {
+      carAngle = travelAngle - maxSlip;
+      angleDiff = -maxSlip;
+    }
 
-    let gripGas = 0.003 + (0.012 * cornerIntensity);
-    let gripCoast = 0.070 - (0.005 * cornerIntensity);
-    let targetGrip = window.input.gas ? gripGas : gripCoast; 
-    currentGrip += (targetGrip - currentGrip) * 0.15; 
+    let gripGas = 0.003 + 0.012 * cornerIntensity;
+    let gripCoast = 0.07 - 0.005 * cornerIntensity;
+    let targetGrip = window.input.gas ? gripGas : gripCoast;
+    currentGrip += (targetGrip - currentGrip) * 0.15;
     travelAngle += angleDiff * currentGrip;
 
-    let pushX = Math.cos(travelAngle) * speed; 
+    let pushX = Math.cos(travelAngle) * speed;
     let pushY = Math.sin(travelAngle) * speed;
 
-    let thrustMultiplier = 3.0 - (2.5 * cornerIntensity);
+    let thrustMultiplier = 3.0 - 2.5 * cornerIntensity;
     if (window.input.gas && Math.abs(angleDiff) > 0.1) {
       pushX += Math.cos(carAngle) * thrustMultiplier;
       pushY += Math.sin(carAngle) * thrustMultiplier;
     }
 
-    carX += pushX; 
+    carX += pushX;
     carY += pushY;
   } else {
-    speed *= 0.95; 
-    carX += Math.cos(travelAngle) * speed; 
+    speed *= 0.95;
+    carX += Math.cos(travelAngle) * speed;
     carY += Math.sin(travelAngle) * speed;
   }
 
@@ -884,60 +986,80 @@ function gameLoop() {
   if (!raceFinished) {
     if (speed > 0.5) {
       // Significantly lowered the engine volume here so it stays softly in the background
-      engineAudio.volume = Math.min(0.20, 0.02 + (speed / 40)); 
-      engineAudio.playbackRate = 0.8 + (speed / 10);          
-    } else { engineAudio.volume = 0; }
+      engineAudio.volume = Math.min(0.2, 0.02 + speed / 40);
+      engineAudio.playbackRate = 0.8 + speed / 10;
+    } else {
+      engineAudio.volume = 0;
+    }
 
-    if (isDrifting) { driftAudio.volume = 0.06; } else { driftAudio.volume = 0; }
+    if (isDrifting) {
+      driftAudio.volume = 0.06;
+    } else {
+      driftAudio.volume = 0;
+    }
   } else {
-    engineAudio.volume = 0; driftAudio.volume = 0; 
+    engineAudio.volume = 0;
+    driftAudio.volume = 0;
   }
 
   // --- 2. BREADCRUMB COLLISIONS & GHOST RESPAWN ---
   if (!raceFinished) {
-    ctx.lineWidth = 450; let isOnAsphalt = ctx.isPointInStroke(trackPath, carX, carY);
-    ctx.lineWidth = 200; let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
+    ctx.lineWidth = 450;
+    let isOnAsphalt = ctx.isPointInStroke(trackPath, carX, carY);
+    ctx.lineWidth = 200;
+    let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
 
     if (!isOnAsphalt && crashCooldown === 0) {
-      score -= 200; spawnText(carX, carY, "-200", 231, 76, 60); 
-      sfx.playCrash(); 
+      score -= 200;
+      spawnText(carX, carY, "-200", 231, 76, 60);
+      sfx.playCrash();
 
-      carX = lastSafeX; 
-      carY = lastSafeY; 
+      carX = lastSafeX;
+      carY = lastSafeY;
       speed = 0;
 
       let safeTrackData = getTrackData(lastSafeY);
-      carAngle = travelAngle = safeTrackData.angle; 
-      window.input.gas = false; 
+      carAngle = travelAngle = safeTrackData.angle;
+      window.input.gas = false;
 
-      crashCooldown = 60; 
+      crashCooldown = 60;
     } else {
-      if (isInSafeZone && crashCooldown === 0) { 
-        lastSafeX = carX; 
-        lastSafeY = carY; 
+      if (isInSafeZone && crashCooldown === 0) {
+        lastSafeX = carX;
+        lastSafeY = carY;
       }
 
       if (isDrifting && crashCooldown === 0) {
         if (!isInSafeZone) {
           score += 5;
-          if (Math.random() < 0.15) { spawnText(carX, carY, "+5", 46, 204, 113); sfx.playDing(); }
-        } else { score += 1; }
+          if (Math.random() < 0.15) {
+            spawnText(carX, carY, "+5", 46, 204, 113);
+            sfx.playDing();
+          }
+        } else {
+          score += 1;
+        }
       }
     }
 
     if (carY <= 0) {
       raceFinished = true;
       let timeTaken = (Date.now() - startTime) / 1000;
-      let timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 50)); 
+      let timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 50));
       score += timeBonus;
       finalTimeText = `Finished in ${timeTaken.toFixed(2)}s! Bonus: +${timeBonus}`;
 
-      engineAudio.volume = 0; driftAudio.volume = 0;
+      engineAudio.volume = 0;
+      driftAudio.volume = 0;
 
       if (scoreboardModal) {
         finalScoreDisplay.innerText = score;
         scoreboardModal.style.display = "flex";
-        let storedName = localStorage.getItem("dento_student") || localStorage.getItem("username") || localStorage.getItem("loggedInUser") || "Student";
+        let storedName =
+          localStorage.getItem("dento_student") ||
+          localStorage.getItem("username") ||
+          localStorage.getItem("loggedInUser") ||
+          "Student";
         setTimeout(async () => {
           const scoreSaved = await submitDriftScore(storedName, score);
           if (scoreSaved) {
@@ -948,51 +1070,98 @@ function gameLoop() {
               leaderboardList.innerHTML = `<div style="text-align: center; color: #ff7675;">Score could not be saved. Check Firebase permissions.</div>`;
             }
           }
-        }, 100); 
+        }, 100);
       }
     }
   }
 
   // --- 3. RENDERING ENGINE ---
-  if (isDrifting) { driftGraceTimer = 20; } else if (!window.input.gas && driftGraceTimer > 0) { driftGraceTimer -= 2; }
+  if (isDrifting) {
+    driftGraceTimer = 20;
+  } else if (!window.input.gas && driftGraceTimer > 0) {
+    driftGraceTimer -= 2;
+  }
 
   if (driftGraceTimer > 0 && !raceFinished && crashCooldown === 0) {
     let cosA = Math.cos(carAngle);
     let sinA = Math.sin(carAngle);
     let tires = [
-      { lx: 18, ly: -12 }, { lx: 18, ly: 12 }, { lx: -18, ly: -12 }, { lx: -18, ly: 12 } 
+      { lx: 18, ly: -12 },
+      { lx: 18, ly: 12 },
+      { lx: -18, ly: -12 },
+      { lx: -18, ly: 12 },
     ];
-    tires.forEach(t => {
-      skidmarks.push({ x: carX + (t.lx * cosA - t.ly * sinA), y: carY + (t.lx * sinA + t.ly * cosA), opacity: 0.5 });
+    tires.forEach((t) => {
+      skidmarks.push({
+        x: carX + (t.lx * cosA - t.ly * sinA),
+        y: carY + (t.lx * sinA + t.ly * cosA),
+        opacity: 0.5,
+      });
     });
-    if (window.input.gas) driftGraceTimer--; 
+    if (window.input.gas) driftGraceTimer--;
   }
 
-  let camX = carX - canvas.width / 2; let camY = carY - canvas.height * 0.75;
-  ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(-camX, -camY); 
+  let camX = carX - canvas.width / 2;
+  let camY = carY - canvas.height * 0.75;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.save();
+  ctx.translate(-camX, -camY);
 
-  ctx.fillStyle = "#060908"; ctx.fillRect(camX - 500, camY - 500, canvas.width + 1000, canvas.height + 1000);
+  ctx.fillStyle = "#060908";
+  ctx.fillRect(
+    camX - 500,
+    camY - 500,
+    canvas.width + 1000,
+    canvas.height + 1000,
+  );
   for (let tree of scenery) {
-    if (tree.x > camX - 200 && tree.x < camX + canvas.width + 200 && tree.y > camY - 200 && tree.y < camY + canvas.height + 200) {
-      ctx.fillStyle = tree.c; ctx.beginPath(); ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI * 2); ctx.fill();
+    if (
+      tree.x > camX - 200 &&
+      tree.x < camX + canvas.width + 200 &&
+      tree.y > camY - 200 &&
+      tree.y < camY + canvas.height + 200
+    ) {
+      ctx.fillStyle = tree.c;
+      ctx.beginPath();
+      ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
-  ctx.lineWidth = 480; ctx.strokeStyle = "#7f8c8d"; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.stroke(trackPath);
-  ctx.lineWidth = 450; ctx.strokeStyle = "#161b22"; ctx.stroke(trackPath);
-  ctx.lineWidth = 4; ctx.strokeStyle = "rgba(255, 255, 255, 0.3)"; ctx.setLineDash([30, 60]); ctx.stroke(trackPath); ctx.setLineDash([]); 
-  ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; ctx.fillRect(-225, 26000, 450, 15); 
-  ctx.fillStyle = "#c0392b"; ctx.fillRect(-225, 0, 450, 20);    
+  ctx.lineWidth = 480;
+  ctx.strokeStyle = "#7f8c8d";
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.stroke(trackPath);
+  ctx.lineWidth = 450;
+  ctx.strokeStyle = "#161b22";
+  ctx.stroke(trackPath);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+  ctx.setLineDash([30, 60]);
+  ctx.stroke(trackPath);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+  ctx.fillRect(-225, 26000, 450, 15);
+  ctx.fillStyle = "#c0392b";
+  ctx.fillRect(-225, 0, 450, 20);
 
   for (let i = skidmarks.length - 1; i >= 0; i--) {
     let mark = skidmarks[i];
-    ctx.fillStyle = `rgba(0, 0, 0, ${mark.opacity})`; ctx.fillRect(mark.x - 3, mark.y - 3, 6, 6); 
-    mark.opacity -= 0.010; if (mark.opacity <= 0) skidmarks.splice(i, 1);
+    ctx.fillStyle = `rgba(0, 0, 0, ${mark.opacity})`;
+    ctx.fillRect(mark.x - 3, mark.y - 3, 6, 6);
+    mark.opacity -= 0.01;
+    if (mark.opacity <= 0) skidmarks.splice(i, 1);
   }
 
   for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    let ft = floatingTexts[i]; ctx.font = "bold 24px monospace"; ctx.fillStyle = `rgba(${ft.r}, ${ft.g}, ${ft.b}, ${ft.life / 40})`;
-    ctx.fillText(ft.text, ft.x, ft.y); ft.y -= 2; ft.life--; if (ft.life <= 0) floatingTexts.splice(i, 1);
+    let ft = floatingTexts[i];
+    ctx.font = "bold 24px monospace";
+    ctx.fillStyle = `rgba(${ft.r}, ${ft.g}, ${ft.b}, ${ft.life / 40})`;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ft.y -= 2;
+    ft.life--;
+    if (ft.life <= 0) floatingTexts.splice(i, 1);
   }
 
   let shouldDrawCar = true;
@@ -1001,39 +1170,60 @@ function gameLoop() {
   }
 
   if (shouldDrawCar) {
-    ctx.save(); 
-    ctx.translate(carX, carY); 
-    ctx.rotate(carAngle); 
+    ctx.save();
+    ctx.translate(carX, carY);
+    ctx.rotate(carAngle);
 
     let lightGradient = ctx.createLinearGradient(30, 0, 250, 0);
-    lightGradient.addColorStop(0, "rgba(255, 255, 200, 0.4)"); lightGradient.addColorStop(1, "rgba(255, 255, 200, 0)");   
-    ctx.fillStyle = lightGradient; ctx.beginPath(); ctx.moveTo(30, -15); ctx.lineTo(300, -80); ctx.lineTo(300, 80); ctx.lineTo(30, 15); ctx.fill();
+    lightGradient.addColorStop(0, "rgba(255, 255, 200, 0.4)");
+    lightGradient.addColorStop(1, "rgba(255, 255, 200, 0)");
+    ctx.fillStyle = lightGradient;
+    ctx.beginPath();
+    ctx.moveTo(30, -15);
+    ctx.lineTo(300, -80);
+    ctx.lineTo(300, 80);
+    ctx.lineTo(30, 15);
+    ctx.fill();
 
     ctx.rotate(Math.PI / 2);
 
     let carImg = null;
-    if (activeCar === 'g37') carImg = imgG37;
-    else if (activeCar === 'skyline') carImg = imgSkyline;
-    else if (activeCar === 'accent') carImg = imgAccent;
+    if (activeCar === "g37") carImg = imgG37;
+    else if (activeCar === "skyline") carImg = imgSkyline;
+    else if (activeCar === "accent") carImg = imgAccent;
 
     if (carImg && carImg.complete && carImg.naturalWidth > 0) {
-      try { ctx.drawImage(carImg, -15, -30, 30, 60); } 
-      catch (e) { ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); }
+      try {
+        ctx.drawImage(carImg, -15, -30, 30, 60);
+      } catch (e) {
+        ctx.fillStyle = "#e74c3c";
+        ctx.fillRect(-15, -30, 30, 60);
+      }
     } else {
-      ctx.fillStyle = "#e74c3c"; ctx.fillRect(-15, -30, 30, 60); 
+      ctx.fillStyle = "#e74c3c";
+      ctx.fillRect(-15, -30, 30, 60);
     }
-    ctx.restore(); 
+    ctx.restore();
   }
-  ctx.restore(); 
+  ctx.restore();
 
   let progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
-  let timerText = raceFinished ? finalTimeText : ((Date.now() - startTime) / 1000).toFixed(1) + "s";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.6)"; ctx.fillRect(0, 0, canvas.width, 70); 
-  ctx.font = "bold 20px monospace"; ctx.fillStyle = "white"; ctx.textAlign = "left";
-  ctx.fillText(`Score: ${score}`, 20, 30); ctx.fillText(`Time: ${timerText}`, 20, 55);
-  ctx.textAlign = "right"; ctx.fillText(`Progress: ${progress.toFixed(1)}%`, canvas.width - 20, 42);
-  ctx.fillStyle = "#333"; ctx.fillRect(canvas.width/2 - 100, 25, 200, 20);
-  ctx.fillStyle = "#e74c3c"; ctx.fillRect(canvas.width/2 - 100, 25, progress * 2, 20);
+  let timerText = raceFinished
+    ? finalTimeText
+    : ((Date.now() - startTime) / 1000).toFixed(1) + "s";
+  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+  ctx.fillRect(0, 0, canvas.width, 70);
+  ctx.font = "bold 20px monospace";
+  ctx.fillStyle = "white";
+  ctx.textAlign = "left";
+  ctx.fillText(`Score: ${score}`, 20, 30);
+  ctx.fillText(`Time: ${timerText}`, 20, 55);
+  ctx.textAlign = "right";
+  ctx.fillText(`Progress: ${progress.toFixed(1)}%`, canvas.width - 20, 42);
+  ctx.fillStyle = "#333";
+  ctx.fillRect(canvas.width / 2 - 100, 25, 200, 20);
+  ctx.fillStyle = "#e74c3c";
+  ctx.fillRect(canvas.width / 2 - 100, 25, progress * 2, 20);
   ctx.textAlign = "left";
 
   gameLoopId = requestAnimationFrame(gameLoop);
@@ -1047,7 +1237,9 @@ function gameLoop() {
 // 9. DYNAMIC 10-DAY CALENDAR & SCHEDULE FILTER
 // ==========================================
 function renderDynamicCalendar() {
-  const iraqTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Baghdad"}));
+  const iraqTime = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }),
+  );
 
   let currentDay = iraqTime.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
   let diffToSaturday;
@@ -1065,11 +1257,13 @@ function renderDynamicCalendar() {
 
   let startOfWeek = new Date(iraqTime);
   startOfWeek.setDate(iraqTime.getDate() + diffToSaturday);
-  startOfWeek.setHours(0,0,0,0); 
+  startOfWeek.setHours(0, 0, 0, 0);
 
-  const calendarContainer = document.getElementById("dynamic-calendar-container");
+  const calendarContainer = document.getElementById(
+    "dynamic-calendar-container",
+  );
   if (!calendarContainer) return;
-  calendarContainer.innerHTML = ""; 
+  calendarContainer.innerHTML = "";
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   let validDaysFound = 0;
@@ -1083,13 +1277,13 @@ function renderDynamicCalendar() {
       let dayName = dayNames[loopDayOfWeek];
       let dateNum = loopDate.getDate();
 
-      let isToday = (loopDate.toDateString() === iraqTime.toDateString());
+      let isToday = loopDate.toDateString() === iraqTime.toDateString();
 
       let tomorrowDate = new Date(iraqTime);
       tomorrowDate.setDate(iraqTime.getDate() + 1);
-      let isTomorrow = (loopDate.toDateString() === tomorrowDate.toDateString());
+      let isTomorrow = loopDate.toDateString() === tomorrowDate.toDateString();
 
-      let badgeHtml = `<div style="height: 20px; margin-top: 4px;"></div>`; 
+      let badgeHtml = `<div style="height: 20px; margin-top: 4px;"></div>`;
       if (isToday) {
         badgeHtml = `<div style="background: white; color: #4a81f5; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-top: 4px; font-weight: bold; box-shadow: 0px 2px 4px rgba(0,0,0,0.1);">Today</div>`;
       } else if (isTomorrow) {
@@ -1109,11 +1303,11 @@ function renderDynamicCalendar() {
     loopDate.setDate(loopDate.getDate() + 1);
   }
 
-  const allDayBtns = document.querySelectorAll('.day-selector-btn');
+  const allDayBtns = document.querySelectorAll(".day-selector-btn");
 
-  allDayBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
-      allDayBtns.forEach(b => {
+  allDayBtns.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      allDayBtns.forEach((b) => {
         b.style.backgroundColor = "#f1f5f9";
         b.style.color = "#64748b";
       });
@@ -1121,9 +1315,13 @@ function renderDynamicCalendar() {
       this.style.backgroundColor = "#4a81f5";
       this.style.color = "white";
 
-      this.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      this.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
 
-      let selectedDay = this.getAttribute('data-day');
+      let selectedDay = this.getAttribute("data-day");
       filterSchedule(selectedDay);
     });
   });
@@ -1131,8 +1329,8 @@ function renderDynamicCalendar() {
   // --- AUTO-SELECTION LOGIC ON PAGE LOAD ---
   let successfullyClickedToday = false;
 
-  allDayBtns.forEach(btn => {
-    if (btn.getAttribute('data-date') === iraqTime.toDateString()) {
+  allDayBtns.forEach((btn) => {
+    if (btn.getAttribute("data-date") === iraqTime.toDateString()) {
       setTimeout(() => btn.click(), 50);
       successfullyClickedToday = true;
     }
@@ -1148,184 +1346,244 @@ function renderDynamicCalendar() {
 // 9B. SCHEDULE FILTERING LOGIC
 // ------------------------------------------
 function filterSchedule(dayName) {
-  const dayMap = { "Sat": "saturday", "Sun": "sunday", "Mon": "monday", "Tue": "tuesday", "Wed": "wednesday" };
+  const dayMap = {
+    Sat: "saturday",
+    Sun: "sunday",
+    Mon: "monday",
+    Tue: "tuesday",
+    Wed: "wednesday",
+  };
 
-  const allSchedules = document.querySelectorAll('.schedule-container');
-  allSchedules.forEach(sec => { sec.style.display = 'none'; });
+  const allSchedules = document.querySelectorAll(".schedule-container");
+  allSchedules.forEach((sec) => {
+    sec.style.display = "none";
+  });
 
   const targetId = `schedule-${dayMap[dayName]}`;
   const targetSection = document.getElementById(targetId);
-  if (targetSection) { targetSection.style.display = 'block'; }
+  if (targetSection) {
+    targetSection.style.display = "block";
+  }
 }
 
 // THIS IS THE TRIGGER THAT MAKES IT DRAW ON THE SCREEN
-window.addEventListener('DOMContentLoaded', renderDynamicCalendar);
+window.addEventListener("DOMContentLoaded", renderDynamicCalendar);
 let tapCount = 0;
 let tapTimer;
 
 function handleSecretTrigger() {
-    tapCount++;
-        clearTimeout(tapTimer);
-            
-                // Resets the tap counter if you stop tapping for 2 seconds
-                    tapTimer = setTimeout(() => { tapCount = 0; }, 2000); 
+  tapCount++;
+  clearTimeout(tapTimer);
 
-                        // If tapped 5 times fast, open the hidden prompt
-                            if (tapCount === 5) {
-                                    tapCount = 0;
-                                            // The prompt is made to look like a boring browser error so no one gets suspicious
-                                                    const overrideCode = prompt("System Diagnostics (Error 404):"); 
-                                                            
-                                                                    if (overrideCode === "Phantom3530") {
-                                                                                loginAsPhantom();
-                                                                                        }
-                                                                                            }
-                                                                                            }
+  // Resets the tap counter if you stop tapping for 2 seconds
+  tapTimer = setTimeout(() => {
+    tapCount = 0;
+  }, 2000);
 
-                                                                                            function loginAsPhantom() {
-                                                                                                // Log into the master Firebase account
-                                                                                                    window.signInWithEmailAndPassword(window.auth, "phantom@dentoschedule.tech", "Phantom3530")
-                                                                                                            .then(async (userCredential) => {
-                                                                                                                        alert("Override accepted. Welcome, Phantom.");
-                                                                                                                                    
-                                                                                                                                                // Pull the list of every device that has ever used the Dent password
-                                                                                                                                                            const querySnapshot = await window.getDocs(window.collection(window.db, "DeviceHistory"));
-                                                                                                                                                                        
-                                                                                                                                                                                    let deviceCount = 0;
-                                                                                                                                                                                                let logDetails = "ADMIN DEVICE LEDGER:\n\n";
-                                                                                                                                                                                                            
-                                                                                                                                                                                                                        querySnapshot.forEach((doc) => {
-                                                                                                                                                                                                                                        deviceCount++;
-                                                                                                                                                                                                                                                        // Formats the timestamp to look cleaner
-                                                                                                                                                                                                                                                                        let dateObj = new Date(doc.data().lastLogin);
-                                                                                                                                                                                                                                                                                        logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
-                                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                            // Show you the total count. If this is > 3, your friends leaked the password!
-                                                                                                                                                                                                                                                                                                                                        alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
-                                                                                                                                                                                                                                                                                                                                                })
-                                                                                                                                                                                                                                                                                                                                                        .catch((error) => {
-                                                                                                                                                                                                                                                                                                                                                                    alert("Access Denied.");
-                                                                                                                                                                                                                                                                                                                                                                            });
-                                                                                                                                                                                                                                                                                                                                                                            }
+  // If tapped 5 times fast, open the hidden prompt
+  if (tapCount === 5) {
+    tapCount = 0;
+    // The prompt is made to look like a boring browser error so no one gets suspicious
+    const overrideCode = prompt("System Diagnostics (Error 404):");
+
+    if (overrideCode === "Phantom3530") {
+      loginAsPhantom();
+    }
+  }
+}
+
+function loginAsPhantom() {
+  // Log into the master Firebase account
+  window
+    .signInWithEmailAndPassword(
+      window.auth,
+      "phantom@dentoschedule.tech",
+      "Phantom3530",
+    )
+    .then(async (userCredential) => {
+      alert("Override accepted. Welcome, Phantom.");
+
+      // Pull the list of every device that has ever used the Dent password
+      const querySnapshot = await window.getDocs(
+        window.collection(window.db, "DeviceHistory"),
+      );
+
+      let deviceCount = 0;
+      let logDetails = "ADMIN DEVICE LEDGER:\n\n";
+
+      querySnapshot.forEach((doc) => {
+        deviceCount++;
+        // Formats the timestamp to look cleaner
+        let dateObj = new Date(doc.data().lastLogin);
+        logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
+      });
+
+      // Show you the total count. If this is > 3, your friends leaked the password!
+      alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+    })
+    .catch((error) => {
+      alert("Access Denied.");
+    });
+}
 // --- PHANTOM BACKDOOR LOGIC ---
 // --- PHANTOM BACKDOOR LOGIC ---
 window.phantomTapCount = 0;
 window.phantomTapTimer = null;
 
-window.handleSecretTrigger = function() {
-    window.phantomTapCount++;
-        clearTimeout(window.phantomTapTimer);
-            
-                window.phantomTapTimer = setTimeout(() => { window.phantomTapCount = 0; }, 2000); 
+window.handleSecretTrigger = function () {
+  window.phantomTapCount++;
+  clearTimeout(window.phantomTapTimer);
 
-                    if (window.phantomTapCount === 5) {
-                            window.phantomTapCount = 0;
-                                    const overrideCode = prompt("System Diagnostics (Error 404):"); 
-                                            
-                                                    if (overrideCode) {
-                                                                window.signInWithEmailAndPassword(window.auth, "phantom@dentoschedule.tech", overrideCode)
-                                                                                .then(async () => {
-                                                                                                    alert("Override accepted. Welcome, Phantom.");
-                                                                                                                        
-                                                                                                                                            const querySnapshot = await window.getDocs(window.collection(window.db, "DeviceHistory"));
-                                                                                                                                                                let deviceCount = 0;
-                                                                                                                                                                                    let logDetails = "ADMIN DEVICE LEDGER:\n\n";
-                                                                                                                                                                                                        
-                                                                                                                                                                                                                            querySnapshot.forEach((doc) => {
-                                                                                                                                                                                                                                                    deviceCount++;
-                                                                                                                                                                                                                                                                            let dateObj = new Date(doc.data().lastLogin);
-                                                                                                                                                                                                                                                                                                    logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
-                                                                                                                                                                                                                                                                                                                        });
-                                                                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                                                                                alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+  window.phantomTapTimer = setTimeout(() => {
+    window.phantomTapCount = 0;
+  }, 2000);
 
-                                                                                                                                                                                                                                                                                                                                                                                    // NEW LOCKDOWN FEATURE
-                                                                                                                                                                                                                                                                                                                                                                                                        if (confirm("SYSTEM COMPROMISED?\nClick OK to change the Admin password and lock down the site.")) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                const currentAdminPass = prompt("Enter CURRENT Admin password to authorize:");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                        const newAdminPass = prompt("Enter NEW Admin password:");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        if (currentAdminPass && newAdminPass) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    window.signInWithEmailAndPassword(window.auth, "admin@dentoschedule.tech", currentAdminPass)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    .then(() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        window.updatePassword(window.auth.currentUser, newAdminPass)
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                .then(() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            alert("LOCKDOWN SUCCESSFUL.\nThe password has been changed. All active admins will be logged out.");
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    })
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .catch((error) => alert("Failed to update password: " + error.message));
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            })
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            .catch(() => alert("Incorrect current admin password. Lockdown aborted."));
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        })
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        .catch(() => {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            // Fails silently if they guess the Phantom password wrong
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            });
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        };
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // -----------------------------
+  if (window.phantomTapCount === 5) {
+    window.phantomTapCount = 0;
+    const overrideCode = prompt("System Diagnostics (Error 404):");
+
+    if (overrideCode) {
+      window
+        .signInWithEmailAndPassword(
+          window.auth,
+          "phantom@dentoschedule.tech",
+          overrideCode,
+        )
+        .then(async () => {
+          alert("Override accepted. Welcome, Phantom.");
+
+          const querySnapshot = await window.getDocs(
+            window.collection(window.db, "DeviceHistory"),
+          );
+          let deviceCount = 0;
+          let logDetails = "ADMIN DEVICE LEDGER:\n\n";
+
+          querySnapshot.forEach((doc) => {
+            deviceCount++;
+            let dateObj = new Date(doc.data().lastLogin);
+            logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
+          });
+
+          alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+
+          // NEW LOCKDOWN FEATURE
+          if (
+            confirm(
+              "SYSTEM COMPROMISED?\nClick OK to change the Admin password and lock down the site.",
+            )
+          ) {
+            const currentAdminPass = prompt(
+              "Enter CURRENT Admin password to authorize:",
+            );
+            const newAdminPass = prompt("Enter NEW Admin password:");
+
+            if (currentAdminPass && newAdminPass) {
+              window
+                .signInWithEmailAndPassword(
+                  window.auth,
+                  "admin@dentoschedule.tech",
+                  currentAdminPass,
+                )
+                .then(() => {
+                  window
+                    .updatePassword(window.auth.currentUser, newAdminPass)
+                    .then(() => {
+                      alert(
+                        "LOCKDOWN SUCCESSFUL.\nThe password has been changed. All active admins will be logged out.",
+                      );
+                    })
+                    .catch((error) =>
+                      alert("Failed to update password: " + error.message),
+                    );
+                })
+                .catch(() =>
+                  alert("Incorrect current admin password. Lockdown aborted."),
+                );
+            }
+          }
+        })
+        .catch(() => {
+          // Fails silently if they guess the Phantom password wrong
+        });
+    }
+  }
+};
+// -----------------------------
 // --- 1. MODAL TOGGLE LOGIC ---
 // Open the Post Announcement Modal
-document.getElementById("btn-post-announcement").addEventListener("click", () => {
-  document.getElementById("modal-post-announcement").style.display = "flex";
-    });
+document
+  .getElementById("btn-post-announcement")
+  .addEventListener("click", () => {
+    document.getElementById("modal-post-announcement").style.display = "flex";
+  });
 
-    // Close the Post Announcement Modal
-    document.getElementById("btn-cancel-announcement").addEventListener("click", () => {
-        document.getElementById("modal-post-announcement").style.display = "none";
-            document.getElementById("announcement-input-text").value = ""; // Clear input on cancel
-            });
+// Close the Post Announcement Modal
+document
+  .getElementById("btn-cancel-announcement")
+  .addEventListener("click", () => {
+    document.getElementById("modal-post-announcement").style.display = "none";
+    document.getElementById("announcement-input-text").value = ""; // Clear input on cancel
+  });
 
-            // --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
-            // --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
-                                                                                                                                                document.getElementById("btn-submit-announcement").addEventListener("click", async () => {
-                                                                                                                                                    const text = document.getElementById("announcement-input-text").value;
-                                                                                                                                                        
-                                                                                                                                                            if (!text) {
-                                                                                                                                                                    alert("Please type an announcement first.");
-                                                                                                                                                                            return;
-                                                                                                                                                                                }
+// --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
+// --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
+document
+  .getElementById("btn-submit-announcement")
+  .addEventListener("click", async () => {
+    const text = document.getElementById("announcement-input-text").value;
 
-                                                                                                                                                                                    try {
-                                                                                                                                                                                            // Quick check to ensure Firebase loaded correctly
-                                                                                                                                                                                                    if (!window.db || !window.setDoc || !window.doc) {
-                                                                                                                                                                                                                alert("CRITICAL ERROR: Firebase tools (db, setDoc, doc) are missing from the window object.");
-                                                                                                                                                                                                                            return;
-                                                                                                                                                                                                                                    }
+    if (!text) {
+      alert("Please type an announcement first.");
+      return;
+    }
 
-                                                                                                                                                                                                                                            // Attempt to save to Firestore
-                                                                                                                                                                                                                                                    await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
-                                                                                                                                                                                                                                                                message: text,
-                                                                                                                                                                                                                                                                            timestamp: new Date().toISOString()
-                                                                                                                                                                                                                                                                                    });
-                                                                                                                                                                                                                                                                                            
-                                                                                                                                                                                                                                                                                                    alert("Database confirmed: Alert saved to server!");
-                                                                                                                                                                                                                                                                                                            document.getElementById("modal-post-announcement").style.display = "none";
-                                                                                                                                                                                                                                                                                                                    document.getElementById("announcement-input-text").value = ""; 
-                                                                                                                                                                                                                                                                                                                        } catch (error) {
-                                                                                                                                                                                                                                                                                                                                // This will pop up and tell us EXACTLY why it failed
-                                                                                                                                                                                                                                                                                                                                        alert("UPLOAD FAILED: " + error.message); 
-                                                                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                                                                            });
+    try {
+      // Quick check to ensure Firebase loaded correctly
+      if (!window.db || !window.setDoc || !window.doc) {
+        alert(
+          "CRITICAL ERROR: Firebase tools (db, setDoc, doc) are missing from the window object.",
+        );
+        return;
+      }
 
+      // Attempt to save to Firestore
+      await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
+        message: text,
+        timestamp: new Date().toISOString(),
+      });
 
-                                                                                                                                                // --- 3. LIVE LISTENER (ALL STUDENTS) ---
-                                                                                                                                                // Runs continuously to show/hide the banner when the database changes
-                                                                                                                                                // --- 3. LIVE LISTENER (ALL STUDENTS) ---
-                                                                                                                                                window.onSnapshot(window.doc(window.db, "Announcements", "latest"), (docSnap) => {
-                                                                                                                                                    const banner = document.getElementById("live-alert-banner");
-                                                                                                                                                        const displayText = document.getElementById("live-alert-text");
-                                                                                                                                                            
-                                                                                                                                                                if (docSnap.exists() && docSnap.data().message && docSnap.data().message.trim() !== "") {
-                                                                                                                                                                        displayText.innerText = docSnap.data().message;
-                                                                                                                                                                                // Display as flex to keep the bell icon and text perfectly aligned
-                                                                                                                                                                                        banner.style.display = "flex"; 
-                                                                                                                                                                                            } else {
-                                                                                                                                                                                                    banner.style.display = "none"; 
-                                                                                                                                                                                                        }
-                                                                                                                                                                                                        });
-                                                                                                      // ==========================================
+      alert("Database confirmed: Alert saved to server!");
+      document.getElementById("modal-post-announcement").style.display = "none";
+      document.getElementById("announcement-input-text").value = "";
+    } catch (error) {
+      // This will pop up and tell us EXACTLY why it failed
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
+
+// --- 3. LIVE LISTENER (ALL STUDENTS) ---
+// Runs continuously to show/hide the banner when the database changes
+// --- 3. LIVE LISTENER (ALL STUDENTS) ---
+window.onSnapshot(
+  window.doc(window.db, "Announcements", "latest"),
+  (docSnap) => {
+    const banner = document.getElementById("live-alert-banner");
+    const displayText = document.getElementById("live-alert-text");
+
+    if (
+      docSnap.exists() &&
+      docSnap.data().message &&
+      docSnap.data().message.trim() !== ""
+    ) {
+      displayText.innerText = docSnap.data().message;
+      // Display as flex to keep the bell icon and text perfectly aligned
+      banner.style.display = "flex";
+    } else {
+      banner.style.display = "none";
+    }
+  },
+);
+// ==========================================
 // ==========================================
 // --- EDIT SCHEDULE & ALERTS LOGIC ---
 // ==========================================
@@ -1333,121 +1591,136 @@ document.getElementById("btn-post-announcement").addEventListener("click", () =>
 // 1. Toggle the Modal
 document.getElementById("btn-edit-schedule").addEventListener("click", () => {
   document.getElementById("modal-edit-schedule").style.display = "flex";
-    });
-    document.getElementById("btn-cancel-edit").addEventListener("click", () => {
-        document.getElementById("modal-edit-schedule").style.display = "none";
-        });
+});
+document.getElementById("btn-cancel-edit").addEventListener("click", () => {
+  document.getElementById("modal-edit-schedule").style.display = "none";
+});
 
-        // 2. Upload to Firestore (Admin Only)
-        document.getElementById("btn-submit-edit").addEventListener("click", async () => {
-            const subject = document.getElementById("edit-subject").value;
-                const alertText = document.getElementById("alert-text").value;
-                    const expDate = document.getElementById("alert-date").value;
+// 2. Upload to Firestore (Admin Only)
+document
+  .getElementById("btn-submit-edit")
+  .addEventListener("click", async () => {
+    const subject = document.getElementById("edit-subject").value;
+    const alertText = document.getElementById("alert-text").value;
+    const expDate = document.getElementById("alert-date").value;
 
-                        if (!subject || !alertText || !expDate) {
-                                alert("Please fill in the subject, alert text, and expiration date.");
-                                        return;
-                                            }
+    if (!subject || !alertText || !expDate) {
+      alert("Please fill in the subject, alert text, and expiration date.");
+      return;
+    }
 
-                                                try {
-                                                        await window.setDoc(window.doc(window.db, "ScheduleNotes", subject), {
-                                                                    note: alertText,
-                                                                                expiration: expDate,
-                                                                                            timestamp: new Date().toISOString()
-                                                                                                    });
-                                                                                                            
-                                                                                                                    alert(`Database confirmed: Note added to main ${subject.toUpperCase()} lecture!`);
-                                                                                                                            document.getElementById("modal-edit-schedule").style.display = "none";
-                                                                                                                                    document.getElementById("alert-text").value = "";
-                                                                                                                                            document.getElementById("alert-date").value = "";
-                                                                                                                                                } catch (error) {
-                                                                                                                                                        alert("UPLOAD FAILED: " + error.message); 
-                                                                                                                                                            }
-                                                                                                                                                            });
+    try {
+      await window.setDoc(window.doc(window.db, "ScheduleNotes", subject), {
+        note: alertText,
+        expiration: expDate,
+        timestamp: new Date().toISOString(),
+      });
 
-                                                                                                                                                            // 3. Live Sync & Expiration Logic (All Students)
-                                                                                                                                                            window.onSnapshot(window.collection(window.db, "ScheduleNotes"), (snapshot) => {
-                                                                                                                                                                // Get today's date in YYYY-MM-DD format to check if the note is expired
-                                                                                                                                                                    const today = new Date().toISOString().split('T')[0]; 
+      alert(
+        `Database confirmed: Note added to main ${subject.toUpperCase()} lecture!`,
+      );
+      document.getElementById("modal-edit-schedule").style.display = "none";
+      document.getElementById("alert-text").value = "";
+      document.getElementById("alert-date").value = "";
+    } catch (error) {
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
 
-                                                                                                                                                                        snapshot.forEach((docSnap) => {
-                                                                                                                                                                                const data = docSnap.data();
-                                                                                                                                                                                        const subject = docSnap.id; 
-                                                                                                                                                                                                
-                                                                                                                                                                                                        // This will ONLY look for the main lecture badge, ignoring groups entirely
-                                                                                                                                                                                                                const badge = document.getElementById("badge-" + subject);
-                                                                                                                                                                                                                        
-                                                                                                                                                                                                                                if (badge) {
-                                                                                                                                                                                                                                            if (data.expiration >= today && data.note.trim() !== "") {
-                                                                                                                                                                                                                                                            // Show the dark turquoise pulsating badge
-                                                                                                                                                                                                                                                                            badge.innerText = data.note;
-                                                                                                                                                                                                                                                                                            badge.style.cssText = "display: inline-block; background-color: #0b8793; color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 12px; letter-spacing: 0.5px; animation: pulse 1.5s infinite; box-shadow: 0 0 10px rgba(11, 135, 147, 0.6); vertical-align: middle;";
-                                                                                                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                                                                                                                        // Hide it if the date has passed or text is empty
-                                                                                                                                                                                                                                                                                                                                        badge.style.display = "none";
-                                                                                                                                                                                                                                                                                                                                                        badge.innerText = "";
-                                                                                                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                                                                                                                });
-                                                                                                                                                                                                                                                                                                                                                                                });
-   // ==========================================
+// 3. Live Sync & Expiration Logic (All Students)
+window.onSnapshot(window.collection(window.db, "ScheduleNotes"), (snapshot) => {
+  // Get today's date in YYYY-MM-DD format to check if the note is expired
+  const today = new Date().toISOString().split("T")[0];
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+    const subject = docSnap.id;
+
+    // This will ONLY look for the main lecture badge, ignoring groups entirely
+    const badge = document.getElementById("badge-" + subject);
+
+    if (badge) {
+      if (data.expiration >= today && data.note.trim() !== "") {
+        // Show the dark turquoise pulsating badge
+        badge.innerText = data.note;
+        badge.style.cssText =
+          "display: inline-block; background-color: #0b8793; color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 12px; letter-spacing: 0.5px; animation: pulse 1.5s infinite; box-shadow: 0 0 10px rgba(11, 135, 147, 0.6); vertical-align: middle;";
+      } else {
+        // Hide it if the date has passed or text is empty
+        badge.style.display = "none";
+        badge.innerText = "";
+      }
+    }
+  });
+});
+// ==========================================
 // --- UPLOAD PDF LINKS LOGIC ---
 // ==========================================
 
-document.getElementById("btn-submit-pdf").addEventListener("click", async () => {
-    const subject = document.getElementById("upload-subject") ? document.getElementById("upload-subject").value : document.getElementById("pdf-subject").value; 
+document
+  .getElementById("btn-submit-pdf")
+  .addEventListener("click", async () => {
+    const subject = document.getElementById("upload-subject")
+      ? document.getElementById("upload-subject").value
+      : document.getElementById("pdf-subject").value;
     const pdfName = document.getElementById("pdf-name").value;
     const pdfLink = document.getElementById("pdf-link").value;
 
     if (!subject || !pdfName || !pdfLink) {
-        alert("Please select a subject, name the document, and paste the Drive link.");
-        return;
+      alert(
+        "Please select a subject, name the document, and paste the Drive link.",
+      );
+      return;
     }
 
     try {
-        const newPdfRef = window.doc(window.collection(window.db, "PDFNotes"));
-        await window.setDoc(newPdfRef, {
-            subject: subject,
-            name: pdfName,
-            url: pdfLink,
-            timestamp: new Date().toISOString()
-        });
-        
-        alert(`Database confirmed: ${pdfName} saved to ${subject.toUpperCase()}`);
-        document.getElementById("modal-upload-pdf").style.display = "none";
-        document.getElementById("pdf-name").value = "";
-        document.getElementById("pdf-link").value = "";
+      const newPdfRef = window.doc(window.collection(window.db, "PDFNotes"));
+      await window.setDoc(newPdfRef, {
+        subject: subject,
+        name: pdfName,
+        url: pdfLink,
+        timestamp: new Date().toISOString(),
+      });
+
+      alert(`Database confirmed: ${pdfName} saved to ${subject.toUpperCase()}`);
+      document.getElementById("modal-upload-pdf").style.display = "none";
+      document.getElementById("pdf-name").value = "";
+      document.getElementById("pdf-link").value = "";
     } catch (error) {
-        alert("UPLOAD FAILED: " + error.message); 
+      alert("UPLOAD FAILED: " + error.message);
     }
-});
-                                                                                                                                                                                                                                                                                                                                                       // ==========================================
-                                                                                                                                                                                                                                                                                                                                                       // --- UPLOAD QUIZ LOGIC ---
-                                                                                                                                                                                                                                                                                                                                                       // ==========================================
-                                                                                                                                                                                                                                                                                                                                                       document.getElementById("btn-submit-quiz").addEventListener("click", async () => {
-                                                                                                                                                                                                                                                                                                                                                           const subject = document.getElementById("quiz-subject").value; 
-                                                                                                                                                                                                                                                                                                                                                               const quizName = document.getElementById("quiz-title").value;
-                                                                                                                                                                                                                                                                                                                                                                   const quizLink = document.getElementById("quiz-link").value;
+  });
+// ==========================================
+// --- UPLOAD QUIZ LOGIC ---
+// ==========================================
+document
+  .getElementById("btn-submit-quiz")
+  .addEventListener("click", async () => {
+    const subject = document.getElementById("quiz-subject").value;
+    const quizName = document.getElementById("quiz-title").value;
+    const quizLink = document.getElementById("quiz-link").value;
 
-                                                                                                                                                                                                                                                                                                                                                                       if (!subject || !quizName || !quizLink) {
-                                                                                                                                                                                                                                                                                                                                                                               alert("Please select a subject, name the quiz, and paste the link.");
-                                                                                                                                                                                                                                                                                                                                                                                       return;
-                                                                                                                                                                                                                                                                                                                                                                                           }
+    if (!subject || !quizName || !quizLink) {
+      alert("Please select a subject, name the quiz, and paste the link.");
+      return;
+    }
 
-                                                                                                                                                                                                                                                                                                                                                                                               try {
-                                                                                                                                                                                                                                                                                                                                                                                                       const newQuizRef = window.doc(window.collection(window.db, "QuizLinks"));
-                                                                                                                                                                                                                                                                                                                                                                                                               await window.setDoc(newQuizRef, {
-                                                                                                                                                                                                                                                                                                                                                                                                                           subject: subject,
-                                                                                                                                                                                                                                                                                                                                                                                                                                       name: quizName,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                   url: quizLink,
-                                                                                                                                                                                                                                                                                                                                                                                                                                                               timestamp: new Date().toISOString()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                       });
+    try {
+      const newQuizRef = window.doc(window.collection(window.db, "QuizLinks"));
+      await window.setDoc(newQuizRef, {
+        subject: subject,
+        name: quizName,
+        url: quizLink,
+        timestamp: new Date().toISOString(),
+      });
 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       alert(`Database confirmed: ${quizName} saved to ${subject.toUpperCase()}`);
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               document.getElementById("modal-add-quiz").style.display = "none";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       document.getElementById("quiz-title").value = "";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               document.getElementById("quiz-link").value = "";
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   } catch (error) {
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           alert("UPLOAD FAILED: " + error.message); 
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               }
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               });
+      alert(
+        `Database confirmed: ${quizName} saved to ${subject.toUpperCase()}`,
+      );
+      document.getElementById("modal-add-quiz").style.display = "none";
+      document.getElementById("quiz-title").value = "";
+      document.getElementById("quiz-link").value = "";
+    } catch (error) {
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
