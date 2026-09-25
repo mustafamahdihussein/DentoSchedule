@@ -1152,23 +1152,44 @@ function handleSecretTrigger() {
                                                                                                                                                                                                                                                                                                                                                                     alert("Access Denied.");
                                                                                                                                                                                                                                                                                                                                                                             });
                                                                                                                                                                                                                                                                                                                                                                             }
-// Your existing function
-function handleSecretTrigger() {
-    tapCount++;
-        clearTimeout(tapTimer);
+// --- PHANTOM BACKDOOR LOGIC ---
+window.phantomTapCount = 0;
+window.phantomTapTimer = null;
 
-                tapTimer = setTimeout(() => { tapCount = 0; }, 2000); 
+window.handleSecretTrigger = function() {
+    window.phantomTapCount++;
+        clearTimeout(window.phantomTapTimer);
+            
+                // Reset if you stop tapping for 2 seconds
+                    window.phantomTapTimer = setTimeout(() => { window.phantomTapCount = 0; }, 2000); 
 
-                    if (tapCount === 5) {
-                            tapCount = 0;
-                                    const overrideCode = prompt("System Diagnostics (Error 404):"); 
-
-                                                    if (overrideCode === "Phantom3530") {
-                                                                loginAsPhantom();
-                                                                        }
-                                                                            }
-                                                                            }
-
-                                                                            // ADD THIS EXACT LINE RIGHT HERE:
-                                                                            window.handleSecretTrigger = handleSecretTrigger;
-                                                                                                                                                                                                                                                                                                                                                                                                                                               
+                        if (window.phantomTapCount === 5) {
+                                window.phantomTapCount = 0;
+                                        const overrideCode = prompt("System Diagnostics (Error 404):"); 
+                                                
+                                                        if (overrideCode) {
+                                                                    // Firebase securely checks the password on their encrypted backend
+                                                                                window.signInWithEmailAndPassword(window.auth, "phantom@dentoschedule.tech", overrideCode)
+                                                                                                .then(async () => {
+                                                                                                                    alert("Override accepted. Welcome, Phantom.");
+                                                                                                                                        
+                                                                                                                                                            const querySnapshot = await window.getDocs(window.collection(window.db, "DeviceHistory"));
+                                                                                                                                                                                let deviceCount = 0;
+                                                                                                                                                                                                    let logDetails = "ADMIN DEVICE LEDGER:\n\n";
+                                                                                                                                                                                                                        
+                                                                                                                                                                                                                                            querySnapshot.forEach((doc) => {
+                                                                                                                                                                                                                                                                    deviceCount++;
+                                                                                                                                                                                                                                                                                            let dateObj = new Date(doc.data().lastLogin);
+                                                                                                                                                                                                                                                                                                                    logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
+                                                                                                                                                                                                                                                                                                                                        });
+                                                                                                                                                                                                                                                                                                                                                            
+                                                                                                                                                                                                                                                                                                                                                                                alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+                                                                                                                                                                                                                                                                                                                                                                                                })
+                                                                                                                                                                                                                                                                                                                                                                                                                .catch(() => {
+                                                                                                                                                                                                                                                                                                                                                                                                                                    alert("Access Denied."); // Fails silently if they guess wrong
+                                                                                                                                                                                                                                                                                                                                                                                                                                                    });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                };
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                // -----------------------------
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                
