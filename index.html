@@ -9,6 +9,35 @@
   <meta property="og:image" content="https://dentoschedule.tech/Al-ameen-Logo-350.png">
   <link rel="icon" href="Al-ameen-Logo-350.png" type="image/png">
   <link href="style.css" rel="stylesheet" type="text/css" />
+  <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+          import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+            import { getFirestore, doc, setDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+
+                // Your web app's Firebase configuration
+                  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+                    const firebaseConfig = {
+                        apiKey: "AIzaSyCCzUL2v915_YGQxNocncUtBAHDKNyyNPI",
+                            authDomain: "dentoschedule.firebaseapp.com",
+                                projectId: "dentoschedule",
+                                    storageBucket: "dentoschedule.firebasestorage.app",
+                                        messagingSenderId: "561930604700",
+                                            appId: "1:561930604700:web:0b61415901961a42bc5d59",
+                                                measurementId: "G-MFXGTM0LPH"
+                                                  };
+
+                                                    // Initialize Firebase
+                                                      const app = initializeApp(firebaseConfig);
+                                                        window.auth = getAuth(app);
+                                                          window.db = getFirestore(app);
+                                                            window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+                                                              window.doc = doc;
+                                                                window.setDoc = setDoc;
+                                                                window.collection = collection;
+                                                                window.getDocs = getDocs;
+                                                                
+                                                        </script>
   <script defer src="/_vercel/insights/script.js"></script>
 </head>
 <body>
@@ -235,7 +264,7 @@
 <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->
   
   <header>
-    <h1>Class Schedule</h1>
+    <h1 onclick="handleSecretTrigger()">Class Schedule</h1>
     <p>4th Year Dentistry</p>
   </header>
     <!-- Live Announcement Banner (Hidden by default) -->

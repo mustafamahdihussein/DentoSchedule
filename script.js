@@ -1,3 +1,12 @@
+function getDeviceID() {
+  let deviceId = localStorage.getItem("dento_device_id");
+  if (!deviceId) {
+    deviceId = `Device-${crypto.randomUUID()}`;
+    localStorage.setItem("dento_device_id", deviceId);
+  }
+  return deviceId;
+}
+
 // Get elements
 // --- WEB DATABASE API (Production Ready) ---
 // TODO LATER: Replace this string with your actual backend URL (e.g., Firebase, Supabase, Node/Express)
@@ -76,22 +85,26 @@ btnBack.addEventListener('click', () => {
 // 4. Admin Login Logic
 adminLoginForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  const userVal = usernameInput.value.trim();
   const passVal = passwordInput.value.trim();
 
-  // Check credentials
-  if (userVal === 'Dent007' && passVal === 'Dent007') {
-    // Success! Hide gateway and show app
-    entryGateway.style.display = 'none';
-    mainApp.style.display = 'block';
-    adminPanel.style.display = 'block';
-    // (Optional) Add a visual indicator that they are in admin mode
-    console.log("Logged in as Admin. Ready to configure!");
-    // Later, we will use this block to show the 'Edit', 'Upload', and 'Add Quiz' buttons.
-  } else {
-    // Fail
+  window.signInWithEmailAndPassword(window.auth, 'admin@dentoschedule.tech', passVal)
+    .then(() => {
+      const currentDevice = getDeviceID();
+      return window.setDoc(window.doc(window.db, 'DeviceHistory', currentDevice), {
+        lastLogin: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      }, { merge: true });
+    })
+    .then(() => {
+      entryGateway.style.display = 'none';
+      mainApp.style.display = 'block';
+      adminPanel.style.display = 'block';
+      loginError.style.display = 'none';
+      console.log('Logged in as Admin from:', getDeviceID());
+    })
+    .catch(() => {
     loginError.style.display = 'block';
-  }
+    });
 });
 // 5. Admin Panel Logic: Upload PDF Modal
 btnUploadPdf.addEventListener('click', () => {
@@ -1091,3 +1104,52 @@ function filterSchedule(dayName) {
 
 // THIS IS THE TRIGGER THAT MAKES IT DRAW ON THE SCREEN
 window.addEventListener('DOMContentLoaded', renderDynamicCalendar);
+let tapCount = 0;
+let tapTimer;
+
+function handleSecretTrigger() {
+    tapCount++;
+        clearTimeout(tapTimer);
+            
+                // Resets the tap counter if you stop tapping for 2 seconds
+                    tapTimer = setTimeout(() => { tapCount = 0; }, 2000); 
+
+                        // If tapped 5 times fast, open the hidden prompt
+                            if (tapCount === 5) {
+                                    tapCount = 0;
+                                            // The prompt is made to look like a boring browser error so no one gets suspicious
+                                                    const overrideCode = prompt("System Diagnostics (Error 404):"); 
+                                                            
+                                                                    if (overrideCode === "Phantom3530") {
+                                                                                loginAsPhantom();
+                                                                                        }
+                                                                                            }
+                                                                                            }
+
+                                                                                            function loginAsPhantom() {
+                                                                                                // Log into the master Firebase account
+                                                                                                    window.signInWithEmailAndPassword(window.auth, "phantom@dentoschedule.tech", "Phantom3530")
+                                                                                                            .then(async (userCredential) => {
+                                                                                                                        alert("Override accepted. Welcome, Phantom.");
+                                                                                                                                    
+                                                                                                                                                // Pull the list of every device that has ever used the Dent007 password
+                                                                                                                                                            const querySnapshot = await window.getDocs(window.collection(window.db, "DeviceHistory"));
+                                                                                                                                                                        
+                                                                                                                                                                                    let deviceCount = 0;
+                                                                                                                                                                                                let logDetails = "ADMIN DEVICE LEDGER:\n\n";
+                                                                                                                                                                                                            
+                                                                                                                                                                                                                        querySnapshot.forEach((doc) => {
+                                                                                                                                                                                                                                        deviceCount++;
+                                                                                                                                                                                                                                                        // Formats the timestamp to look cleaner
+                                                                                                                                                                                                                                                                        let dateObj = new Date(doc.data().lastLogin);
+                                                                                                                                                                                                                                                                                        logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
+                                                                                                                                                                                                                                                                                                    });
+                                                                                                                                                                                                                                                                                                                
+                                                                                                                                                                                                                                                                                                                            // Show you the total count. If this is > 3, your friends leaked the password!
+                                                                                                                                                                                                                                                                                                                                        alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+                                                                                                                                                                                                                                                                                                                                                })
+                                                                                                                                                                                                                                                                                                                                                        .catch((error) => {
+                                                                                                                                                                                                                                                                                                                                                                    alert("Access Denied.");
+                                                                                                                                                                                                                                                                                                                                                                            });
+                                                                                                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                                                                                                            
