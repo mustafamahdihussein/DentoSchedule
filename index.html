@@ -11,7 +11,7 @@
   <link href="style.css" rel="stylesheet" type="text/css" />
   <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-          import { getAuth, signInAnonymously, signInWithEmailAndPassword, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+          import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
                 import { getFirestore, doc, setDoc, collection, getDoc, getDocs, onSnapshot, deleteDoc, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
@@ -34,6 +34,7 @@
                                                           window.db = getFirestore(app);
                                                             window.signInAnonymously = signInAnonymously;
                                                             window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+                                                            window.signOut = signOut;
                                                               window.doc = doc;
                                                                 window.setDoc = setDoc;
                                                                 window.collection = collection;

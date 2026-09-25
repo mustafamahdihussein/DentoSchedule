@@ -409,6 +409,9 @@ if (studentLoginForm) {
       localStorage.setItem("dento_student", username);
 
       try {
+        if (window.auth.currentUser?.email) {
+          await window.signOut(window.auth);
+        }
         if (!window.auth.currentUser) {
           await window.signInAnonymously(window.auth);
         }
@@ -643,13 +646,13 @@ async function submitDriftScore(playerName, playerScore) {
           let docId = "";
 
               // 1. Identify the Player (Admin vs Student)
-                  if (window.auth && window.auth.currentUser) {
+                  if (window.auth && window.auth.currentUser && window.auth.currentUser.email) {
                           // If it's you (Admin), use your Firebase ID
                                   displayName = window.auth.currentUser.email.split('@')[0];
                                           docId = window.auth.currentUser.uid;
                                               } else {
                                                       // If it's a normal student, grab the name they typed at the login screen
-                                                              displayName = localStorage.getItem("username") || playerName || "Driver";
+                                                              displayName = localStorage.getItem("dento_student") || playerName || "Driver";
                                                                       
                                                                               // Clean up their name to use as a unique database ID (e.g., "Ali M" becomes "ali_m")
                                                                                       docId = displayName.replace(/\s+/g, '_').toLowerCase(); 
@@ -680,12 +683,13 @@ async function submitDriftScore(playerName, playerScore) {
                                                                                                                                                                                                                                                                                               const errorText = document.querySelector("#scoreboard-modal div[style*='color: red']");
                                                                                                                                                                                                                                                                                                       if (errorText) errorText.style.display = "none";
                                                                                                                                                                                                                                                                                                               
-                                                                                                                                                                                                                                                                                                                  } catch (error) {
-                                                                                                                                                                                                                                                                                                                          console.error("Failed to save cumulative score: ", error);
-                                                                                                                                                                                                                                                                                                                              }
+                                                                                                                                                                                                                                                                                                                                } catch (error) {
+                                                                                                                                                                                                                                                                                                                                  console.error("Failed to save cumulative score: ", error);
+                                                                                                                                                                                                                                                                                                                                    return false;
+                                                                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                                                                    return true;
                                                                                                                                                                                                                                                                                                                               }
                                                                                                                                                                                                                                                                                                                               
-}
 async function fetchDriftLeaderboard() {
   const leaderboardList = document.getElementById("leaderboard-list");
   if (leaderboardList) {
