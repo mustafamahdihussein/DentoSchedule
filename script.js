@@ -415,7 +415,7 @@ if (studentLoginForm) {
       } catch (error) {
         console.error("Unable to connect the student to the leaderboard.", error);
         showStudentLoginError("Unable to connect to the leaderboard. Please try again.");
-        return;
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            return false; 
       }
       
       // Hide the login screen and reveal the schedule
@@ -679,7 +679,9 @@ const sfx = {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             console.log(`Saved! New Total for ${displayName}: ${cumulativeScore}`);
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 } catch (error) {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         console.error("Failed to save cumulative score: ", error);
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        return false;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          return true;
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
 async function fetchDriftLeaderboard() {
@@ -929,9 +931,17 @@ function gameLoop() {
       if (scoreboardModal) {
         finalScoreDisplay.innerText = score;
         scoreboardModal.style.display = "flex";
-        let storedName = localStorage.getItem("username") || localStorage.getItem("loggedInUser") || "Student";
-        setTimeout(() => { 
-          submitDriftScore(storedName, score).then(() => { fetchDriftLeaderboard(); });
+        let storedName = localStorage.getItem("dento_student") || localStorage.getItem("username") || localStorage.getItem("loggedInUser") || "Student";
+        setTimeout(async () => {
+          const scoreSaved = await submitDriftScore(storedName, score);
+          if (scoreSaved) {
+            fetchDriftLeaderboard();
+          } else {
+            const leaderboardList = document.getElementById("leaderboard-list");
+            if (leaderboardList) {
+              leaderboardList.innerHTML = `<div style="text-align: center; color: #ff7675;">Score could not be saved. Check Firebase permissions.</div>`;
+            }
+          }
         }, 100); 
       }
     }
