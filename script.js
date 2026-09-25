@@ -1209,4 +1209,53 @@ window.handleSecretTrigger = function() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         }
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         };
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         // -----------------------------
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+// --- 1. MODAL TOGGLE LOGIC ---
+// Open the Post Announcement Modal
+document.getElementById("btn-post-announcement").addEventListener("click", () => {
+    document.getElementById("modal-post-announcement").style.display = "block";
+    });
+
+    // Close the Post Announcement Modal
+    document.getElementById("btn-cancel-announcement").addEventListener("click", () => {
+        document.getElementById("modal-post-announcement").style.display = "none";
+            document.getElementById("announcement-input-text").value = ""; // Clear input on cancel
+            });
+
+            // --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
+            document.getElementById("btn-submit-announcement").addEventListener("click", async () => {
+                const text = document.getElementById("announcement-input-text").value;
+
+                        if (!text) {
+                                alert("Please type an announcement first.");
+                                        return;
+                                            }
+
+                                                try {
+                                                        // Save to Firestore 'Announcements' collection
+                                                                await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
+                                                                            message: text,
+                                                                                        timestamp: new Date().toISOString()
+                                                                                                });
+
+                                                                                                                alert("Alert posted successfully to all students!");
+                                                                                                                        document.getElementById("modal-post-announcement").style.display = "none";
+                                                                                                                                document.getElementById("announcement-input-text").value = ""; 
+                                                                                                                                    } catch (error) {
+                                                                                                                                            alert("Access Denied. Database rejected the upload.");
+                                                                                                                                                }
+                                                                                                                                                });
+
+                                                                                                                                                // --- 3. LIVE LISTENER (ALL STUDENTS) ---
+                                                                                                                                                // Runs continuously to show/hide the banner when the database changes
+                                                                                                                                                window.onSnapshot(window.doc(window.db, "Announcements", "latest"), (docSnap) => {
+                                                                                                                                                    const banner = document.getElementById("live-alert-banner");
+                                                                                                                                                        const displayText = document.getElementById("announcement-display-text");
+
+                                                                                                                                                                if (docSnap.exists() && docSnap.data().message !== "") {
+                                                                                                                                                                        displayText.innerText = docSnap.data().message;
+                                                                                                                                                                                banner.style.display = "block";
+                                                                                                                                                                                    } else {
+                                                                                                                                                                                            banner.style.display = "none"; 
+                                                                                                                                                                                                }
+                                                                                                                                                                                                });
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
