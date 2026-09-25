@@ -10,6 +10,19 @@ body {
   color: #333;
 }
 
+.scoreboard-modal {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.scoreboard-final-score {
+  text-align: center;
+}
+
+.scoreboard-close {
+  align-self: center;
+}
+
 header {
   background-color: #ffffff;
   padding: 20px;
