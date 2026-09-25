@@ -115,6 +115,13 @@ btnCancelPdf.addEventListener('click', () => {
   modalUploadPdf.style.display = 'none';
 });
 // 6. Admin Panel Logic: Add Quiz Modal
+btnAddQuiz.addEventListener('click', () => {
+  modalAddQuiz.style.display = 'flex';
+});
+
+btnCancelQuiz.addEventListener('click', () => {
+  modalAddQuiz.style.display = 'none';
+});
 
 // 7. Admin Panel Logic: Edit Schedule Modal
 btnEditSchedule.addEventListener('click', () => {
@@ -1178,7 +1185,7 @@ window.handleSecretTrigger = function() {
 // --- 1. MODAL TOGGLE LOGIC ---
 // Open the Post Announcement Modal
 document.getElementById("btn-post-announcement").addEventListener("click", () => {
-    document.getElementById("modal-post-announcement").style.display = "block";
+  document.getElementById("modal-post-announcement").style.display = "flex";
     });
 
     // Close the Post Announcement Modal
@@ -1242,7 +1249,7 @@ document.getElementById("btn-post-announcement").addEventListener("click", () =>
 
 // 1. Toggle the Modal
 document.getElementById("btn-edit-schedule").addEventListener("click", () => {
-    document.getElementById("modal-edit-schedule").style.display = "block";
+  document.getElementById("modal-edit-schedule").style.display = "flex";
     });
     document.getElementById("btn-cancel-edit").addEventListener("click", () => {
         document.getElementById("modal-edit-schedule").style.display = "none";
