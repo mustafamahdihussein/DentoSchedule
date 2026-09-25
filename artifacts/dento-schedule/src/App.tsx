@@ -549,9 +549,11 @@ function Home() {
                   <a href="#" onClick={(event) => event.preventDefault()} target="_blank">
                     
                   </a>
-                  <button className="delete-resource-btn admin-ui" type="button">
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button className="delete-resource-btn" type="button">
+                      🗑️
+                    </button>
+                  )}
                 </li>
               </ul>
             </div>
@@ -563,9 +565,11 @@ function Home() {
                   <a href="#" onClick={(event) => event.preventDefault()} target="_blank">
                     
                   </a>
-                  <button className="delete-resource-btn admin-ui" type="button">
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button className="delete-resource-btn" type="button">
+                      🗑️
+                    </button>
+                  )}
                 </li>
               </ul>
             </div>
