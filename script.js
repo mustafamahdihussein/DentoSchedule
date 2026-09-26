@@ -501,45 +501,106 @@ if (pomodoroModal && btnOpenPomodoro) {
   const btnTimerPause = document.getElementById("btn-timer-pause");
   const btnTimerReset = document.getElementById("btn-timer-reset");
 
+  const timerStorageKey = "dento_pomodoro_timer";
   let timerInterval;
   let timeLeft = 25 * 60;
   let isRunning = false;
   let currentMode = "study";
+  let endTime = null;
+
+  function saveTimerState() {
+    localStorage.setItem(
+      timerStorageKey,
+      JSON.stringify({
+        mode: currentMode,
+        timeLeft,
+        endTime,
+        isRunning,
+      }),
+    );
+  }
+
+  function loadTimerState() {
+    try {
+      const savedState = JSON.parse(
+        localStorage.getItem(timerStorageKey) || "null",
+      );
+
+      if (!savedState) return;
+
+      currentMode = savedState.mode === "break" ? "break" : "study";
+      timeLeft = Number(savedState.timeLeft) || 0;
+      endTime = Number(savedState.endTime) || null;
+      isRunning = Boolean(savedState.isRunning && endTime);
+
+      if (isRunning && endTime <= Date.now()) {
+        timeLeft = 0;
+        endTime = null;
+        isRunning = false;
+      }
+    } catch (error) {
+      localStorage.removeItem(timerStorageKey);
+    }
+  }
 
   function updateDisplay() {
+    if (isRunning && endTime) {
+      timeLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+    }
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
     timeDisplay.textContent = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
   }
 
+  function finishTimer() {
+    clearInterval(timerInterval);
+    timeLeft = 0;
+    endTime = null;
+    isRunning = false;
+    saveTimerState();
+    updateDisplay();
+    alert(
+      currentMode === "study"
+        ? "Study session complete! Take a 5-minute break."
+        : "Break over! Back to studying.",
+    );
+  }
+
+  function runTimer() {
+    clearInterval(timerInterval);
+    updateDisplay();
+    if (timeLeft <= 0) {
+      finishTimer();
+      return;
+    }
+    timerInterval = setInterval(() => {
+      updateDisplay();
+      if (timeLeft <= 0) finishTimer();
+    }, 1000);
+  }
+
   btnTimerStart.addEventListener("click", () => {
     if (isRunning) return;
     isRunning = true;
-    timerInterval = setInterval(() => {
-      if (timeLeft > 0) {
-        timeLeft--;
-        updateDisplay();
-      } else {
-        clearInterval(timerInterval);
-        isRunning = false;
-        alert(
-          currentMode === "study"
-            ? "Study session complete! Take a 5-minute break."
-            : "Break over! Back to studying.",
-        );
-      }
-    }, 1000);
+    endTime = Date.now() + timeLeft * 1000;
+    saveTimerState();
+    runTimer();
   });
 
   btnTimerPause.addEventListener("click", () => {
+    updateDisplay();
     clearInterval(timerInterval);
     isRunning = false;
+    endTime = null;
+    saveTimerState();
   });
 
   function resetTimer() {
     clearInterval(timerInterval);
     isRunning = false;
+    endTime = null;
     timeLeft = currentMode === "study" ? 25 * 60 : 5 * 60;
+    saveTimerState();
     updateDisplay();
   }
 
@@ -569,7 +630,11 @@ if (pomodoroModal && btnOpenPomodoro) {
     });
   }
 
+  loadTimerState();
+  btnModeStudy.classList.toggle("active", currentMode === "study");
+  btnModeBreak.classList.toggle("active", currentMode === "break");
   updateDisplay();
+  if (isRunning) runTimer();
 }
 // ==========================================
 // 6. DRIFT GAME SELECTION MENU
