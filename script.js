@@ -228,7 +228,7 @@ subjectCardsList.forEach((card) => {
     const heading = card.querySelector("h2");
 
     if (heading) {
-      subjectTitle.innerText = heading.innerText;
+      subjectTitle.innerText = heading.firstChild.textContent.trim();
     } else {
       // If it is a split lab group (Group A/B), use a general title
       subjectTitle.innerText = "Clinical Lab Session";
