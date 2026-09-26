@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'admin@dentoschedule.tech';
+    }
+
+    match /Announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /ScheduleNotes/{subjectId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /PDFNotes/{noteId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /QuizLinks/{quizId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /DeviceHistory/{deviceId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /DriftScores/{scoreId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}

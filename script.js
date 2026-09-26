@@ -1425,6 +1425,20 @@ function loginAsPhantom() {
       alert("Access Denied.");
     });
 }
+
+const adminEmail = "admin@dentoschedule.tech";
+
+async function requireAdminSession() {
+  const currentUser = window.auth?.currentUser;
+
+  if (!currentUser || currentUser.email !== adminEmail) {
+    alert("Your admin session has expired. Please sign in again.");
+    return false;
+  }
+
+  await currentUser.getIdToken(true);
+  return true;
+}
 // --- PHANTOM BACKDOOR LOGIC ---
 // --- PHANTOM BACKDOOR LOGIC ---
 window.phantomTapCount = 0;
@@ -1546,6 +1560,10 @@ document
         return;
       }
 
+      if (!(await requireAdminSession())) {
+        return;
+      }
+
       // Attempt to save to Firestore
       await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
         message: text,
@@ -1610,6 +1628,10 @@ document
     }
 
     try {
+      if (!(await requireAdminSession())) {
+        return;
+      }
+
       await window.setDoc(window.doc(window.db, "ScheduleNotes", subject), {
         note: alertText,
         expiration: expDate,
