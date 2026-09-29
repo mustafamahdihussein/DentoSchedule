@@ -29,6 +29,12 @@ const adminPanel = document.getElementById("admin-panel");
 const modalUploadPdf = document.getElementById("modal-upload-pdf");
 const btnUploadPdf = document.getElementById("btn-upload-pdf");
 const btnCancelPdf = document.getElementById("btn-cancel-pdf");
+const modalEditIdQr = document.getElementById("modal-edit-id-qr");
+const btnEditIdQr = document.getElementById("btn-edit-id-qr");
+const btnSaveIdQr = document.getElementById("btn-save-id-qr");
+const btnCancelIdQr = document.getElementById("btn-cancel-id-qr");
+const idQrLinkInput = document.getElementById("id-qr-link");
+const btnOpenIdQr = document.getElementById("btn-open-id-qr");
 
 const entryGateway = document.getElementById("entry-gateway");
 const roleSelection = document.getElementById("role-selection");
@@ -191,6 +197,63 @@ btnUploadPdf.addEventListener("click", () => {
 btnCancelPdf.addEventListener("click", () => {
   modalUploadPdf.style.display = "none";
 });
+
+const idQrDocRef = () => window.doc(window.db, "IDLinks", "id-qr");
+
+async function loadIdQrLink() {
+  try {
+    const linkSnapshot = await window.getDoc(idQrDocRef());
+    const link = linkSnapshot.exists() ? linkSnapshot.data().url : "";
+
+    if (link && /^https?:\/\//i.test(link)) {
+      btnOpenIdQr.href = link;
+    } else {
+      btnOpenIdQr.href = "#";
+    }
+  } catch (error) {
+    console.error("Unable to load the ID and QR link.", error);
+  }
+}
+
+btnOpenIdQr.addEventListener("click", (event) => {
+  if (btnOpenIdQr.getAttribute("href") === "#") {
+    event.preventDefault();
+    alert("The ID and QR link has not been added yet.");
+  }
+});
+
+btnEditIdQr.addEventListener("click", async () => {
+  const linkSnapshot = await window.getDoc(idQrDocRef());
+  idQrLinkInput.value = linkSnapshot.exists()
+    ? linkSnapshot.data().url || ""
+    : "";
+  modalEditIdQr.style.display = "flex";
+});
+
+btnCancelIdQr.addEventListener("click", () => {
+  modalEditIdQr.style.display = "none";
+});
+
+btnSaveIdQr.addEventListener("click", async () => {
+  const link = idQrLinkInput.value.trim();
+
+  try {
+    const parsedLink = new URL(link);
+    if (!/^https?:$/.test(parsedLink.protocol)) throw new Error();
+
+    await window.setDoc(idQrDocRef(), {
+      url: link,
+      timestamp: new Date().toISOString(),
+    });
+    btnOpenIdQr.href = link;
+    modalEditIdQr.style.display = "none";
+    alert("ID and QR link saved.");
+  } catch (error) {
+    alert("Please enter a valid Google Drive link.");
+  }
+});
+
+loadIdQrLink();
 // 6. Admin Panel Logic: Add Quiz Modal
 btnAddQuiz.addEventListener("click", () => {
   modalAddQuiz.style.display = "flex";

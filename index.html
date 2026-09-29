@@ -156,6 +156,9 @@
           <button class="admin-btn" id="btn-upload-pdf">
             Upload PDF Notes
           </button>
+          <button class="admin-btn" id="btn-edit-id-qr">
+            ID🪪 no.&amp;QR
+          </button>
           <button class="admin-btn" id="btn-add-quiz">Add Quiz</button>
           <button class="admin-btn" id="btn-post-announcement">
             📢 Post Announcement
@@ -202,6 +205,27 @@
           <div class="modal-actions">
             <button id="btn-submit-pdf" class="admin-btn">Upload</button>
             <button id="btn-cancel-pdf" class="admin-btn cancel-btn">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Modal: ID Number and QR PDF Link -->
+      <div id="modal-edit-id-qr" class="admin-modal" style="display: none">
+        <div class="modal-content">
+          <h3>Save ID Number &amp; QR Link</h3>
+          <label for="id-qr-link">Google Drive PDF Link:</label>
+          <input
+            type="url"
+            id="id-qr-link"
+            class="admin-input"
+            placeholder="Paste the shareable Drive link"
+          />
+
+          <div class="modal-actions">
+            <button id="btn-save-id-qr" class="admin-btn">Save Link</button>
+            <button id="btn-cancel-id-qr" class="admin-btn cancel-btn">
               Cancel
             </button>
           </div>
@@ -430,6 +454,23 @@
         >
           🎮 Play Drift
         </button>
+
+        <a
+          id="btn-open-id-qr"
+          class="admin-btn"
+          href="#"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            background-color: #16a085;
+            color: white;
+            border: none;
+            margin: 0;
+            text-decoration: none;
+          "
+        >
+          ID🪪 no.&amp;QR
+        </a>
       </div>
 
       <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->
