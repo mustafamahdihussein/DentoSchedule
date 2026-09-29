@@ -57,14 +57,21 @@ const passwordInput = document.getElementById("admin-password");
 const loginError = document.getElementById("login-error");
 
 // 1. User Button Click
-btnUser.addEventListener("click", () => {
-  entryGateway.style.display = "none";
-  mainApp.style.display = "none";
-  loginOverlay.style.display = "flex";
+btnUser.addEventListener("click", async () => {
+  try {
+    await window.authPersistenceReady;
+    if (window.auth.currentUser?.email) {
+      await window.signOut(window.auth);
+    }
+    if (!window.auth.currentUser) {
+      await window.signInAnonymously(window.auth);
+    }
 
-  const savedUser = localStorage.getItem("dento_student");
-  if (savedUser) {
-    studentUsernameInput.value = savedUser;
+    entryGateway.style.display = "none";
+    mainApp.style.display = "block";
+  } catch (error) {
+    console.error("Unable to connect the user to the leaderboard.", error);
+    alert("Unable to connect. Please try again.");
   }
 });
 
@@ -86,11 +93,13 @@ adminLoginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const passVal = passwordInput.value.trim();
 
-  window
-    .signInWithEmailAndPassword(
+  window.authPersistenceReady
+    .then(() =>
+      window.signInWithEmailAndPassword(
       window.auth,
       "admin@dentoschedule.tech",
       passVal,
+      ),
     )
     .then(() => {
       const currentDevice = getDeviceID();
@@ -113,6 +122,66 @@ adminLoginForm.addEventListener("submit", (event) => {
     .catch(() => {
       loginError.style.display = "block";
     });
+});
+
+const adminSessionControlRef = () =>
+  window.doc(window.db, "AdminControl", "session");
+let stopAdminSessionWatch = null;
+
+async function watchAdminSession() {
+  if (stopAdminSessionWatch) {
+    stopAdminSessionWatch();
+    stopAdminSessionWatch = null;
+  }
+
+  if (window.auth.currentUser?.email !== "admin@dentoschedule.tech") return;
+
+  try {
+    const sessionRef = adminSessionControlRef();
+    let sessionSnapshot = await window.getDoc(sessionRef);
+
+    if (!sessionSnapshot.exists()) {
+      await window.setDoc(sessionRef, {
+        version: crypto.randomUUID(),
+        updatedAt: new Date().toISOString(),
+      });
+      sessionSnapshot = await window.getDoc(sessionRef);
+    }
+
+    const sessionVersion = sessionSnapshot.data().version;
+    stopAdminSessionWatch = window.onSnapshot(sessionRef, (snapshot) => {
+      if (!snapshot.exists() || snapshot.data().version === sessionVersion) {
+        return;
+      }
+
+      if (stopAdminSessionWatch) {
+        stopAdminSessionWatch();
+        stopAdminSessionWatch = null;
+      }
+
+      window.signOut(window.auth).then(() => {
+        adminPanel.style.display = "none";
+        mainApp.style.display = "none";
+        roleSelection.style.display = "block";
+        loginForm.style.display = "none";
+        entryGateway.style.display = "flex";
+        alert("The admin password changed. Please sign in again.");
+      });
+    });
+  } catch (error) {
+    console.error("Unable to watch the admin session.", error);
+  }
+}
+
+window.onAuthStateChanged(window.auth, (user) => {
+  if (!user) return;
+
+  entryGateway.style.display = "none";
+  mainApp.style.display = "block";
+
+  const isAdmin = user.email === "admin@dentoschedule.tech";
+  adminPanel.style.display = isAdmin ? "block" : "none";
+  if (isAdmin) watchAdminSession();
 });
 // 5. Admin Panel Logic: Upload PDF Modal
 btnUploadPdf.addEventListener("click", () => {
@@ -385,107 +454,6 @@ if (closeSubjectBtn) {
 // ==========================================
 
 // ==========================================
-// ==========================================
-// 4. LOGIN & LOCAL STORAGE LOGIC
-// ==========================================
-const loginOverlay = document.getElementById("login-overlay");
-const studentLoginForm = document.getElementById("student-login-form");
-const btnSignup = document.getElementById("btn-signup");
-const studentUsernameInput = document.getElementById("student-username");
-const studentPinInput = document.getElementById("student-pin");
-const loginErrorMsg = document.getElementById("login-error-msg");
-const studentAccountStorageKey = "dento_student_account";
-
-function getSavedStudentAccount() {
-  try {
-    const savedAccount = localStorage.getItem(studentAccountStorageKey);
-    return savedAccount ? JSON.parse(savedAccount) : null;
-  } catch (error) {
-    console.error("Unable to read the saved student account.", error);
-    return null;
-  }
-}
-
-function showStudentLoginError(message) {
-  loginErrorMsg.style.color = "red";
-  loginErrorMsg.textContent = message;
-  loginErrorMsg.style.display = "block";
-}
-
-// Handle the Login form submission inside the student login screen
-if (studentLoginForm) {
-  studentLoginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const username = studentUsernameInput.value.trim();
-    const pin = studentPinInput.value.trim();
-    const isPinValid = /^\d{6}$/.test(pin);
-    const savedAccount = getSavedStudentAccount();
-
-    if (username === "" || !isPinValid) {
-      showStudentLoginError("Enter a username and a 6-digit PIN.");
-    } else if (
-      !savedAccount ||
-      savedAccount.username !== username ||
-      savedAccount.pin !== pin
-    ) {
-      showStudentLoginError(
-        "Incorrect username or PIN. Sign up first or try again.",
-      );
-    } else {
-      loginErrorMsg.style.display = "none";
-      loginErrorMsg.style.color = "red";
-      localStorage.setItem("dento_student", username);
-
-      try {
-        if (window.auth.currentUser?.email) {
-          await window.signOut(window.auth);
-        }
-        if (!window.auth.currentUser) {
-          await window.signInAnonymously(window.auth);
-        }
-      } catch (error) {
-        console.error(
-          "Unable to connect the student to the leaderboard.",
-          error,
-        );
-        showStudentLoginError(
-          "Unable to connect to the leaderboard. Please try again.",
-        );
-        return false;
-      }
-
-      // Hide the login screen and reveal the schedule
-      loginOverlay.style.display = "none";
-      mainApp.style.display = "block";
-    }
-  });
-}
-
-// Save a new local student account, replacing the previous one.
-if (btnSignup) {
-  btnSignup.addEventListener("click", () => {
-    const username = studentUsernameInput.value.trim();
-    const pin = studentPinInput.value.trim();
-
-    if (username === "" || !/^\d{6}$/.test(pin)) {
-      showStudentLoginError(
-        "Choose a username and enter a 6-digit PIN to sign up.",
-      );
-      return;
-    }
-
-    localStorage.setItem(
-      studentAccountStorageKey,
-      JSON.stringify({ username, pin }),
-    );
-    localStorage.setItem("dento_student", username);
-    loginErrorMsg.style.color = "#198754";
-    loginErrorMsg.textContent =
-      "Account saved. Use these credentials to log in.";
-    loginErrorMsg.style.display = "block";
-  });
-}
-// ==========================================
 // 5. POMODORO TIMER LOGIC (SAFE VERSION)
 // ==========================================
 const pomodoroModal = document.getElementById("pomodoro-modal");
@@ -507,6 +475,45 @@ if (pomodoroModal && btnOpenPomodoro) {
   let isRunning = false;
   let currentMode = "study";
   let endTime = null;
+  let screenWakeLock = null;
+
+  async function requestScreenWakeLock() {
+    if (
+      !isRunning ||
+      document.visibilityState !== "visible" ||
+      !("wakeLock" in navigator)
+    ) {
+      return;
+    }
+
+    try {
+      const wakeLock = await navigator.wakeLock.request("screen");
+      if (!isRunning) {
+        await wakeLock.release();
+        return;
+      }
+
+      screenWakeLock = wakeLock;
+      screenWakeLock.addEventListener("release", () => {
+        screenWakeLock = null;
+      });
+    } catch (error) {
+      console.warn("Screen wake lock is unavailable.", error);
+    }
+  }
+
+  async function releaseScreenWakeLock() {
+    const wakeLock = screenWakeLock;
+    screenWakeLock = null;
+
+    if (wakeLock) {
+      try {
+        await wakeLock.release();
+      } catch (error) {
+        console.warn("Unable to release the screen wake lock.", error);
+      }
+    }
+  }
 
   function saveTimerState() {
     localStorage.setItem(
@@ -557,6 +564,7 @@ if (pomodoroModal && btnOpenPomodoro) {
     timeLeft = 0;
     endTime = null;
     isRunning = false;
+    releaseScreenWakeLock();
     saveTimerState();
     updateDisplay();
     alert(
@@ -579,11 +587,12 @@ if (pomodoroModal && btnOpenPomodoro) {
     }, 1000);
   }
 
-  btnTimerStart.addEventListener("click", () => {
+  btnTimerStart.addEventListener("click", async () => {
     if (isRunning) return;
     isRunning = true;
     endTime = Date.now() + timeLeft * 1000;
     saveTimerState();
+    await requestScreenWakeLock();
     runTimer();
   });
 
@@ -592,6 +601,7 @@ if (pomodoroModal && btnOpenPomodoro) {
     clearInterval(timerInterval);
     isRunning = false;
     endTime = null;
+    releaseScreenWakeLock();
     saveTimerState();
   });
 
@@ -599,6 +609,7 @@ if (pomodoroModal && btnOpenPomodoro) {
     clearInterval(timerInterval);
     isRunning = false;
     endTime = null;
+    releaseScreenWakeLock();
     timeLeft = currentMode === "study" ? 25 * 60 : 5 * 60;
     saveTimerState();
     updateDisplay();
@@ -620,6 +631,14 @@ if (pomodoroModal && btnOpenPomodoro) {
     resetTimer();
   });
 
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      requestScreenWakeLock();
+    } else {
+      releaseScreenWakeLock();
+    }
+  });
+
   btnOpenPomodoro.addEventListener("click", () => {
     pomodoroModal.style.display = "flex";
   });
@@ -634,12 +653,21 @@ if (pomodoroModal && btnOpenPomodoro) {
   btnModeStudy.classList.toggle("active", currentMode === "study");
   btnModeBreak.classList.toggle("active", currentMode === "break");
   updateDisplay();
-  if (isRunning) runTimer();
+  if (isRunning) {
+    requestScreenWakeLock();
+    runTimer();
+  }
 }
 // ==========================================
 // 6. DRIFT GAME SELECTION MENU
 // ==========================================
+let driftPlayerName = "";
+
 window.openGameMenu = function () {
+  const playerName = window.prompt("Enter a username for the Drift scoreboard:");
+  if (!playerName || !playerName.trim()) return;
+
+  driftPlayerName = playerName.trim().slice(0, 30);
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "flex";
 };
@@ -647,6 +675,7 @@ window.openGameMenu = function () {
 window.closeGameMenu = function () {
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "none";
+  stopGameAudio();
 };
 
 // ==========================================
@@ -708,6 +737,13 @@ engineAudio.volume = 0;
 const driftAudio = new Audio("drift.mp3");
 driftAudio.loop = true;
 driftAudio.volume = 0;
+
+function stopGameAudio() {
+  engineAudio.pause();
+  driftAudio.pause();
+  soundtrack.pause();
+  soundtrack.currentTime = 0;
+}
 
 document.addEventListener("click", function (e) {
   let element = e.target.closest("button") || e.target;
@@ -773,7 +809,7 @@ const sfx = {
 // ==========================================
 async function submitDriftScore(playerName, playerScore) {
   const studentName =
-    localStorage.getItem("dento_student") || playerName || "Student";
+    playerName?.trim() || localStorage.getItem("dento_student") || "Student";
   const currentUser = window.auth?.currentUser;
   const isAdmin = currentUser?.email === "admin@dentoschedule.tech";
   const displayName = isAdmin ? "Admin" : studentName;
@@ -976,10 +1012,7 @@ window.quitGame = function () {
   cancelAnimationFrame(gameLoopId);
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
   try {
-    engineAudio.pause();
-    driftAudio.pause();
-    soundtrack.pause();
-    soundtrack.currentTime = 0;
+    stopGameAudio();
   } catch (e) {}
 };
 
@@ -1120,11 +1153,7 @@ function gameLoop() {
       if (scoreboardModal) {
         finalScoreDisplay.innerText = score;
         scoreboardModal.style.display = "flex";
-        let storedName =
-          localStorage.getItem("dento_student") ||
-          localStorage.getItem("username") ||
-          localStorage.getItem("loggedInUser") ||
-          "Student";
+        const storedName = driftPlayerName || "Student";
         setTimeout(async () => {
           const scoreSaved = await submitDriftScore(storedName, score);
           if (scoreSaved) {
@@ -1563,21 +1592,31 @@ window.handleSecretTrigger = function () {
                   "admin@dentoschedule.tech",
                   currentAdminPass,
                 )
-                .then(() => {
-                  window
-                    .updatePassword(window.auth.currentUser, newAdminPass)
-                    .then(() => {
-                      alert(
-                        "LOCKDOWN SUCCESSFUL.\nThe password has been changed. All active admins will be logged out.",
-                      );
-                    })
-                    .catch((error) =>
-                      alert("Failed to update password: " + error.message),
-                    );
+                .then(async () => {
+                  await window.updatePassword(
+                    window.auth.currentUser,
+                    newAdminPass,
+                  );
+                  await window.setDoc(
+                    adminSessionControlRef(),
+                    {
+                      version: crypto.randomUUID(),
+                      updatedAt: new Date().toISOString(),
+                    },
+                    { merge: true },
+                  );
+                  alert(
+                    "LOCKDOWN SUCCESSFUL.\nThe password has been changed. All active admins will be logged out.",
+                  );
                 })
-                .catch(() =>
-                  alert("Incorrect current admin password. Lockdown aborted."),
-                );
+                .catch((error) => {
+                  alert(
+                    error.code === "auth/wrong-password"
+                      ? "Incorrect current admin password. Lockdown aborted."
+                      : "Failed to lock down the admin account: " +
+                          error.message,
+                  );
+                });
             }
           }
         })

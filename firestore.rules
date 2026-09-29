@@ -7,6 +7,11 @@ service cloud.firestore {
         && request.auth.token.email == 'admin@dentoschedule.tech';
     }
 
+    function isPhantom() {
+      return request.auth != null
+        && request.auth.token.email == 'phantom@dentoschedule.tech';
+    }
+
     match /Announcements/{announcementId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -29,6 +34,11 @@ service cloud.firestore {
 
     match /DeviceHistory/{deviceId} {
       allow read, write: if isAdmin();
+    }
+
+    match /AdminControl/{controlId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() || isPhantom();
     }
 
     match /DriftScores/{scoreId} {
