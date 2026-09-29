@@ -808,7 +808,12 @@ window.openGameMenu = function () {
 
   driftPlayerName = playerName.trim().slice(0, 30);
   const menu = document.getElementById("game-selection-overlay");
-  if (menu) menu.style.display = "flex";
+  if (menu) {
+    menu.style.display = "flex";
+    try {
+      soundtrack.play().catch((err) => console.log("Autoplay blocked:", err));
+    } catch (err) {}
+  }
 };
 
 window.closeGameMenu = function () {
@@ -883,19 +888,6 @@ function stopGameAudio() {
   soundtrack.pause();
   soundtrack.currentTime = 0;
 }
-
-document.addEventListener("click", function (e) {
-  let element = e.target.closest("button") || e.target;
-  if (
-    element &&
-    element.innerText &&
-    element.innerText.includes("Play Drift")
-  ) {
-    try {
-      soundtrack.play().catch((err) => console.log("Autoplay blocked:", err));
-    } catch (err) {}
-  }
-});
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const sfx = {
