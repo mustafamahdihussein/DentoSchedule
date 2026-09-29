@@ -50,6 +50,7 @@ const btnSubmitEdit = document.getElementById("btn-submit-edit");
 const editSubject = document.getElementById("edit-subject");
 const alertText = document.getElementById("alert-text");
 const alertDate = document.getElementById("alert-date");
+const btnLogout = document.getElementById("btn-logout");
 
 // Buttons
 const btnUser = document.getElementById("btn-user");
@@ -61,6 +62,63 @@ const btnBack = document.getElementById("btn-back");
 const usernameInput = document.getElementById("admin-username");
 const passwordInput = document.getElementById("admin-password");
 const loginError = document.getElementById("login-error");
+const authSessionStartedAtKey = "dento_auth_session_started_at";
+const authSessionTimeoutMs = 5 * 24 * 60 * 60 * 1000;
+let authSessionTimeout = null;
+
+function clearAuthSessionTimeout() {
+  if (authSessionTimeout) {
+    clearTimeout(authSessionTimeout);
+    authSessionTimeout = null;
+  }
+}
+
+function showEntryGateway() {
+  clearAuthSessionTimeout();
+  adminPanel.style.display = "none";
+  mainApp.style.display = "none";
+  roleSelection.style.display = "block";
+  loginForm.style.display = "none";
+  entryGateway.style.display = "flex";
+  loginError.style.display = "none";
+  passwordInput.value = "";
+}
+
+btnLogout.addEventListener("click", async () => {
+  localStorage.removeItem(authSessionStartedAtKey);
+  await window.signOut(window.auth);
+  showEntryGateway();
+});
+
+function expireAuthSession() {
+  clearAuthSessionTimeout();
+  localStorage.removeItem(authSessionStartedAtKey);
+
+  if (!window.auth.currentUser) {
+    showEntryGateway();
+    return;
+  }
+
+  window.signOut(window.auth).then(() => {
+    showEntryGateway();
+    alert("Your five-day session has ended. Please choose your role again.");
+  });
+}
+
+function startAuthSessionTimeout() {
+  const now = Date.now();
+  const startedAt = Number(localStorage.getItem(authSessionStartedAtKey));
+
+  if (!startedAt || now - startedAt >= authSessionTimeoutMs) {
+    expireAuthSession();
+    return false;
+  }
+
+  const remainingTime = authSessionTimeoutMs - (now - startedAt);
+  clearAuthSessionTimeout();
+  authSessionTimeout = setTimeout(expireAuthSession, remainingTime);
+  return true;
+}
 
 // 1. User Button Click
 btnUser.addEventListener("click", async () => {
@@ -140,25 +198,38 @@ async function watchAdminSession() {
     stopAdminSessionWatch = null;
   }
 
-  if (window.auth.currentUser?.email !== "admin@dentoschedule.tech") return;
+  if (!window.auth.currentUser) return;
 
   try {
     const sessionRef = adminSessionControlRef();
     let sessionSnapshot = await window.getDoc(sessionRef);
+    let sessionVersion = null;
 
     if (!sessionSnapshot.exists()) {
-      await window.setDoc(sessionRef, {
-        version: crypto.randomUUID(),
-        updatedAt: new Date().toISOString(),
-      });
-      sessionSnapshot = await window.getDoc(sessionRef);
+      if (window.auth.currentUser.email === "admin@dentoschedule.tech") {
+        await window.setDoc(sessionRef, {
+          version: crypto.randomUUID(),
+          updatedAt: new Date().toISOString(),
+        });
+        sessionSnapshot = await window.getDoc(sessionRef);
+      }
     }
 
-    const sessionVersion = sessionSnapshot.data().version;
+    if (sessionSnapshot.exists()) {
+      sessionVersion = sessionSnapshot.data().version;
+    }
+
     stopAdminSessionWatch = window.onSnapshot(sessionRef, (snapshot) => {
-      if (!snapshot.exists() || snapshot.data().version === sessionVersion) {
+      if (!snapshot.exists()) {
         return;
       }
+
+      const nextSessionVersion = snapshot.data().version;
+      if (sessionVersion === null) {
+        sessionVersion = nextSessionVersion;
+        return;
+      }
+      if (nextSessionVersion === sessionVersion) return;
 
       if (stopAdminSessionWatch) {
         stopAdminSessionWatch();
@@ -166,11 +237,7 @@ async function watchAdminSession() {
       }
 
       window.signOut(window.auth).then(() => {
-        adminPanel.style.display = "none";
-        mainApp.style.display = "none";
-        roleSelection.style.display = "block";
-        loginForm.style.display = "none";
-        entryGateway.style.display = "flex";
+        showEntryGateway();
         alert("The admin password changed. Please sign in again.");
       });
     });
@@ -180,14 +247,23 @@ async function watchAdminSession() {
 }
 
 window.onAuthStateChanged(window.auth, (user) => {
-  if (!user) return;
+  if (!user) {
+    localStorage.removeItem(authSessionStartedAtKey);
+    showEntryGateway();
+    return;
+  }
+
+  if (!localStorage.getItem(authSessionStartedAtKey)) {
+    localStorage.setItem(authSessionStartedAtKey, String(Date.now()));
+  }
+  if (!startAuthSessionTimeout()) return;
 
   entryGateway.style.display = "none";
   mainApp.style.display = "block";
 
   const isAdmin = user.email === "admin@dentoschedule.tech";
   adminPanel.style.display = isAdmin ? "block" : "none";
-  if (isAdmin) watchAdminSession();
+  watchAdminSession();
 });
 // 5. Admin Panel Logic: Upload PDF Modal
 btnUploadPdf.addEventListener("click", () => {

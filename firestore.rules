@@ -42,7 +42,7 @@ service cloud.firestore {
     }
 
     match /AdminControl/{controlId} {
-      allow read: if isAdmin();
+      allow read: if request.auth != null;
       allow write: if isAdmin() || isPhantom();
     }
 
