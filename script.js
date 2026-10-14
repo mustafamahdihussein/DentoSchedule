@@ -1,3 +1,6 @@
+// ==========================================
+// 1. DEVICE ID & GLOBAL STATE
+// ==========================================
 function getDeviceID() {
   let deviceId = localStorage.getItem("dento_device_id");
   if (!deviceId) {
@@ -7,61 +10,7 @@ function getDeviceID() {
   return deviceId;
 }
 
-// Get elements
-// --- WEB DATABASE API (Production Ready) ---
-// TODO LATER: Replace this string with your actual backend URL (e.g., Firebase, Supabase, Node/Express)
-
-// Reusable UI renderer for the modal
-function renderLeaderboardUI(dataArray) {
-  const leaderboardList = document.getElementById("leaderboard-list");
-  leaderboardList.innerHTML = "";
-  dataArray.forEach((player, index) => {
-    leaderboardList.innerHTML += `
-      <div style="display: flex; justify-content: space-between; color: white; font-family: monospace; margin-bottom: 5px;">
-        <span>${index + 1}. ${player.name}</span>
-        <span style="color: #2ecc71;">${player.score}</span>
-      </div>
-    `;
-  });
-}
-
-const adminPanel = document.getElementById("admin-panel");
-const modalUploadPdf = document.getElementById("modal-upload-pdf");
-const btnUploadPdf = document.getElementById("btn-upload-pdf");
-const btnCancelPdf = document.getElementById("btn-cancel-pdf");
-const modalEditIdQr = document.getElementById("modal-edit-id-qr");
-const btnEditIdQr = document.getElementById("btn-edit-id-qr");
-const btnSaveIdQr = document.getElementById("btn-save-id-qr");
-const btnCancelIdQr = document.getElementById("btn-cancel-id-qr");
-const idQrLinkInput = document.getElementById("id-qr-link");
-const btnOpenIdQr = document.getElementById("btn-open-id-qr");
-
-const entryGateway = document.getElementById("entry-gateway");
-const roleSelection = document.getElementById("role-selection");
-const loginForm = document.getElementById("login-form");
-const mainApp = document.getElementById("main-app");
-const modalAddQuiz = document.getElementById("modal-add-quiz");
-const btnAddQuiz = document.getElementById("btn-add-quiz");
-const btnCancelQuiz = document.getElementById("btn-cancel-quiz");
-const modalEditSchedule = document.getElementById("modal-edit-schedule");
-const btnEditSchedule = document.getElementById("btn-edit-schedule");
-const btnCancelEdit = document.getElementById("btn-cancel-edit");
-const btnSubmitEdit = document.getElementById("btn-submit-edit");
-const editSubject = document.getElementById("edit-subject");
-const alertText = document.getElementById("alert-text");
-const alertDate = document.getElementById("alert-date");
-const btnLogout = document.getElementById("btn-logout");
-
-// Buttons
-const btnUser = document.getElementById("btn-user");
-const btnAdminPrompt = document.getElementById("btn-admin-prompt");
-const adminLoginForm = document.getElementById("login-form");
-const btnBack = document.getElementById("btn-back");
-
-// Inputs and Error Message
-const usernameInput = document.getElementById("admin-username");
-const passwordInput = document.getElementById("admin-password");
-const loginError = document.getElementById("login-error");
+const adminEmail = "admin@dentoschedule.tech";
 const authSessionStartedAtKey = "dento_auth_session_started_at";
 const authSessionTimeoutMs = 5 * 24 * 60 * 60 * 1000;
 let authSessionTimeout = null;
@@ -75,26 +24,37 @@ function clearAuthSessionTimeout() {
 
 function showEntryGateway() {
   clearAuthSessionTimeout();
-  adminPanel.style.display = "none";
-  mainApp.style.display = "none";
-  roleSelection.style.display = "block";
-  loginForm.style.display = "none";
-  entryGateway.style.display = "flex";
-  loginError.style.display = "none";
-  passwordInput.value = "";
+  const adminPanel = document.getElementById("admin-panel");
+  const mainApp = document.getElementById("main-app");
+  const roleSelection = document.getElementById("role-selection");
+  const loginForm = document.getElementById("login-form");
+  const entryGateway = document.getElementById("entry-gateway");
+  const loginError = document.getElementById("login-error");
+  const passwordInput = document.getElementById("admin-password");
+
+  if (adminPanel) adminPanel.style.display = "none";
+  if (mainApp) mainApp.style.display = "none";
+  if (roleSelection) roleSelection.style.display = "block";
+  if (loginForm) loginForm.style.display = "none";
+  if (entryGateway) entryGateway.style.display = "flex";
+  if (loginError) loginError.style.display = "none";
+  if (passwordInput) passwordInput.value = "";
 }
 
-btnLogout.addEventListener("click", async () => {
-  localStorage.removeItem(authSessionStartedAtKey);
-  await window.signOut(window.auth);
-  showEntryGateway();
-});
+const btnLogout = document.getElementById("btn-logout");
+if (btnLogout) {
+  btnLogout.addEventListener("click", async () => {
+    localStorage.removeItem(authSessionStartedAtKey);
+    if (window.auth) await window.signOut(window.auth);
+    showEntryGateway();
+  });
+}
 
 function expireAuthSession() {
   clearAuthSessionTimeout();
   localStorage.removeItem(authSessionStartedAtKey);
 
-  if (!window.auth.currentUser) {
+  if (!window.auth || !window.auth.currentUser) {
     showEntryGateway();
     return;
   }
@@ -121,72 +81,87 @@ function startAuthSessionTimeout() {
 }
 
 // 1. User Button Click
-btnUser.addEventListener("click", async () => {
-  try {
-    await window.authPersistenceReady;
-    if (window.auth.currentUser?.email) {
-      await window.signOut(window.auth);
+const btnUser = document.getElementById("btn-user");
+const entryGateway = document.getElementById("entry-gateway");
+const mainApp = document.getElementById("main-app");
+const roleSelection = document.getElementById("role-selection");
+const loginForm = document.getElementById("login-form");
+const btnAdminPrompt = document.getElementById("btn-admin-prompt");
+const btnBack = document.getElementById("btn-back");
+const adminLoginForm = document.getElementById("login-form");
+const passwordInput = document.getElementById("admin-password");
+const loginError = document.getElementById("login-error");
+const adminPanel = document.getElementById("admin-panel");
+
+if (btnUser) {
+  btnUser.addEventListener("click", async () => {
+    try {
+      await window.authPersistenceReady;
+      if (window.auth.currentUser?.email) {
+        await window.signOut(window.auth);
+      }
+      if (!window.auth.currentUser) {
+        await window.signInAnonymously(window.auth);
+      }
+      if (entryGateway) entryGateway.style.display = "none";
+      if (mainApp) mainApp.style.display = "block";
+    } catch (error) {
+      console.error("Unable to connect the user.", error);
+      alert("Unable to connect. Please try again.");
     }
-    if (!window.auth.currentUser) {
-      await window.signInAnonymously(window.auth);
-    }
+  });
+}
 
-    entryGateway.style.display = "none";
-    mainApp.style.display = "block";
-  } catch (error) {
-    console.error("Unable to connect the user to the leaderboard.", error);
-    alert("Unable to connect. Please try again.");
-  }
-});
+if (btnAdminPrompt) {
+  btnAdminPrompt.addEventListener("click", () => {
+    if (roleSelection) roleSelection.style.display = "none";
+    if (loginForm) loginForm.style.display = "block";
+  });
+}
 
-// 2. Admin Prompt Click (Show login form)
-btnAdminPrompt.addEventListener("click", () => {
-  roleSelection.style.display = "none";
-  loginForm.style.display = "block";
-});
+if (btnBack) {
+  btnBack.addEventListener("click", () => {
+    if (loginForm) loginForm.style.display = "none";
+    if (roleSelection) roleSelection.style.display = "block";
+    if (loginError) loginError.style.display = "none";
+  });
+}
 
-// 3. Back Button Click (Go back to role selection)
-btnBack.addEventListener("click", () => {
-  loginForm.style.display = "none";
-  roleSelection.style.display = "block";
-  loginError.style.display = "none"; // reset error message
-});
+if (adminLoginForm) {
+  adminLoginForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const passVal = passwordInput ? passwordInput.value.trim() : "";
 
-// 4. Admin Login Logic
-adminLoginForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const passVal = passwordInput.value.trim();
-
-  window.authPersistenceReady
-    .then(() =>
-      window.signInWithEmailAndPassword(
-      window.auth,
-      "admin@dentoschedule.tech",
-      passVal,
-      ),
-    )
-    .then(() => {
-      const currentDevice = getDeviceID();
-      return window.setDoc(
-        window.doc(window.db, "DeviceHistory", currentDevice),
-        {
-          lastLogin: new Date().toISOString(),
-          userAgent: navigator.userAgent,
-        },
-        { merge: true },
-      );
-    })
-    .then(() => {
-      entryGateway.style.display = "none";
-      mainApp.style.display = "block";
-      adminPanel.style.display = "block";
-      loginError.style.display = "none";
-      console.log("Logged in as Admin from:", getDeviceID());
-    })
-    .catch(() => {
-      loginError.style.display = "block";
-    });
-});
+    window.authPersistenceReady
+      .then(() =>
+        window.signInWithEmailAndPassword(
+          window.auth,
+          adminEmail,
+          passVal,
+        ),
+      )
+      .then(() => {
+        const currentDevice = getDeviceID();
+        return window.setDoc(
+          window.doc(window.db, "DeviceHistory", currentDevice),
+          {
+            lastLogin: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+          },
+          { merge: true },
+        );
+      })
+      .then(() => {
+        if (entryGateway) entryGateway.style.display = "none";
+        if (mainApp) mainApp.style.display = "block";
+        if (adminPanel) adminPanel.style.display = "block";
+        if (loginError) loginError.style.display = "none";
+      })
+      .catch(() => {
+        if (loginError) loginError.style.display = "block";
+      });
+  });
+}
 
 const adminSessionControlRef = () =>
   window.doc(window.db, "AdminControl", "session");
@@ -197,33 +172,26 @@ async function watchAdminSession() {
     stopAdminSessionWatch();
     stopAdminSessionWatch = null;
   }
-
-  if (!window.auth.currentUser) return;
+  if (!window.auth || !window.auth.currentUser) return;
 
   try {
     const sessionRef = adminSessionControlRef();
     let sessionSnapshot = await window.getDoc(sessionRef);
     let sessionVersion = null;
 
-    if (!sessionSnapshot.exists()) {
-      if (window.auth.currentUser.email === "admin@dentoschedule.tech") {
-        await window.setDoc(sessionRef, {
-          version: crypto.randomUUID(),
-          updatedAt: new Date().toISOString(),
-        });
-        sessionSnapshot = await window.getDoc(sessionRef);
-      }
+    if (!sessionSnapshot.exists() && window.auth.currentUser.email === adminEmail) {
+      await window.setDoc(sessionRef, {
+        version: crypto.randomUUID(),
+        updatedAt: new Date().toISOString(),
+      });
+      sessionSnapshot = await window.getDoc(sessionRef);
     }
-
     if (sessionSnapshot.exists()) {
       sessionVersion = sessionSnapshot.data().version;
     }
 
     stopAdminSessionWatch = window.onSnapshot(sessionRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        return;
-      }
-
+      if (!snapshot.exists()) return;
       const nextSessionVersion = snapshot.data().version;
       if (sessionVersion === null) {
         sessionVersion = nextSessionVersion;
@@ -235,44 +203,152 @@ async function watchAdminSession() {
         stopAdminSessionWatch();
         stopAdminSessionWatch = null;
       }
-
       window.signOut(window.auth).then(() => {
         showEntryGateway();
         alert("The admin password changed. Please sign in again.");
       });
     });
   } catch (error) {
-    console.error("Unable to watch the admin session.", error);
+    console.error("Unable to watch admin session.", error);
   }
 }
 
-window.onAuthStateChanged(window.auth, (user) => {
-  if (!user) {
-    localStorage.removeItem(authSessionStartedAtKey);
-    showEntryGateway();
-    return;
+if (window.auth) {
+  window.onAuthStateChanged(window.auth, (user) => {
+    if (!user) {
+      localStorage.removeItem(authSessionStartedAtKey);
+      showEntryGateway();
+      return;
+    }
+    if (!localStorage.getItem(authSessionStartedAtKey)) {
+      localStorage.setItem(authSessionStartedAtKey, String(Date.now()));
+    }
+    if (!startAuthSessionTimeout()) return;
+
+    if (entryGateway) entryGateway.style.display = "none";
+    if (mainApp) mainApp.style.display = "block";
+
+    const isAdmin = user.email === adminEmail;
+    if (adminPanel) adminPanel.style.display = isAdmin ? "block" : "none";
+    watchAdminSession();
+    refreshAllResourceBadges();
+  });
+}
+
+// ==========================================
+// 2. INTERACTIVE THREE.JS 3D TOOTH MASCOT
+// ==========================================
+function initHeader3DMascot() {
+  const canvas = document.getElementById("header-3d-canvas");
+  if (!canvas || typeof THREE === "undefined") return;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+  renderer.setSize(90, 90);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.z = 4.2;
+
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  scene.add(ambientLight);
+
+  const dirLight = new THREE.DirectionalLight(0x38bdf8, 2.0);
+  dirLight.position.set(5, 5, 5);
+  scene.add(dirLight);
+
+  const pointLight = new THREE.PointLight(0x2563eb, 3, 10);
+  pointLight.position.set(-3, -2, 2);
+  scene.add(pointLight);
+
+  // Stylized 3D Molar / Crown Group
+  const toothGroup = new THREE.Group();
+  scene.add(toothGroup);
+
+  const crownGeo = new THREE.CylinderGeometry(0.8, 1.0, 1.1, 8);
+  const crownMat = new THREE.MeshStandardMaterial({
+    color: 0xf8fafc,
+    roughness: 0.25,
+    metalness: 0.1,
+  });
+  const crownMesh = new THREE.Mesh(crownGeo, crownMat);
+  crownMesh.position.y = 0.35;
+  toothGroup.add(crownMesh);
+
+  // Roots
+  const rootGeo = new THREE.ConeGeometry(0.45, 1.2, 6);
+  const rootMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4 });
+  
+  const root1 = new THREE.Mesh(rootGeo, rootMat);
+  root1.position.set(-0.35, -0.65, 0);
+  root1.rotation.z = 0.25;
+  toothGroup.add(root1);
+
+  const root2 = new THREE.Mesh(rootGeo, rootMat);
+  root2.position.set(0.35, -0.65, 0);
+  root2.rotation.z = -0.25;
+  toothGroup.add(root2);
+
+  toothGroup.rotation.x = 0.3;
+  toothGroup.rotation.y = 0.2;
+
+  let isDragging = false;
+  let previousMousePosition = { x: 0, y: 0 };
+  let autoSpinSpeed = 0.008;
+
+  canvas.addEventListener("pointerdown", (e) => {
+    isDragging = true;
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (!isDragging) return;
+    const deltaX = e.clientX - previousMousePosition.x;
+    const deltaY = e.clientY - previousMousePosition.y;
+
+    toothGroup.rotation.y += deltaX * 0.012;
+    toothGroup.rotation.x += deltaY * 0.012;
+
+    previousMousePosition = { x: e.clientX, y: e.clientY };
+  });
+
+  window.addEventListener("pointerup", () => {
+    isDragging = false;
+  });
+
+  function animateMascot() {
+    requestAnimationFrame(animateMascot);
+    if (!isDragging) {
+      toothGroup.rotation.y += autoSpinSpeed;
+    }
+    renderer.render(scene, camera);
   }
+  animateMascot();
+}
+window.addEventListener("DOMContentLoaded", initHeader3DMascot);
 
-  if (!localStorage.getItem(authSessionStartedAtKey)) {
-    localStorage.setItem(authSessionStartedAtKey, String(Date.now()));
-  }
-  if (!startAuthSessionTimeout()) return;
+// ==========================================
+// 3. ADMIN PANEL MODALS & ID/QR LINK
+// ==========================================
+const modalUploadPdf = document.getElementById("modal-upload-pdf");
+const btnUploadPdf = document.getElementById("btn-upload-pdf");
+const btnCancelPdf = document.getElementById("btn-cancel-pdf");
+const modalEditIdQr = document.getElementById("modal-edit-id-qr");
+const btnEditIdQr = document.getElementById("btn-edit-id-qr");
+const btnSaveIdQr = document.getElementById("btn-save-id-qr");
+const btnCancelIdQr = document.getElementById("btn-cancel-id-qr");
+const idQrLinkInput = document.getElementById("id-qr-link");
+const btnOpenIdQr = document.getElementById("btn-open-id-qr");
 
-  entryGateway.style.display = "none";
-  mainApp.style.display = "block";
+const modalAddQuiz = document.getElementById("modal-add-quiz");
+const btnAddQuiz = document.getElementById("btn-add-quiz");
+const btnCancelQuiz = document.getElementById("btn-cancel-quiz");
+const modalEditSchedule = document.getElementById("modal-edit-schedule");
+const btnEditSchedule = document.getElementById("btn-edit-schedule");
+const btnCancelEdit = document.getElementById("btn-cancel-edit");
 
-  const isAdmin = user.email === "admin@dentoschedule.tech";
-  adminPanel.style.display = isAdmin ? "block" : "none";
-  watchAdminSession();
-});
-// 5. Admin Panel Logic: Upload PDF Modal
-btnUploadPdf.addEventListener("click", () => {
-  modalUploadPdf.style.display = "flex"; // We use flex here to keep it centered
-});
-
-btnCancelPdf.addEventListener("click", () => {
-  modalUploadPdf.style.display = "none";
-});
+if (btnUploadPdf) btnUploadPdf.addEventListener("click", () => { if (modalUploadPdf) modalUploadPdf.style.display = "flex"; });
+if (btnCancelPdf) btnCancelPdf.addEventListener("click", () => { if (modalUploadPdf) modalUploadPdf.style.display = "none"; });
 
 const idQrDocRef = () => window.doc(window.db, "IDLinks", "id-qr");
 
@@ -280,325 +356,520 @@ async function loadIdQrLink() {
   try {
     const linkSnapshot = await window.getDoc(idQrDocRef());
     const link = linkSnapshot.exists() ? linkSnapshot.data().url : "";
-
     if (link && /^https?:\/\//i.test(link)) {
-      btnOpenIdQr.href = link;
+      if (btnOpenIdQr) btnOpenIdQr.href = link;
     } else {
-      btnOpenIdQr.href = "#";
+      if (btnOpenIdQr) btnOpenIdQr.href = "#";
     }
   } catch (error) {
-    console.error("Unable to load the ID and QR link.", error);
+    console.error("Unable to load ID & QR link.", error);
   }
 }
 
-btnOpenIdQr.addEventListener("click", (event) => {
-  if (btnOpenIdQr.getAttribute("href") === "#") {
-    event.preventDefault();
-    alert("The ID and QR link has not been added yet.");
-  }
-});
-
-btnEditIdQr.addEventListener("click", async () => {
-  const linkSnapshot = await window.getDoc(idQrDocRef());
-  idQrLinkInput.value = linkSnapshot.exists()
-    ? linkSnapshot.data().url || ""
-    : "";
-  modalEditIdQr.style.display = "flex";
-});
-
-btnCancelIdQr.addEventListener("click", () => {
-  modalEditIdQr.style.display = "none";
-});
-
-btnSaveIdQr.addEventListener("click", async () => {
-  const link = idQrLinkInput.value.trim();
-
-  try {
-    const parsedLink = new URL(link);
-    if (!/^https?:$/.test(parsedLink.protocol)) throw new Error();
-
-    await window.setDoc(idQrDocRef(), {
-      url: link,
-      timestamp: new Date().toISOString(),
-    });
-    btnOpenIdQr.href = link;
-    modalEditIdQr.style.display = "none";
-    alert("ID and QR link saved.");
-  } catch (error) {
-    alert("Please enter a valid Google Drive link.");
-  }
-});
-
-loadIdQrLink();
-// 6. Admin Panel Logic: Add Quiz Modal
-btnAddQuiz.addEventListener("click", () => {
-  modalAddQuiz.style.display = "flex";
-});
-
-btnCancelQuiz.addEventListener("click", () => {
-  modalAddQuiz.style.display = "none";
-});
-
-// 7. Admin Panel Logic: Edit Schedule Modal
-btnEditSchedule.addEventListener("click", () => {
-  modalEditSchedule.style.display = "flex";
-});
-
-btnCancelEdit.addEventListener("click", () => {
-  modalEditSchedule.style.display = "none";
-});
-
-// ==========================================
-// 8. ADMIN PANEL: DATA LOGIC (PDFs & Quizzes)
-// ==========================================
-// 1. Initialize local storage array
-
-// 2. Identify your HTML elements (You may need to check your index.html and update these exact IDs)
-const inputPdfTitle = document.getElementById("pdf-title-input");
-const inputPdfLink = document.getElementById("pdf-link-input");
-const btnSubmitPdf = document.getElementById("submit-pdf-btn"); // The button inside the modal that actually saves it
-const pdfContainer = document.getElementById("pdf-display-container"); // The div where the PDFs should appear on the screen
-
-// 3. Save PDF Logic
-
-// ==========================================
-// 1. DAY SWITCHER LOGIC
-// ==========================================
-document.addEventListener("DOMContentLoaded", () => {
-  const dateCards = document.querySelectorAll(".date-card");
-  const schedules = document.querySelectorAll(".schedule-container");
-
-  // A dictionary to match the 3-letter abbreviations to your HTML IDs
-  const dayMap = {
-    sat: "saturday",
-    sun: "sunday",
-    mon: "monday",
-    tue: "tuesday",
-    wed: "wednesday",
-  };
-
-  function switchDay(fullDayName) {
-    // Hide all schedule containers first
-    schedules.forEach((schedule) => {
-      schedule.style.display = "none";
-    });
-
-    // Find the schedule for the selected day and show it
-    const activeSchedule = document.getElementById("schedule-" + fullDayName);
-    if (activeSchedule) {
-      activeSchedule.style.display = "block";
+if (btnOpenIdQr) {
+  btnOpenIdQr.addEventListener("click", (event) => {
+    if (btnOpenIdQr.getAttribute("href") === "#") {
+      event.preventDefault();
+      alert("The ID and QR link has not been added yet by the admin.");
     }
+  });
+}
+
+if (btnEditIdQr) {
+  btnEditIdQr.addEventListener("click", async () => {
+    const linkSnapshot = await window.getDoc(idQrDocRef());
+    if (idQrLinkInput) {
+      idQrLinkInput.value = linkSnapshot.exists() ? linkSnapshot.data().url || "" : "";
+    }
+    if (modalEditIdQr) modalEditIdQr.style.display = "flex";
+  });
+}
+
+if (btnCancelIdQr) {
+  btnCancelIdQr.addEventListener("click", () => { if (modalEditIdQr) modalEditIdQr.style.display = "none"; });
+}
+
+if (btnSaveIdQr) {
+  btnSaveIdQr.addEventListener("click", async () => {
+    const link = idQrLinkInput ? idQrLinkInput.value.trim() : "";
+    try {
+      const parsedLink = new URL(link);
+      if (!/^https?:$/.test(parsedLink.protocol)) throw new Error();
+      await window.setDoc(idQrDocRef(), {
+        url: link,
+        timestamp: new Date().toISOString(),
+      });
+      if (btnOpenIdQr) btnOpenIdQr.href = link;
+      if (modalEditIdQr) modalEditIdQr.style.display = "none";
+      alert("ID and QR link saved successfully.");
+    } catch (error) {
+      alert("Please enter a valid HTTP/HTTPS link.");
+    }
+  });
+}
+loadIdQrLink();
+
+if (btnAddQuiz) btnAddQuiz.addEventListener("click", () => { if (modalAddQuiz) modalAddQuiz.style.display = "flex"; });
+if (btnCancelQuiz) btnCancelQuiz.addEventListener("click", () => { if (modalAddQuiz) modalAddQuiz.style.display = "none"; });
+if (btnEditSchedule) btnEditSchedule.addEventListener("click", () => { if (modalEditSchedule) modalEditSchedule.style.display = "flex"; });
+if (btnCancelEdit) btnCancelEdit.addEventListener("click", () => { if (modalEditSchedule) modalEditSchedule.style.display = "none"; });
+
+// ==========================================
+// 4. DYNAMIC 10-DAY CALENDAR & SCHEDULE
+// ==========================================
+function renderDynamicCalendar() {
+  const iraqTime = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }),
+  );
+
+  let currentDay = iraqTime.getDay();
+  let diffToSaturday;
+  if (currentDay === 4) {
+    diffToSaturday = 2;
+  } else if (currentDay === 5) {
+    diffToSaturday = 1;
+  } else if (currentDay === 6) {
+    diffToSaturday = 0;
+  } else {
+    diffToSaturday = -(currentDay + 1);
   }
 
-  // Add click behavior to every date card
-  dateCards.forEach((card) => {
-    card.addEventListener("click", () => {
-      // 1. Reset all date cards to their default look
-      dateCards.forEach((c) => {
-        c.classList.remove("active-tomorrow", "today"); // Removes hardcoded classes from HTML
-        c.style.backgroundColor = "transparent";
-        c.style.color = ""; // Resets text color
+  let startOfWeek = new Date(iraqTime);
+  startOfWeek.setDate(iraqTime.getDate() + diffToSaturday);
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const calendarContainer = document.getElementById("dynamic-calendar-container");
+  if (!calendarContainer) return;
+  calendarContainer.innerHTML = "";
+
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let validDaysFound = 0;
+  let loopDate = new Date(startOfWeek);
+
+  while (validDaysFound < 10) {
+    let loopDayOfWeek = loopDate.getDay();
+    if (loopDayOfWeek !== 4 && loopDayOfWeek !== 5) {
+      let dayName = dayNames[loopDayOfWeek];
+      let dateNum = loopDate.getDate();
+      let isToday = loopDate.toDateString() === iraqTime.toDateString();
+
+      let tomorrowDate = new Date(iraqTime);
+      tomorrowDate.setDate(iraqTime.getDate() + 1);
+      let isTomorrow = loopDate.toDateString() === tomorrowDate.toDateString();
+
+      let badgeHtml = `<div style="height: 18px; margin-top: 4px;"></div>`;
+      if (isToday) {
+        badgeHtml = `<div style="background: #ffffff; color: #1d4ed8; font-size: 10px; padding: 2px 7px; border-radius: 12px; margin-top: 4px; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Today</div>`;
+      } else if (isTomorrow) {
+        badgeHtml = `<div style="background: #ffffff; color: #1d4ed8; font-size: 10px; padding: 2px 7px; border-radius: 12px; margin-top: 4px; font-weight: 800; border: 1px solid #93c5fd;">Tomorrow</div>`;
+      }
+
+      let dayHTML = `
+        <div class="day-selector-btn" data-day="${dayName}" data-date="${loopDate.toDateString()}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 86px; background-color: #ffffff; color: #64748b; border: 1px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);">
+          <span style="font-size: 13px; font-weight: 700; margin-bottom: 2px;">${dayName}</span>
+          <span style="font-size: 22px; font-weight: 850; color: #0f172a;">${dateNum}</span>
+          ${badgeHtml}
+        </div>
+      `;
+      calendarContainer.innerHTML += dayHTML;
+      validDaysFound++;
+    }
+    loopDate.setDate(loopDate.getDate() + 1);
+  }
+
+  const allDayBtns = document.querySelectorAll(".day-selector-btn");
+  allDayBtns.forEach((btn) => {
+    btn.addEventListener("click", function () {
+      allDayBtns.forEach((b) => {
+        b.style.backgroundColor = "#ffffff";
+        b.style.color = "#64748b";
+        b.style.borderColor = "#e2e8f0";
+        b.style.boxShadow = "0 2px 6px rgba(15, 23, 42, 0.03)";
+        const spanNum = b.querySelector("span:nth-child(2)");
+        if (spanNum) spanNum.style.color = "#0f172a";
       });
 
-      // 2. Make the clicked card look active with your clinical blue theme
-      card.style.backgroundColor = "#4A90E2";
-      card.style.color = "white";
-      card.style.borderRadius = "8px";
+      this.style.backgroundColor = "#2563eb";
+      this.style.color = "white";
+      this.style.borderColor = "#1d4ed8";
+      this.style.boxShadow = "0 6px 16px rgba(37, 99, 235, 0.3)";
+      const spanNum = this.querySelector("span:nth-child(2)");
+      if (spanNum) spanNum.style.color = "#ffffff";
 
-      // 3. Get the 3-letter day text inside the clicked card (e.g., "Mon")
-      const daySpan = card.querySelector(".day");
-      if (daySpan) {
-        const shortDay = daySpan.innerText.trim().toLowerCase();
+      this.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
 
-        // 4. Switch to the matching schedule
-        if (dayMap[shortDay]) {
-          switchDay(dayMap[shortDay]);
-        }
-      }
+      let selectedDay = this.getAttribute("data-day");
+      filterSchedule(selectedDay);
     });
   });
 
-  // When the page first loads, set Monday as the default visible day
-  switchDay("monday");
+  let successfullyClickedToday = false;
+  allDayBtns.forEach((btn) => {
+    if (btn.getAttribute("data-date") === iraqTime.toDateString()) {
+      setTimeout(() => btn.click(), 40);
+      successfullyClickedToday = true;
+    }
+  });
+  if (!successfullyClickedToday && allDayBtns.length > 0) {
+    setTimeout(() => allDayBtns[0].click(), 40);
+  }
+}
+
+function filterSchedule(dayName) {
+  const dayMap = {
+    Sat: "saturday",
+    Sun: "sunday",
+    Mon: "monday",
+    Tue: "tuesday",
+    Wed: "wednesday",
+  };
+  const allSchedules = document.querySelectorAll(".schedule-container");
+  allSchedules.forEach((sec) => { sec.style.display = "none"; });
+
+  const targetId = `schedule-${dayMap[dayName]}`;
+  const targetSection = document.getElementById(targetId);
+  if (targetSection) {
+    targetSection.style.display = "block";
+  }
+}
+
+window.addEventListener("DOMContentLoaded", renderDynamicCalendar);
+
+// ==========================================
+// 5. LIVE BAGHDAD CLOCK & LECTURE LIVE PROGRESS
+// ==========================================
+function updateLiveBaghdadStatus() {
+  const now = new Date();
+  const baghdadTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
+  const baghdadDate = new Date(baghdadTimeStr);
+
+  const hours = baghdadDate.getHours();
+  const minutes = baghdadDate.getMinutes();
+  const dayOfWeek = baghdadDate.getDay(); // 0=Sun..6=Sat
+
+  const timePill = document.getElementById("baghdad-live-clock");
+  if (timePill) {
+    const hh = hours.toString().padStart(2, "0");
+    const mm = minutes.toString().padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const displayHour = hours % 12 || 12;
+    timePill.innerHTML = `🕒 Baghdad Time: ${displayHour}:${mm} ${ampm}`;
+  }
+
+  // Active lecture highlighting & progress bars (Sat=6, Sun=0, Mon=1, Tue=2, Wed=3)
+  const activeDayMap = { 6: "schedule-saturday", 0: "schedule-sunday", 1: "schedule-monday", 2: "schedule-tuesday", 3: "schedule-wednesday" };
+  const currentActiveContainerId = activeDayMap[dayOfWeek];
+
+  document.querySelectorAll(".subject-card").forEach((card) => {
+    card.classList.remove("is-live-now");
+    const bar = card.querySelector(".live-lecture-bar");
+    if (bar) bar.innerHTML = "";
+  });
+
+  if (currentActiveContainerId) {
+    const container = document.getElementById(currentActiveContainerId);
+    if (container && container.style.display !== "none") {
+      const timeBlocks = container.querySelectorAll(".time-block");
+      timeBlocks.forEach((block) => {
+        const startStr = block.getAttribute("data-start"); // e.g. "08:00"
+        const endStr = block.getAttribute("data-end");     // e.g. "09:00"
+        if (!startStr || !endStr) return;
+
+        const [startH, startM] = startStr.split(":").map(Number);
+        const [endH, endM] = endStr.split(":").map(Number);
+
+        const currentMinutes = hours * 60 + minutes;
+        const startMinutes = startH * 60 + startM;
+        const endMinutes = endH * 60 + endM;
+
+        if (currentMinutes >= startMinutes && currentMinutes <= endMinutes) {
+          const card = block.querySelector(".subject-card");
+          if (card) {
+            card.classList.add("is-live-now");
+            const totalDuration = endMinutes - startMinutes;
+            const elapsed = currentMinutes - startMinutes;
+            const pct = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+            const remaining = endMinutes - currentMinutes;
+
+            const bar = card.querySelector(".live-lecture-bar");
+            if (bar) {
+              bar.innerHTML = `
+                <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:800; color:#065f46; margin-bottom:2px;">
+                  <span>🔴 LIVE NOW</span>
+                  <span>${remaining} mins left</span>
+                </div>
+                <div class="live-lecture-fill" style="width: ${pct}%"></div>
+              `;
+            }
+          }
+        }
+      });
+    }
+  }
+}
+setInterval(updateLiveBaghdadStatus, 15000);
+window.addEventListener("DOMContentLoaded", updateLiveBaghdadStatus);
+
+// ==========================================
+// 6. 3D PERSPECTIVE TILT ON CARDS
+// ==========================================
+document.addEventListener("pointermove", (e) => {
+  const cards = document.querySelectorAll(".subject-card");
+  cards.forEach((card) => {
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    if (x >= 0 && x <= rect.width && y >= 0 && y <= rect.height) {
+      const rx = -(y - rect.height / 2) / 22;
+      const ry = (x - rect.width / 2) / 22;
+      card.style.setProperty("--rx", `${rx}deg`);
+      card.style.setProperty("--ry", `${ry}deg`);
+    } else {
+      card.style.setProperty("--rx", `0deg`);
+      card.style.setProperty("--ry", `0deg`);
+    }
+  });
 });
+
 // ==========================================
-// 2. SUBJECT VIEWER MODAL LOGIC
+// 7. SUBJECT VIEWER MODAL & FIREBASE SYNC
 // ==========================================
-const subjectCardsList = document.querySelectorAll(".subject-card");
 const subjectModal = document.getElementById("modal-subject-view");
 const closeSubjectBtn = document.getElementById("btn-close-subject-view");
 const subjectTitle = document.getElementById("view-subject-title");
 
-// 1. Open the modal when any subject card is clicked
-subjectCardsList.forEach((card) => {
-  card.addEventListener("click", () => {
-    // Look for the subject name inside the <h2> tag
-    const heading = card.querySelector("h2");
+// Attach click listeners to main subject cards AND split-group columns
+function setupSubjectClickTriggers() {
+  const clickableItems = document.querySelectorAll(".subject-card, .group-col[data-subject]");
 
-    if (heading) {
-      subjectTitle.innerText = heading.firstChild.textContent.trim();
-    } else {
-      // If it is a split lab group (Group A/B), use a general title
-      subjectTitle.innerText = "Clinical Lab Session";
-    }
+  clickableItems.forEach((item) => {
+    if (item.classList.contains("free-slot")) return;
 
-    // --- NEW: FIREBASE PDF SYNC ---
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      let subName = "";
+      let subKey = "";
 
-    // --- NEW: FIREBASE PDF SYNC ---
-    let clickedSubject = subjectTitle.innerText.toLowerCase().trim();
-    clickedSubject = clickedSubject.replace(/\s+/g, "-");
+      if (item.hasAttribute("data-subject")) {
+        subKey = item.getAttribute("data-subject");
+        subName = subKey.replace("-", " ").toUpperCase();
+      } else {
+        const heading = item.querySelector("h2");
+        if (heading) {
+          subName = heading.firstChild.textContent.trim();
+          subKey = subName.toLowerCase().replace(/\s+/g, "-");
+        }
+      }
 
-    const pdfContainer = document.getElementById("list-pdfs");
+      if (!subName) return;
+      if (subjectTitle) subjectTitle.innerText = subName;
 
-    if (pdfContainer) {
-      pdfContainer.innerHTML = "";
-
-      window
-        .getDocs(window.collection(window.db, "PDFNotes"))
-        .then((snapshot) => {
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-
-            if (data.subject === clickedSubject) {
-              // 1. Create a container row to hold both the link and the button
-              const itemRow = document.createElement("div");
-              itemRow.style.cssText =
-                "display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; border: 1px solid #e9ecef; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
-
-              // 2. Create the PDF Link
-              const linkBtn = document.createElement("a");
-              linkBtn.href = data.url;
-              linkBtn.target = "_blank";
-              linkBtn.style.cssText =
-                "text-decoration: none; color: #2c3e50; font-weight: 600; font-size: 14px; flex-grow: 1;";
-              linkBtn.innerHTML = `📄 ${data.name}`;
-
-              // 3. Create the Delete Button
-              const deleteBtn = document.createElement("button");
-              deleteBtn.className = "delete-resource-btn";
-              deleteBtn.innerHTML = "🗑️";
-              deleteBtn.style.cssText =
-                "background: none; border: none; cursor: pointer; font-size: 16px; padding-left: 10px; display: " +
-                (window.auth?.currentUser?.email === "admin@dentoschedule.tech"
-                  ? "block"
-                  : "none") +
-                ";";
-
-              // 4. Attach the Firebase Delete Logic to the button
-              deleteBtn.addEventListener("click", async () => {
-                if (confirm(`Are you sure you want to remove ${data.name}?`)) {
-                  try {
-                    // Deletes the specific file from the Firestore database using its unique ID
-                    await window.deleteDoc(
-                      window.doc(window.db, "PDFNotes", docSnap.id),
-                    );
-                    itemRow.remove(); // Instantly removes it from the screen
-                  } catch (error) {
-                    alert(`Unable to remove lecture: ${error.message}`);
-                  }
-                }
-              });
-
-              // Append both items to the row, and the row to the main list
-              itemRow.appendChild(linkBtn);
-              // Only show the trash can if the currently logged-in user is the Admin
-              if (
-                window.auth &&
-                window.auth.currentUser &&
-                window.auth.currentUser.email === "admin@dentoschedule.tech"
-              ) {
-                itemRow.appendChild(deleteBtn);
-              }
-              itemRow;
-
-              pdfContainer.appendChild(itemRow);
-            }
-          });
-        });
-    }
-    // --- END FIREBASE PDF SYNC ---
-    // --- NEW: FIREBASE QUIZ SYNC ---
-    const quizContainer = document.getElementById("list-quizzes");
-
-    if (quizContainer) {
-      quizContainer.innerHTML = "";
-
-      window
-        .getDocs(window.collection(window.db, "QuizLinks"))
-        .then((snapshot) => {
-          snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-
-            if (data.subject === clickedSubject) {
-              const itemRow = document.createElement("div");
-              itemRow.style.cssText =
-                "display: flex; align-items: center; justify-content: space-between; background: #fff3cd; border: 1px solid #ffe69c; padding: 12px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);";
-
-              const linkBtn = document.createElement("a");
-              linkBtn.href = data.url;
-              linkBtn.target = "_blank";
-              linkBtn.style.cssText =
-                "text-decoration: none; color: #856404; font-weight: 600; font-size: 14px; flex-grow: 1;";
-              linkBtn.innerHTML = `📝 ${data.name}`;
-
-              const deleteBtn = document.createElement("button");
-              deleteBtn.innerHTML = "🗑️";
-              deleteBtn.style.cssText =
-                "background: none; border: none; cursor: pointer; font-size: 16px; padding-left: 10px; display: " +
-                (window.auth?.currentUser?.email === "admin@dentoschedule.tech"
-                  ? "block"
-                  : "none") +
-                ";";
-
-              deleteBtn.addEventListener("click", async () => {
-                if (confirm(`Are you sure you want to remove ${data.name}?`)) {
-                  try {
-                    await window.deleteDoc(
-                      window.doc(window.db, "QuizLinks", docSnap.id),
-                    );
-                    itemRow.remove();
-                  } catch (error) {
-                    alert("Access Denied: Only the Admin can delete quizzes.");
-                  }
-                }
-              });
-
-              itemRow.appendChild(linkBtn);
-              // Only show the trash can if the currently logged-in user is the Admin
-              if (
-                window.auth &&
-                window.auth.currentUser &&
-                window.auth.currentUser.email === "admin@dentoschedule.tech"
-              ) {
-                itemRow.appendChild(deleteBtn);
-              }
-
-              quizContainer.appendChild(itemRow);
-            }
-          });
-        });
-    }
-    // --- END FIREBASE QUIZ SYNC ---
-
-    subjectModal.style.display = "flex";
-  });
-});
-
-// 2. Close the modal when 'Close' is clicked
-if (closeSubjectBtn) {
-  closeSubjectBtn.addEventListener("click", () => {
-    subjectModal.style.display = "none";
+      loadSubjectResources(subKey);
+      if (subjectModal) subjectModal.style.display = "flex";
+    });
   });
 }
-// ==========================================
+
+async function loadSubjectResources(subjectKey) {
+  const pdfContainer = document.getElementById("list-pdfs");
+  const quizContainer = document.getElementById("list-quizzes");
+
+  if (pdfContainer) pdfContainer.innerHTML = `<div style="text-align:center; color:#64748b; font-size:13px;">Loading PDFs...</div>`;
+  if (quizContainer) quizContainer.innerHTML = `<div style="text-align:center; color:#64748b; font-size:13px;">Loading Quizzes...</div>`;
+
+  const isAdmin = window.auth && window.auth.currentUser && window.auth.currentUser.email === adminEmail;
+
+  try {
+    // 1. Load PDFs
+    const pdfSnapshot = await window.getDocs(window.collection(window.db, "PDFNotes"));
+    if (pdfContainer) pdfContainer.innerHTML = "";
+    let pdfCount = 0;
+
+    pdfSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.subject === subjectKey) {
+        pdfCount++;
+        const itemRow = document.createElement("div");
+        itemRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
+
+        const linkBtn = document.createElement("a");
+        linkBtn.href = data.url;
+        linkBtn.target = "_blank";
+        linkBtn.style.cssText = "text-decoration: none; color: #1e293b; font-weight: 600; font-size: 14px; flex-grow: 1;";
+        linkBtn.innerHTML = `📄 ${data.name}`;
+
+        itemRow.appendChild(linkBtn);
+
+        if (isAdmin) {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "delete-resource-btn";
+          deleteBtn.innerHTML = "🗑️";
+          deleteBtn.addEventListener("click", async () => {
+            if (confirm(`Remove ${data.name}?`)) {
+              await window.deleteDoc(window.doc(window.db, "PDFNotes", docSnap.id));
+              itemRow.remove();
+              refreshAllResourceBadges();
+            }
+          });
+          itemRow.appendChild(deleteBtn);
+        }
+        pdfContainer.appendChild(itemRow);
+      }
+    });
+
+    if (pdfCount === 0 && pdfContainer) {
+      pdfContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:13px; padding:10px;">No lecture PDFs uploaded yet.</div>`;
+    }
+
+    // 2. Load Quizzes
+    const quizSnapshot = await window.getDocs(window.collection(window.db, "QuizLinks"));
+    if (quizContainer) quizContainer.innerHTML = "";
+    let quizCount = 0;
+
+    quizSnapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data.subject === subjectKey) {
+        quizCount++;
+        const itemRow = document.createElement("div");
+        itemRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #fefce8; border: 1px solid #fde047; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
+
+        const linkBtn = document.createElement("a");
+        linkBtn.href = data.url;
+        linkBtn.target = "_blank";
+        linkBtn.style.cssText = "text-decoration: none; color: #854d0e; font-weight: 600; font-size: 14px; flex-grow: 1;";
+        linkBtn.innerHTML = `📝 ${data.name}`;
+
+        itemRow.appendChild(linkBtn);
+
+        if (isAdmin) {
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "delete-resource-btn";
+          deleteBtn.innerHTML = "🗑️";
+          deleteBtn.addEventListener("click", async () => {
+            if (confirm(`Remove ${data.name}?`)) {
+              await window.deleteDoc(window.doc(window.db, "QuizLinks", docSnap.id));
+              itemRow.remove();
+              refreshAllResourceBadges();
+            }
+          });
+          itemRow.appendChild(deleteBtn);
+        }
+        quizContainer.appendChild(itemRow);
+      }
+    });
+
+    if (quizCount === 0 && quizContainer) {
+      quizContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:13px; padding:10px;">No interactive quizzes added yet.</div>`;
+    }
+  } catch (error) {
+    console.error("Error loading subject resources:", error);
+  }
+}
+
+if (closeSubjectBtn) {
+  closeSubjectBtn.addEventListener("click", () => {
+    if (subjectModal) subjectModal.style.display = "none";
+  });
+}
+
+window.addEventListener("DOMContentLoaded", setupSubjectClickTriggers);
 
 // ==========================================
-// 5. POMODORO TIMER LOGIC (SAFE VERSION)
+// 8. LIVE RESOURCE BADGES & UPCOMING EXAMS RADAR
+// ==========================================
+async function refreshAllResourceBadges() {
+  try {
+    const pdfsSnap = await window.getDocs(window.collection(window.db, "PDFNotes"));
+    const quizzesSnap = await window.getDocs(window.collection(window.db, "QuizLinks"));
+    const counts = {};
+
+    pdfsSnap.forEach((d) => {
+      const sub = d.data().subject;
+      if (!counts[sub]) counts[sub] = { pdfs: 0, quizzes: 0 };
+      counts[sub].pdfs++;
+    });
+
+    quizzesSnap.forEach((d) => {
+      const sub = d.data().subject;
+      if (!counts[sub]) counts[sub] = { pdfs: 0, quizzes: 0 };
+      counts[sub].quizzes++;
+    });
+
+    document.querySelectorAll(".resource-pills").forEach((container) => {
+      const subKey = container.getAttribute("data-pills-for");
+      const c = counts[subKey] || { pdfs: 0, quizzes: 0 };
+      container.innerHTML = `
+        <span class="res-pill ${c.pdfs > 0 ? 'has-items' : ''}">📄 ${c.pdfs} PDF${c.pdfs === 1 ? '' : 's'}</span>
+        <span class="res-pill quiz-pill ${c.quizzes > 0 ? 'has-items' : ''}">📝 ${c.quizzes} Quiz${c.quizzes === 1 ? '' : 's'}</span>
+      `;
+    });
+  } catch (e) {
+    console.error("Failed to refresh resource badges", e);
+  }
+}
+window.addEventListener("DOMContentLoaded", refreshAllResourceBadges);
+
+// Live Schedule Notes & Exams Radar
+window.onSnapshot(window.collection(window.db, "ScheduleNotes"), (snapshot) => {
+  const today = new Date().toISOString().split("T")[0];
+  const radarContainer = document.getElementById("upcoming-exams-radar");
+  if (!radarContainer) return;
+
+  radarContainer.innerHTML = "";
+  let activeAlertsCount = 0;
+
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data();
+    const subjectKey = docSnap.id;
+    const badge = document.getElementById("badge-" + subjectKey);
+
+    if (badge) {
+      if (data.expiration >= today && data.note && data.note.trim() !== "") {
+        badge.innerText = data.note;
+        badge.style.cssText = "display: inline-block; background-color: #e11d48; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 8px; letter-spacing: 0.4px; animation: pulse 1.5s infinite; vertical-align: middle;";
+        
+        activeAlertsCount++;
+        const chip = document.createElement("div");
+        chip.className = "exam-radar-chip";
+        chip.innerHTML = `
+          <div class="exam-radar-chip-top">
+            <span class="exam-radar-subj">${subjectKey.replace("-", " ").toUpperCase()}</span>
+            <span class="exam-radar-countdown">Exp: ${data.expiration}</span>
+          </div>
+          <div class="exam-radar-note">⚠️ ${data.note}</div>
+        `;
+        chip.addEventListener("click", () => {
+          loadSubjectResources(subjectKey);
+          if (subjectTitle) subjectTitle.innerText = subjectKey.replace("-", " ").toUpperCase();
+          if (subjectModal) subjectModal.style.display = "flex";
+        });
+        radarContainer.appendChild(chip);
+      } else {
+        badge.style.display = "none";
+        badge.innerText = "";
+      }
+    }
+  });
+
+  if (activeAlertsCount > 0) {
+    radarContainer.style.display = "block";
+    if (!radarContainer.querySelector(".exams-radar-title")) {
+      const titleDiv = document.createElement("div");
+      titleDiv.className = "exams-radar-title";
+      titleDiv.innerHTML = `<span>🚨 ACTIVE EXAMS &amp; ANNOUNCEMENTS</span>`;
+      radarContainer.prepend(titleDiv);
+    }
+  } else {
+    radarContainer.style.display = "none";
+  }
+});
+
+// ==========================================
+// 9. POMODORO TIMER & FOCUS SOUND GENERATOR
 // ==========================================
 const pomodoroModal = document.getElementById("pomodoro-modal");
 const btnOpenPomodoro = document.getElementById("btn-open-pomodoro");
 
-// This guarantees the script only runs if both the modal and button actually exist
 if (pomodoroModal && btnOpenPomodoro) {
   const btnClosePomodoro = document.getElementById("btn-close-pomodoro");
   const timeDisplay = document.getElementById("time-display");
@@ -607,6 +878,7 @@ if (pomodoroModal && btnOpenPomodoro) {
   const btnTimerStart = document.getElementById("btn-timer-start");
   const btnTimerPause = document.getElementById("btn-timer-pause");
   const btnTimerReset = document.getElementById("btn-timer-reset");
+  const btnFocusSound = document.getElementById("btn-focus-sound");
 
   const timerStorageKey = "dento_pomodoro_timer";
   let timerInterval;
@@ -616,75 +888,108 @@ if (pomodoroModal && btnOpenPomodoro) {
   let endTime = null;
   let screenWakeLock = null;
 
-  async function requestScreenWakeLock() {
-    if (
-      !isRunning ||
-      document.visibilityState !== "visible" ||
-      !("wakeLock" in navigator)
-    ) {
-      return;
-    }
+  // Web Audio Brown Noise Focus Sound Generator
+  let focusAudioCtx = null;
+  let focusNoiseNode = null;
+  let isFocusSoundOn = false;
 
+  function toggleFocusSound() {
+    if (isFocusSoundOn) {
+      if (focusAudioCtx) {
+        focusAudioCtx.close();
+        focusAudioCtx = null;
+      }
+      isFocusSoundOn = false;
+      if (btnFocusSound) {
+        btnFocusSound.classList.remove("active");
+        btnFocusSound.textContent = "🎧 Focus Brown Noise: OFF";
+      }
+    } else {
+      try {
+        focusAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const bufferSize = 2 * focusAudioCtx.sampleRate;
+        const noiseBuffer = focusAudioCtx.createBuffer(1, bufferSize, focusAudioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        let lastOut = 0.0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          output[i] = (lastOut + 0.02 * white) / 1.02;
+          lastOut = output[i];
+          output[i] *= 3.5; // Gain boost
+        }
+
+        focusNoiseNode = focusAudioCtx.createBufferSource();
+        focusNoiseNode.buffer = noiseBuffer;
+        focusNoiseNode.loop = true;
+
+        const filter = focusAudioCtx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 320; // Soft deep brown noise
+
+        focusNoiseNode.connect(filter);
+        filter.connect(focusAudioCtx.destination);
+        focusNoiseNode.start(0);
+
+        isFocusSoundOn = true;
+        if (btnFocusSound) {
+          btnFocusSound.classList.add("active");
+          btnFocusSound.textContent = "🎧 Focus Brown Noise: ON (Playing)";
+        }
+      } catch (e) {
+        console.warn("Web Audio error:", e);
+        alert("Unable to start focus sound.");
+      }
+    }
+  }
+
+  if (btnFocusSound) {
+    btnFocusSound.addEventListener("click", toggleFocusSound);
+  }
+
+  async function requestScreenWakeLock() {
+    if (!isRunning || document.visibilityState !== "visible" || !("wakeLock" in navigator)) return;
     try {
       const wakeLock = await navigator.wakeLock.request("screen");
       if (!isRunning) {
         await wakeLock.release();
         return;
       }
-
       screenWakeLock = wakeLock;
-      screenWakeLock.addEventListener("release", () => {
-        screenWakeLock = null;
-      });
+      screenWakeLock.addEventListener("release", () => { screenWakeLock = null; });
     } catch (error) {
-      console.warn("Screen wake lock is unavailable.", error);
+      console.warn("Screen wake lock unavailable.", error);
     }
   }
 
   async function releaseScreenWakeLock() {
     const wakeLock = screenWakeLock;
     screenWakeLock = null;
-
     if (wakeLock) {
-      try {
-        await wakeLock.release();
-      } catch (error) {
-        console.warn("Unable to release the screen wake lock.", error);
-      }
+      try { await wakeLock.release(); } catch (e) {}
     }
   }
 
   function saveTimerState() {
     localStorage.setItem(
       timerStorageKey,
-      JSON.stringify({
-        mode: currentMode,
-        timeLeft,
-        endTime,
-        isRunning,
-      }),
+      JSON.stringify({ mode: currentMode, timeLeft, endTime, isRunning }),
     );
   }
 
   function loadTimerState() {
     try {
-      const savedState = JSON.parse(
-        localStorage.getItem(timerStorageKey) || "null",
-      );
-
+      const savedState = JSON.parse(localStorage.getItem(timerStorageKey) || "null");
       if (!savedState) return;
-
       currentMode = savedState.mode === "break" ? "break" : "study";
       timeLeft = Number(savedState.timeLeft) || 0;
       endTime = Number(savedState.endTime) || null;
       isRunning = Boolean(savedState.isRunning && endTime);
-
       if (isRunning && endTime <= Date.now()) {
         timeLeft = 0;
         endTime = null;
         isRunning = false;
       }
-    } catch (error) {
+    } catch (e) {
       localStorage.removeItem(timerStorageKey);
     }
   }
@@ -695,7 +1000,9 @@ if (pomodoroModal && btnOpenPomodoro) {
     }
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    timeDisplay.textContent = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    if (timeDisplay) {
+      timeDisplay.textContent = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    }
   }
 
   function finishTimer() {
@@ -706,11 +1013,7 @@ if (pomodoroModal && btnOpenPomodoro) {
     releaseScreenWakeLock();
     saveTimerState();
     updateDisplay();
-    alert(
-      currentMode === "study"
-        ? "Study session complete! Take a 5-minute break."
-        : "Break over! Back to studying.",
-    );
+    alert(currentMode === "study" ? "Study session complete! Take a 5-minute break." : "Break over! Back to studying.");
   }
 
   function runTimer() {
@@ -726,23 +1029,27 @@ if (pomodoroModal && btnOpenPomodoro) {
     }, 1000);
   }
 
-  btnTimerStart.addEventListener("click", async () => {
-    if (isRunning) return;
-    isRunning = true;
-    endTime = Date.now() + timeLeft * 1000;
-    saveTimerState();
-    await requestScreenWakeLock();
-    runTimer();
-  });
+  if (btnTimerStart) {
+    btnTimerStart.addEventListener("click", async () => {
+      if (isRunning) return;
+      isRunning = true;
+      endTime = Date.now() + timeLeft * 1000;
+      saveTimerState();
+      await requestScreenWakeLock();
+      runTimer();
+    });
+  }
 
-  btnTimerPause.addEventListener("click", () => {
-    updateDisplay();
-    clearInterval(timerInterval);
-    isRunning = false;
-    endTime = null;
-    releaseScreenWakeLock();
-    saveTimerState();
-  });
+  if (btnTimerPause) {
+    btnTimerPause.addEventListener("click", () => {
+      updateDisplay();
+      clearInterval(timerInterval);
+      isRunning = false;
+      endTime = null;
+      releaseScreenWakeLock();
+      saveTimerState();
+    });
+  }
 
   function resetTimer() {
     clearInterval(timerInterval);
@@ -754,21 +1061,25 @@ if (pomodoroModal && btnOpenPomodoro) {
     updateDisplay();
   }
 
-  btnTimerReset.addEventListener("click", resetTimer);
+  if (btnTimerReset) btnTimerReset.addEventListener("click", resetTimer);
 
-  btnModeStudy.addEventListener("click", () => {
-    currentMode = "study";
-    btnModeStudy.classList.add("active");
-    btnModeBreak.classList.remove("active");
-    resetTimer();
-  });
+  if (btnModeStudy) {
+    btnModeStudy.addEventListener("click", () => {
+      currentMode = "study";
+      btnModeStudy.classList.add("active");
+      if (btnModeBreak) btnModeBreak.classList.remove("active");
+      resetTimer();
+    });
+  }
 
-  btnModeBreak.addEventListener("click", () => {
-    currentMode = "break";
-    btnModeBreak.classList.add("active");
-    btnModeStudy.classList.remove("active");
-    resetTimer();
-  });
+  if (btnModeBreak) {
+    btnModeBreak.addEventListener("click", () => {
+      currentMode = "break";
+      btnModeBreak.classList.add("active");
+      if (btnModeStudy) btnModeStudy.classList.remove("active");
+      resetTimer();
+    });
+  }
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -778,101 +1089,186 @@ if (pomodoroModal && btnOpenPomodoro) {
     }
   });
 
-  btnOpenPomodoro.addEventListener("click", () => {
-    pomodoroModal.style.display = "flex";
-  });
+  if (btnOpenPomodoro) {
+    btnOpenPomodoro.addEventListener("click", () => { pomodoroModal.style.display = "flex"; });
+  }
 
   if (btnClosePomodoro) {
-    btnClosePomodoro.addEventListener("click", () => {
-      pomodoroModal.style.display = "none";
-    });
+    btnClosePomodoro.addEventListener("click", () => { pomodoroModal.style.display = "none"; });
   }
 
   loadTimerState();
-  btnModeStudy.classList.toggle("active", currentMode === "study");
-  btnModeBreak.classList.toggle("active", currentMode === "break");
+  if (btnModeStudy) btnModeStudy.classList.toggle("active", currentMode === "study");
+  if (btnModeBreak) btnModeBreak.classList.toggle("active", currentMode === "break");
   updateDisplay();
   if (isRunning) {
     requestScreenWakeLock();
     runTimer();
   }
 }
+
 // ==========================================
-// 6. DRIFT GAME SELECTION MENU
+// 10. 4TH-YEAR CLINICAL REQUIREMENTS TRACKER
 // ==========================================
-let driftPlayerName = "";
+const clinicRequirementsConfig = [
+  { id: "cons_amal", title: "Conservative: Amalgam Restorations", target: 15 },
+  { id: "cons_comp", title: "Conservative: Composite Restorations", target: 20 },
+  { id: "surg_ext", title: "Oral Surgery: Simple Extractions", target: 12 },
+  { id: "prost_cd", title: "Prosthodontics: Complete Denture Cases", target: 2 },
+  { id: "prost_pd", title: "Prosthodontics: Partial Denture Cases", target: 4 },
+  { id: "perio_sc", title: "Periodontics: Scaling & Root Planing", target: 10 },
+  { id: "pedo_rest", title: "Pedodontics: Pediatric Restorations", target: 8 },
+];
+
+const modalClinicLog = document.getElementById("modal-clinic-log");
+const btnOpenClinicLog = document.getElementById("btn-open-clinic-log");
+const btnCloseClinicLog = document.getElementById("btn-close-clinic-log");
+const btnResetClinicLog = document.getElementById("btn-reset-clinic-log");
+const clinicReqList = document.getElementById("clinic-requirements-list");
+
+function getClinicLogData() {
+  try {
+    return JSON.parse(localStorage.getItem("dento_clinic_log") || "{}");
+  } catch (e) {
+    return {};
+  }
+}
+
+function saveClinicLogData(data) {
+  localStorage.setItem("dento_clinic_log", JSON.stringify(data));
+}
+
+function renderClinicLogbook() {
+  if (!clinicReqList) return;
+  const savedData = getClinicLogData();
+  clinicReqList.innerHTML = "";
+
+  clinicRequirementsConfig.forEach((req) => {
+    const currentCount = Number(savedData[req.id]) || 0;
+    const pct = Math.min(100, Math.round((currentCount / req.target) * 100));
+
+    const itemDiv = document.createElement("div");
+    itemDiv.className = "clinic-req-item";
+    itemDiv.innerHTML = `
+      <div class="clinic-req-header">
+        <span class="clinic-req-title">${req.title}</span>
+        <div class="clinic-req-controls">
+          <button class="clinic-step-btn" onclick="adjustClinicCount('${req.id}', -1)">-</button>
+          <span class="clinic-req-count">${currentCount} / ${req.target}</span>
+          <button class="clinic-step-btn" onclick="adjustClinicCount('${req.id}', 1)">+</button>
+        </div>
+      </div>
+      <div class="clinic-progress-track">
+        <div class="clinic-progress-fill" style="width: ${pct}%"></div>
+      </div>
+    `;
+    clinicReqList.appendChild(itemDiv);
+  });
+}
+
+window.adjustClinicCount = function (reqId, delta) {
+  const savedData = getClinicLogData();
+  const current = Number(savedData[reqId]) || 0;
+  const next = Math.max(0, current + delta);
+  savedData[reqId] = next;
+  saveClinicLogData(savedData);
+  renderClinicLogbook();
+};
+
+if (btnOpenClinicLog) {
+  btnOpenClinicLog.addEventListener("click", () => {
+    renderClinicLogbook();
+    if (modalClinicLog) modalClinicLog.style.display = "flex";
+  });
+}
+
+if (btnCloseClinicLog) {
+  btnCloseClinicLog.addEventListener("click", () => {
+    if (modalClinicLog) modalClinicLog.style.display = "none";
+  });
+}
+
+if (btnResetClinicLog) {
+  btnResetClinicLog.addEventListener("click", () => {
+    if (confirm("Reset all logged clinical case counts to zero?")) {
+      localStorage.removeItem("dento_clinic_log");
+      renderClinicLogbook();
+    }
+  });
+}
+
+// ==========================================
+// 11. DUAL-MODE 3D ARCADE & LEADERBOARD SYSTEM
+// ==========================================
+let arcadePlayerName = "";
+let currentArcadeTab = "drift"; // "drift" or "dental"
 
 window.openGameMenu = function () {
-  const playerName = window.prompt("Enter a username for the Drift scoreboard:");
+  const playerName = prompt("Enter your name for the Al-Ameen Arcade Leaderboard:", localStorage.getItem("dento_student") || "");
   if (!playerName || !playerName.trim()) return;
 
-  driftPlayerName = playerName.trim().slice(0, 30);
+  arcadePlayerName = playerName.trim().slice(0, 30);
+  localStorage.setItem("dento_student", arcadePlayerName);
+
+  const nameLabel = document.getElementById("arcade-player-name-label");
+  if (nameLabel) nameLabel.innerText = arcadePlayerName;
+
   const menu = document.getElementById("game-selection-overlay");
-  if (menu) {
-    menu.style.display = "flex";
-    try {
-      soundtrack.play().catch((err) => console.log("Autoplay blocked:", err));
-    } catch (err) {}
-  }
+  if (menu) menu.style.display = "flex";
 };
 
 window.closeGameMenu = function () {
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "none";
-  stopGameAudio();
+  stopArcadeAudio();
 };
 
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// 7. DRIFT GAME ENGINE (PHASE 29: FINAL AUDIO REBALANCE)
-// ==========================================
-const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
-const canvas = document.getElementById("drift-canvas");
-const scoreboardModal = document.getElementById("scoreboard-modal");
-const finalScoreDisplay = document.getElementById("final-score-display");
-const ctx = canvas ? canvas.getContext("2d") : null;
+window.switchArcadeModeTab = function (mode) {
+  currentArcadeTab = mode;
+  const tabDrift = document.getElementById("tab-mode-drift");
+  const tabDental = document.getElementById("tab-mode-dental");
+  const panelDrift = document.getElementById("arcade-panel-drift");
+  const panelDental = document.getElementById("arcade-panel-dental");
 
-let gameLoopId;
-let activeCar = "";
+  if (mode === "drift") {
+    if (tabDrift) tabDrift.classList.add("active");
+    if (tabDental) tabDental.classList.remove("active");
+    if (panelDrift) panelDrift.style.display = "block";
+    if (panelDental) panelDental.style.display = "none";
+  } else {
+    if (tabDental) tabDental.classList.add("active");
+    if (tabDrift) tabDrift.classList.remove("active");
+    if (panelDental) panelDental.style.display = "block";
+    if (panelDrift) panelDrift.style.display = "none";
+  }
+};
 
-// --- PRE-LOAD CAR SPRITES ---
-const imgG37 = new Image();
-imgG37.src = "IMG_20260923_185615.png";
-const imgSkyline = new Image();
-imgSkyline.src = "IMG_20260923_185726.png";
-const imgAccent = new Image();
-imgAccent.src = "IMG_20260923_185655.png";
+window.openStandaloneLeaderboard = function () {
+  const scoreboardModal = document.getElementById("scoreboard-modal");
+  const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
+  const menu = document.getElementById("game-selection-overlay");
 
-// --- MP3 AUDIO SETUP ---
+  if (menu) menu.style.display = "none";
+  if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
+  
+  const heading = document.getElementById("scoreboard-heading");
+  const finalScoreDisp = document.getElementById("final-score-display");
+  const finalSub = document.getElementById("final-run-subtitle");
+  const actionBtn = scoreboardModal ? scoreboardModal.querySelector(".scoreboard-close") : null;
+
+  if (heading) heading.innerText = "🏆 AL-AMEEN HIGH SCORES";
+  if (finalScoreDisp) finalScoreDisp.innerText = "---";
+  if (finalSub) finalSub.innerText = "Global Hall of Fame";
+  if (actionBtn) actionBtn.innerText = "Back to Menu";
+
+  if (scoreboardModal) scoreboardModal.style.display = "flex";
+  fetchDriftLeaderboard();
+};
+
+// --- AUDIO & THREE.JS 3D ARCADE ENGINE ---
 const soundtrack = new Audio("soundtrack.mp3");
 soundtrack.loop = true;
-soundtrack.volume = 0.4;
+soundtrack.volume = 0.35;
 
 const engineAudio = new Audio("engine.mp3");
 engineAudio.loop = true;
@@ -882,18 +1278,20 @@ const driftAudio = new Audio("drift.mp3");
 driftAudio.loop = true;
 driftAudio.volume = 0;
 
-function stopGameAudio() {
-  engineAudio.pause();
-  driftAudio.pause();
-  soundtrack.pause();
-  soundtrack.currentTime = 0;
+function stopArcadeAudio() {
+  try {
+    engineAudio.pause();
+    driftAudio.pause();
+    soundtrack.pause();
+    soundtrack.currentTime = 0;
+  } catch (e) {}
 }
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const sfx = {
   init: function () {
     if (audioCtx.state === "suspended") {
-      audioCtx.resume().catch((e) => console.log(e));
+      audioCtx.resume().catch((e) => {});
     }
   },
   playDing: function () {
@@ -901,13 +1299,10 @@ const sfx = {
       let osc = audioCtx.createOscillator();
       let gain = audioCtx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        1200,
-        audioCtx.currentTime + 0.1,
-      );
-      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
@@ -919,47 +1314,39 @@ const sfx = {
       let osc = audioCtx.createOscillator();
       let gain = audioCtx.createGain();
       osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        40,
-        audioCtx.currentTime + 0.3,
-      );
-      gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.35);
+      gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
-      osc.stop(audioCtx.currentTime + 0.3);
+      osc.stop(audioCtx.currentTime + 0.35);
     } catch (e) {}
   },
 };
 
-// --- WEB DATABASE API ---
-// ==========================================
-// --- LIVE DRIFT SCOREBOARD (FIREBASE) ---
-// ==========================================
+// --- FIREBASE SCOREBOARD SYNC ---
 async function submitDriftScore(playerName, playerScore) {
-  const studentName =
-    playerName?.trim() || localStorage.getItem("dento_student") || "Student";
+  const studentName = playerName?.trim() || localStorage.getItem("dento_student") || "Student";
   const currentUser = window.auth?.currentUser;
-  const isAdmin = currentUser?.email === "admin@dentoschedule.tech";
+  const isAdmin = currentUser?.email === adminEmail;
   const displayName = isAdmin ? "Admin" : studentName;
-  const docId = isAdmin
-    ? "admin_master"
-    : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+  const docId = isAdmin ? "admin_master" : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
   if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
-    console.error("Firebase score services are unavailable.");
+    console.error("Firebase services unavailable.");
     return false;
   }
 
   try {
     const docRef = window.doc(window.db, "DriftScores", docId);
     const docSnap = await window.getDoc(docRef);
-    const previousScore = docSnap.exists()
-      ? Number(docSnap.data().score) || 0
-      : 0;
-    const cumulativeScore = previousScore + Number(playerScore) || 0;
+    const previousScore = docSnap.exists() ? Number(docSnap.data().score) || 0 : 0;
+    
+    // Anti-cheat limit per run
+    const sanitizedGain = Math.min(50000, Number(playerScore) || 0);
+    const cumulativeScore = previousScore + sanitizedGain;
 
     await window.setDoc(docRef, {
       name: displayName,
@@ -967,19 +1354,18 @@ async function submitDriftScore(playerName, playerScore) {
       timestamp: new Date().toISOString(),
     });
 
-    console.log(`Saved! New Total for ${displayName}: ${cumulativeScore}`);
     return true;
   } catch (error) {
     console.error("Firebase score error:", error);
     return false;
   }
 }
+
 async function fetchDriftLeaderboard() {
   const leaderboardList = document.getElementById("leaderboard-list");
   if (leaderboardList) {
     leaderboardList.innerHTML = `<div style="text-align: center; color: white; font-family: monospace;">Fetching Live Scores...</div>`;
   }
-
   try {
     const scoresQuery = window.query(
       window.collection(window.db, "DriftScores"),
@@ -988,12 +1374,15 @@ async function fetchDriftLeaderboard() {
     );
     const snapshot = await window.getDocs(scoresQuery);
     const dataArray = [];
-    snapshot.forEach((docSnap) => dataArray.push(docSnap.data()));
+    snapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      dataArray.push({ id: docSnap.id, name: d.name, score: d.score });
+    });
     renderDriftLeaderboardUI(dataArray);
   } catch (error) {
-    console.error("Failed to fetch leaderboard: ", error);
+    console.error("Failed to fetch leaderboard:", error);
     if (leaderboardList) {
-      leaderboardList.innerHTML = `<div style="text-align: center; color: red;">Unable to load scores.</div>`;
+      leaderboardList.innerHTML = `<div style="text-align: center; color: #ef4444; font-family: monospace;">Unable to load live scores.</div>`;
     }
   }
 }
@@ -1001,46 +1390,79 @@ async function fetchDriftLeaderboard() {
 function renderDriftLeaderboardUI(dataArray) {
   const leaderboardList = document.getElementById("leaderboard-list");
   if (!leaderboardList) return;
-
   leaderboardList.innerHTML = "";
 
   if (dataArray.length === 0) {
-    leaderboardList.innerHTML = `<div style="text-align: center; color: #bdc3c7; font-family: monospace;">No scores yet. Set the record!</div>`;
+    leaderboardList.innerHTML = `<div style="text-align: center; color: #94a3b8; font-family: monospace;">No scores yet. Set the record!</div>`;
     return;
   }
 
-  // 6. Build the UI for the Top 10
-  dataArray.forEach((player, index) => {
-    // Add a gold crown emoji for 1st place!
-    const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
+  const isAdmin = window.auth && window.auth.currentUser && window.auth.currentUser.email === adminEmail;
 
-    leaderboardList.innerHTML += `
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        <div style="display: flex; justify-content: space-between; color: white; margin-bottom: 8px; font-family: monospace; font-size: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px;">
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    <span>${rankPrefix}${player.name}</span>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <span style="color: #2ecc71; font-weight: bold;">${player.score}</span>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                `;
+  dataArray.forEach((player, index) => {
+    const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
+    const rowDiv = document.createElement("div");
+    rowDiv.style.cssText = "display: flex; justify-content: space-between; align-items: center; color: white; margin-bottom: 8px; font-family: monospace; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;";
+
+    const infoSpan = document.createElement("span");
+    infoSpan.innerHTML = `${rankPrefix}${player.name}`;
+
+    const rightBox = document.createElement("div");
+    rightBox.style.cssText = "display: flex; align-items: center; gap: 10px;";
+
+    const scoreSpan = document.createElement("span");
+    scoreSpan.style.cssText = "color: #2ecc71; font-weight: bold;";
+    scoreSpan.innerText = player.score;
+
+    rightBox.appendChild(scoreSpan);
+
+    if (isAdmin) {
+      const delScoreBtn = document.createElement("button");
+      delScoreBtn.className = "delete-resource-btn";
+      delScoreBtn.innerHTML = "🗑️";
+      delScoreBtn.title = "Delete score";
+      delScoreBtn.addEventListener("click", async () => {
+        if (confirm(`Delete score for ${player.name}?`)) {
+          try {
+            await window.deleteDoc(window.doc(window.db, "DriftScores", player.id));
+            rowDiv.remove();
+          } catch (err) {
+            alert("Delete failed: " + err.message);
+          }
+        }
+      });
+      rightBox.appendChild(delScoreBtn);
+    }
+
+    rowDiv.appendChild(infoSpan);
+    rowDiv.appendChild(rightBox);
+    leaderboardList.appendChild(rowDiv);
   });
 }
 
-// --- GAME STATE ---
-let carX = 0,
-  carY = 26000;
+// --- ACTIVE GAME ENGINE LOOP (THREE.JS 3D WEBGL) ---
+let gameLoopId = null;
+let activeGameMode = "drift"; // "drift" or "dental_runner"
+let activeCarSelection = "g37";
+
+let webglRenderer = null;
+let webglScene = null;
+let webglCamera = null;
+let carMeshGroup = null;
+
+let carX = 0, carY = 26000;
 let speed = 0;
 let carAngle = -Math.PI / 2;
 let travelAngle = -Math.PI / 2;
-let lastSafeX = 0,
-  lastSafeY = 26000;
+let lastSafeX = 0, lastSafeY = 26000;
 let score = 0;
+let comboMultiplier = 1;
 let startTime = 0;
 let raceFinished = false;
-let finalTimeText = "";
-let skidmarks = [];
-let floatingTexts = [];
+let crashCooldown = 0;
 let driftGraceTimer = 0;
 let currentGrip = 0.015;
-let crashCooldown = 0;
-let smoothedSharpness = 0;
+let obstacles = [];
 window.input = { gas: false, left: false, right: false };
 
 const trackPoints = [
@@ -1067,917 +1489,292 @@ function getTrackData(targetY) {
     if (targetY <= trackPoints[i].y && targetY >= trackPoints[i + 1].y) {
       let dx = trackPoints[i + 1].x - trackPoints[i].x;
       let dy = trackPoints[i + 1].y - trackPoints[i].y;
-      let angle = Math.atan2(dy, dx);
-      let sharpness = Math.abs(dx);
-      return { angle: angle, sharpness: sharpness };
+      return { angle: Math.atan2(dy, dx), sharpness: Math.abs(dx) };
     }
   }
   return { angle: -Math.PI / 2, sharpness: 0 };
 }
 
-const trackPath = new Path2D();
-trackPath.moveTo(trackPoints[0].x, trackPoints[0].y);
+const trackPath2D = new Path2D();
+trackPath2D.moveTo(trackPoints[0].x, trackPoints[0].y);
 for (let i = 1; i < trackPoints.length - 1; i++) {
   let xc = (trackPoints[i].x + trackPoints[i + 1].x) / 2;
   let yc = (trackPoints[i].y + trackPoints[i + 1].y) / 2;
-  trackPath.quadraticCurveTo(trackPoints[i].x, trackPoints[i].y, xc, yc);
+  trackPath2D.quadraticCurveTo(trackPoints[i].x, trackPoints[i].y, xc, yc);
 }
-trackPath.lineTo(
-  trackPoints[trackPoints.length - 1].x,
-  trackPoints[trackPoints.length - 1].y,
-);
+trackPath2D.lineTo(trackPoints[trackPoints.length - 1].x, trackPoints[trackPoints.length - 1].y);
 
-let scenery = [];
-for (let i = 0; i < 4000; i++) {
-  scenery.push({
-    x: -4000 + Math.random() * 9000,
-    y: -1000 + Math.random() * 28000,
-    r: 30 + Math.random() * 80,
-    c: ["#0c1a11", "#09140d", "#112417", "#0a1710", "#0e1c13"][
-      Math.floor(Math.random() * 5)
-    ],
-  });
-}
-
-window.startGame = function (selectedCar) {
-  activeCar = selectedCar;
+window.startGame = function (modeOrCar) {
   closeGameMenu();
+  const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
+  const scoreboardModal = document.getElementById("scoreboard-modal");
+
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
   if (scoreboardModal) scoreboardModal.style.display = "none";
 
-  if (canvas) {
-    carX = 0;
-    carY = 26000;
-    speed = 0;
-    carAngle = -Math.PI / 2;
-    travelAngle = -Math.PI / 2;
-    lastSafeX = 0;
-    lastSafeY = 26000;
-    score = 0;
-    startTime = Date.now();
-    raceFinished = false;
-    skidmarks = [];
-    floatingTexts = [];
-    driftGraceTimer = 0;
-    currentGrip = 0.015;
-    crashCooldown = 0;
-    smoothedSharpness = 0;
-
-    sfx.init();
-    try {
-      soundtrack.play().catch((e) => console.log(e));
-    } catch (e) {}
-    try {
-      engineAudio.volume = 0;
-      engineAudio.play().catch((e) => console.log(e));
-    } catch (e) {}
-    try {
-      driftAudio.volume = 0;
-      driftAudio.play().catch((e) => console.log(e));
-    } catch (e) {}
+  if (modeOrCar === "dental_runner") {
+    activeGameMode = "dental_runner";
+    const secLabel = document.getElementById("hud-secondary-label");
+    if (secLabel) secLabel.innerText = "ZAPS";
+  } else {
+    activeGameMode = "drift";
+    activeCarSelection = modeOrCar;
+    const secLabel = document.getElementById("hud-secondary-label");
+    if (secLabel) secLabel.innerText = "COMBO";
   }
-  gameLoop();
+
+  carX = 0;
+  carY = 26000;
+  speed = 0;
+  carAngle = -Math.PI / 2;
+  travelAngle = -Math.PI / 2;
+  lastSafeX = 0;
+  lastSafeY = 26000;
+  score = 0;
+  comboMultiplier = 1;
+  startTime = Date.now();
+  raceFinished = false;
+  crashCooldown = 0;
+  driftGraceTimer = 0;
+  currentGrip = 0.015;
+  obstacles = [];
+
+  // Spawn some traffic / carious lesions along the track
+  for (let yPos = 24000; yPos > 2000; yPos -= 1800) {
+    obstacles.push({
+      x: (Math.random() - 0.5) * 260,
+      y: yPos,
+      type: activeGameMode === "dental_runner" ? "caries_block" : "oncoming_car",
+      active: true,
+    });
+  }
+
+  initThreeJSViewport();
+
+  sfx.init();
+  try { soundtrack.play().catch((e) => {}); } catch (e) {}
+  try {
+    engineAudio.volume = 0;
+    engineAudio.play().catch((e) => {});
+  } catch (e) {}
+  try {
+    driftAudio.volume = 0;
+    driftAudio.play().catch((e) => {});
+  } catch (e) {}
+
+  if (gameLoopId) cancelAnimationFrame(gameLoopId);
+  gameLoop3D();
 };
 
 window.quitGame = function () {
-  cancelAnimationFrame(gameLoopId);
+  if (gameLoopId) cancelAnimationFrame(gameLoopId);
+  const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
-  try {
-    stopGameAudio();
-  } catch (e) {}
+  stopArcadeAudio();
 };
 
-function spawnText(x, y, text, r, g, b) {
-  floatingTexts.push({ x: x, y: y, text: text, r: r, g: g, b: b, life: 40 });
+function initThreeJSViewport() {
+  const canvas = document.getElementById("drift-canvas");
+  if (!canvas || typeof THREE === "undefined") return;
+
+  if (!webglRenderer) {
+    webglRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    webglRenderer.setSize(600, 800);
+    webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  }
+
+  webglScene = new THREE.Scene();
+  webglScene.background = new THREE.Color(0x090d16);
+
+  webglCamera = new THREE.PerspectiveCamera(55, 600 / 800, 0.1, 1000);
+
+  const amb = new THREE.AmbientLight(0xffffff, 1.0);
+  webglScene.add(amb);
+
+  const dir = new THREE.DirectionalLight(0x38bdf8, 1.8);
+  dir.position.set(10, 20, 10);
+  webglScene.add(dir);
+
+  // Build 3D Car / Dental Turbine Model
+  carMeshGroup = new THREE.Group();
+  webglScene.add(carMeshGroup);
+
+  let bodyColor = 0xe74c3c;
+  if (activeCarSelection === "skyline") bodyColor = 0x38bdf8;
+  if (activeCarSelection === "accent") bodyColor = 0xf59e0b;
+  if (activeGameMode === "dental_runner") bodyColor = 0x10b981;
+
+  const bodyGeo = new THREE.BoxGeometry(1.6, 0.7, 3.4);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.3 });
+  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+  bodyMesh.position.y = 0.5;
+  carMeshGroup.add(bodyMesh);
 }
 
-function gameLoop() {
-  if (!ctx) return;
+function showHudBanner(text) {
+  const banner = document.getElementById("hud-floating-banner");
+  if (!banner) return;
+  banner.innerText = text;
+  banner.classList.add("show");
+  setTimeout(() => banner.classList.remove("show"), 1200);
+}
 
+function gameLoop3D() {
   if (crashCooldown > 0) crashCooldown--;
 
   let trackData = getTrackData(carY);
-  smoothedSharpness += (trackData.sharpness - smoothedSharpness) * 0.05;
-  let cornerIntensity = Math.min(1.0, smoothedSharpness / 3500);
 
   if (!raceFinished) {
     if (window.input.gas) {
-      speed += 0.22;
-      if (speed > 7.6) speed = 7.6;
+      speed += 0.24;
+      if (speed > 8.2) speed = 8.2;
     } else {
-      speed *= 0.98;
+      speed *= 0.97;
     }
 
     if (speed > 1) {
-      let steeringPower = 0.1 + 0.02 * cornerIntensity;
-      if (window.input.left) carAngle -= steeringPower;
-      if (window.input.right) carAngle += steeringPower;
+      let steer = 0.11;
+      if (window.input.left) carAngle -= steer;
+      if (window.input.right) carAngle += steer;
     }
 
     let angleDiff = carAngle - travelAngle;
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-    let maxSlip = 1.4 - 0.25 * cornerIntensity;
-    if (angleDiff > maxSlip) {
-      carAngle = travelAngle + maxSlip;
-      angleDiff = maxSlip;
-    } else if (angleDiff < -maxSlip) {
-      carAngle = travelAngle - maxSlip;
-      angleDiff = -maxSlip;
-    }
+    let maxSlip = 1.35;
+    if (angleDiff > maxSlip) carAngle = travelAngle + maxSlip;
+    else if (angleDiff < -maxSlip) carAngle = travelAngle - maxSlip;
 
-    let gripGas = 0.003 + 0.012 * cornerIntensity;
-    let gripCoast = 0.07 - 0.005 * cornerIntensity;
-    let targetGrip = window.input.gas ? gripGas : gripCoast;
-    currentGrip += (targetGrip - currentGrip) * 0.15;
+    currentGrip += (0.012 - currentGrip) * 0.15;
     travelAngle += angleDiff * currentGrip;
 
     let pushX = Math.cos(travelAngle) * speed;
     let pushY = Math.sin(travelAngle) * speed;
 
-    let thrustMultiplier = 3.0 - 2.5 * cornerIntensity;
-    if (window.input.gas && Math.abs(angleDiff) > 0.1) {
-      pushX += Math.cos(carAngle) * thrustMultiplier;
-      pushY += Math.sin(carAngle) * thrustMultiplier;
-    }
-
     carX += pushX;
     carY += pushY;
   } else {
-    speed *= 0.95;
+    speed *= 0.94;
     carX += Math.cos(travelAngle) * speed;
     carY += Math.sin(travelAngle) * speed;
   }
 
-  let isDrifting = speed > 2 && Math.abs(carAngle - travelAngle) > 0.1;
+  // Asphalt & Safezone boundary checks
+  const testCanvas = document.createElement("canvas");
+  testCanvas.width = 600;
+  testCanvas.height = 800;
+  const tCtx = testCanvas.getContext("2d");
+  tCtx.lineWidth = 450;
+  let isOnAsphalt = tCtx.isPointInStroke(trackPath2D, carX, carY);
+  tCtx.lineWidth = 190;
+  let isInSafeZone = tCtx.isPointInStroke(trackPath2D, carX, carY);
 
   if (!raceFinished) {
-    if (speed > 0.5) {
-      // Significantly lowered the engine volume here so it stays softly in the background
-      engineAudio.volume = Math.min(0.2, 0.02 + speed / 40);
-      engineAudio.playbackRate = 0.8 + speed / 10;
-    } else {
-      engineAudio.volume = 0;
-    }
-
-    if (isDrifting) {
-      driftAudio.volume = 0.06;
-    } else {
-      driftAudio.volume = 0;
-    }
-  } else {
-    engineAudio.volume = 0;
-    driftAudio.volume = 0;
-  }
-
-  // --- 2. BREADCRUMB COLLISIONS & GHOST RESPAWN ---
-  if (!raceFinished) {
-    ctx.lineWidth = 450;
-    let isOnAsphalt = ctx.isPointInStroke(trackPath, carX, carY);
-    ctx.lineWidth = 200;
-    let isInSafeZone = ctx.isPointInStroke(trackPath, carX, carY);
-
     if (!isOnAsphalt && crashCooldown === 0) {
-      score -= 200;
-      spawnText(carX, carY, "-200", 231, 76, 60);
+      score = Math.max(0, score - 250);
+      comboMultiplier = 1;
+      showHudBanner("💥 CRASH! -250");
       sfx.playCrash();
 
       carX = lastSafeX;
       carY = lastSafeY;
       speed = 0;
-
-      let safeTrackData = getTrackData(lastSafeY);
-      carAngle = travelAngle = safeTrackData.angle;
+      let safeTrack = getTrackData(lastSafeY);
+      carAngle = travelAngle = safeTrack.angle;
       window.input.gas = false;
-
-      crashCooldown = 60;
+      crashCooldown = 50;
     } else {
       if (isInSafeZone && crashCooldown === 0) {
         lastSafeX = carX;
         lastSafeY = carY;
       }
-
-      if (isDrifting && crashCooldown === 0) {
-        if (!isInSafeZone) {
-          score += 5;
-          if (Math.random() < 0.15) {
-            spawnText(carX, carY, "+5", 46, 204, 113);
-            sfx.playDing();
-          }
-        } else {
-          score += 1;
-        }
+      if (speed > 2) {
+        score += comboMultiplier;
       }
     }
+
+    // Obstacle collision checks
+    obstacles.forEach((obs) => {
+      if (obs.active && Math.hypot(carX - obs.x, carY - obs.y) < 55) {
+        obs.active = false;
+        if (activeGameMode === "dental_runner") {
+          score += 400 * comboMultiplier;
+          comboMultiplier++;
+          showHudBanner("⚡ CARIES DRILLED! +400");
+          sfx.playDing();
+        } else {
+          score += 300 * comboMultiplier;
+          comboMultiplier++;
+          showHudBanner("🚗 NEAR MISS! +300");
+          sfx.playDing();
+        }
+      }
+    });
 
     if (carY <= 0) {
       raceFinished = true;
       let timeTaken = (Date.now() - startTime) / 1000;
-      let timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 50));
+      let timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 60));
       score += timeBonus;
-      finalTimeText = `Finished in ${timeTaken.toFixed(2)}s! Bonus: +${timeBonus}`;
 
+      if (engineAudio) engineAudio.volume = 0;
+      if (driftAudio) driftAudio.volume = 0;
+
+      const scoreboardModal = document.getElementById("scoreboard-modal");
+      const finalScoreDisplay = document.getElementById("final-score-display");
+      const finalSub = document.getElementById("final-run-subtitle");
+      const heading = document.getElementById("scoreboard-heading");
+
+      if (heading) heading.innerText = "🏁 RUN COMPLETED 🏁";
+      if (finalScoreDisplay) finalScoreDisplay.innerText = score;
+      if (finalSub) finalSub.innerText = `Time: ${timeTaken.toFixed(2)}s | Bonus: +${timeBonus}`;
+
+      if (scoreboardModal) scoreboardModal.style.display = "flex";
+      setTimeout(async () => {
+        const saved = await submitDriftScore(arcadePlayerName, score);
+        if (saved) {
+          fetchDriftLeaderboard();
+        }
+      }, 100);
+    }
+  }
+
+  // Audio volume balancing
+  if (!raceFinished) {
+    if (speed > 0.5) {
+      engineAudio.volume = Math.min(0.18, 0.02 + speed / 45);
+      engineAudio.playbackRate = 0.85 + speed / 12;
+    } else {
       engineAudio.volume = 0;
-      driftAudio.volume = 0;
-
-      if (scoreboardModal) {
-        finalScoreDisplay.innerText = score;
-        scoreboardModal.style.display = "flex";
-        const storedName = driftPlayerName || "Student";
-        setTimeout(async () => {
-          const scoreSaved = await submitDriftScore(storedName, score);
-          if (scoreSaved) {
-            fetchDriftLeaderboard();
-          } else {
-            const leaderboardList = document.getElementById("leaderboard-list");
-            if (leaderboardList) {
-              leaderboardList.innerHTML = `<div style="text-align: center; color: #ff7675;">Score could not be saved. Check Firebase permissions.</div>`;
-            }
-          }
-        }, 100);
-      }
     }
+    let isDrifting = speed > 2 && Math.abs(carAngle - travelAngle) > 0.12;
+    driftAudio.volume = isDrifting ? 0.07 : 0;
   }
 
-  // --- 3. RENDERING ENGINE ---
-  if (isDrifting) {
-    driftGraceTimer = 20;
-  } else if (!window.input.gas && driftGraceTimer > 0) {
-    driftGraceTimer -= 2;
+  // Update Three.js Camera & Car Mesh
+  if (carMeshGroup && webglCamera) {
+    carMeshGroup.position.set(carX * 0.02, 0, carY * -0.02);
+    carMeshGroup.rotation.y = -travelAngle - Math.PI / 2;
+
+    webglCamera.position.set(carX * 0.02, 6.5, carY * -0.02 + 8.5);
+    webglCamera.lookAt(carX * 0.02, 0, carY * -0.02);
   }
 
-  if (driftGraceTimer > 0 && !raceFinished && crashCooldown === 0) {
-    let cosA = Math.cos(carAngle);
-    let sinA = Math.sin(carAngle);
-    let tires = [
-      { lx: 18, ly: -12 },
-      { lx: 18, ly: 12 },
-      { lx: -18, ly: -12 },
-      { lx: -18, ly: 12 },
-    ];
-    tires.forEach((t) => {
-      skidmarks.push({
-        x: carX + (t.lx * cosA - t.ly * sinA),
-        y: carY + (t.lx * sinA + t.ly * cosA),
-        opacity: 0.5,
-      });
-    });
-    if (window.input.gas) driftGraceTimer--;
+  if (webglRenderer && webglScene && webglCamera) {
+    webglRenderer.render(webglScene, webglCamera);
   }
 
-  let camX = carX - canvas.width / 2;
-  let camY = carY - canvas.height * 0.75;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.save();
-  ctx.translate(-camX, -camY);
-
-  ctx.fillStyle = "#060908";
-  ctx.fillRect(
-    camX - 500,
-    camY - 500,
-    canvas.width + 1000,
-    canvas.height + 1000,
-  );
-  for (let tree of scenery) {
-    if (
-      tree.x > camX - 200 &&
-      tree.x < camX + canvas.width + 200 &&
-      tree.y > camY - 200 &&
-      tree.y < camY + canvas.height + 200
-    ) {
-      ctx.fillStyle = tree.c;
-      ctx.beginPath();
-      ctx.arc(tree.x, tree.y, tree.r, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  ctx.lineWidth = 480;
-  ctx.strokeStyle = "#7f8c8d";
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.stroke(trackPath);
-  ctx.lineWidth = 450;
-  ctx.strokeStyle = "#161b22";
-  ctx.stroke(trackPath);
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-  ctx.setLineDash([30, 60]);
-  ctx.stroke(trackPath);
-  ctx.setLineDash([]);
-  ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
-  ctx.fillRect(-225, 26000, 450, 15);
-  ctx.fillStyle = "#c0392b";
-  ctx.fillRect(-225, 0, 450, 20);
-
-  for (let i = skidmarks.length - 1; i >= 0; i--) {
-    let mark = skidmarks[i];
-    ctx.fillStyle = `rgba(0, 0, 0, ${mark.opacity})`;
-    ctx.fillRect(mark.x - 3, mark.y - 3, 6, 6);
-    mark.opacity -= 0.01;
-    if (mark.opacity <= 0) skidmarks.splice(i, 1);
-  }
-
-  for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    let ft = floatingTexts[i];
-    ctx.font = "bold 24px monospace";
-    ctx.fillStyle = `rgba(${ft.r}, ${ft.g}, ${ft.b}, ${ft.life / 40})`;
-    ctx.fillText(ft.text, ft.x, ft.y);
-    ft.y -= 2;
-    ft.life--;
-    if (ft.life <= 0) floatingTexts.splice(i, 1);
-  }
-
-  let shouldDrawCar = true;
-  if (crashCooldown > 0) {
-    if (crashCooldown % 10 < 5) shouldDrawCar = false;
-  }
-
-  if (shouldDrawCar) {
-    ctx.save();
-    ctx.translate(carX, carY);
-    ctx.rotate(carAngle);
-
-    let lightGradient = ctx.createLinearGradient(30, 0, 250, 0);
-    lightGradient.addColorStop(0, "rgba(255, 255, 200, 0.4)");
-    lightGradient.addColorStop(1, "rgba(255, 255, 200, 0)");
-    ctx.fillStyle = lightGradient;
-    ctx.beginPath();
-    ctx.moveTo(30, -15);
-    ctx.lineTo(300, -80);
-    ctx.lineTo(300, 80);
-    ctx.lineTo(30, 15);
-    ctx.fill();
-
-    ctx.rotate(Math.PI / 2);
-
-    let carImg = null;
-    if (activeCar === "g37") carImg = imgG37;
-    else if (activeCar === "skyline") carImg = imgSkyline;
-    else if (activeCar === "accent") carImg = imgAccent;
-
-    if (carImg && carImg.complete && carImg.naturalWidth > 0) {
-      try {
-        ctx.drawImage(carImg, -15, -30, 30, 60);
-      } catch (e) {
-        ctx.fillStyle = "#e74c3c";
-        ctx.fillRect(-15, -30, 30, 60);
-      }
-    } else {
-      ctx.fillStyle = "#e74c3c";
-      ctx.fillRect(-15, -30, 30, 60);
-    }
-    ctx.restore();
-  }
-  ctx.restore();
-
+  // Update HUD DOM stats
   let progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
-  let timerText = raceFinished
-    ? finalTimeText
-    : ((Date.now() - startTime) / 1000).toFixed(1) + "s";
-  ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
-  ctx.fillRect(0, 0, canvas.width, 70);
-  ctx.font = "bold 20px monospace";
-  ctx.fillStyle = "white";
-  ctx.textAlign = "left";
-  ctx.fillText(`Score: ${score}`, 20, 30);
-  ctx.fillText(`Time: ${timerText}`, 20, 55);
-  ctx.textAlign = "right";
-  ctx.fillText(`Progress: ${progress.toFixed(1)}%`, canvas.width - 20, 42);
-  ctx.fillStyle = "#333";
-  ctx.fillRect(canvas.width / 2 - 100, 25, 200, 20);
-  ctx.fillStyle = "#e74c3c";
-  ctx.fillRect(canvas.width / 2 - 100, 25, progress * 2, 20);
-  ctx.textAlign = "left";
+  const elScore = document.getElementById("hud-score");
+  const elCombo = document.getElementById("hud-combo");
+  const elProg = document.getElementById("hud-progress");
+  if (elScore) elScore.innerText = score;
+  if (elCombo) elCombo.innerText = `x${comboMultiplier}`;
+  if (elProg) elProg.innerText = `${progress.toFixed(1)}%`;
 
-  gameLoopId = requestAnimationFrame(gameLoop);
-}
-
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// ==========================================
-// 9. DYNAMIC 10-DAY CALENDAR & SCHEDULE FILTER
-// ==========================================
-function renderDynamicCalendar() {
-  const iraqTime = new Date(
-    new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }),
-  );
-
-  let currentDay = iraqTime.getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-  let diffToSaturday;
-
-  // Smart Week Detection: Jump forward to next week if it's currently Thursday or Friday
-  if (currentDay === 4) {
-    diffToSaturday = 2; // Thu -> Next Sat
-  } else if (currentDay === 5) {
-    diffToSaturday = 1; // Fri -> Next Sat
-  } else if (currentDay === 6) {
-    diffToSaturday = 0; // Today is Sat
-  } else {
-    diffToSaturday = -(currentDay + 1); // Sun to Wed -> Go back to current week's Sat
-  }
-
-  let startOfWeek = new Date(iraqTime);
-  startOfWeek.setDate(iraqTime.getDate() + diffToSaturday);
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  const calendarContainer = document.getElementById(
-    "dynamic-calendar-container",
-  );
-  if (!calendarContainer) return;
-  calendarContainer.innerHTML = "";
-
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  let validDaysFound = 0;
-  let loopDate = new Date(startOfWeek);
-
-  while (validDaysFound < 10) {
-    let loopDayOfWeek = loopDate.getDay();
-
-    // Skip Thursday (4) and Friday (5)
-    if (loopDayOfWeek !== 4 && loopDayOfWeek !== 5) {
-      let dayName = dayNames[loopDayOfWeek];
-      let dateNum = loopDate.getDate();
-
-      let isToday = loopDate.toDateString() === iraqTime.toDateString();
-
-      let tomorrowDate = new Date(iraqTime);
-      tomorrowDate.setDate(iraqTime.getDate() + 1);
-      let isTomorrow = loopDate.toDateString() === tomorrowDate.toDateString();
-
-      let badgeHtml = `<div style="height: 20px; margin-top: 4px;"></div>`;
-      if (isToday) {
-        badgeHtml = `<div style="background: white; color: #4a81f5; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-top: 4px; font-weight: bold; box-shadow: 0px 2px 4px rgba(0,0,0,0.1);">Today</div>`;
-      } else if (isTomorrow) {
-        badgeHtml = `<div style="background: white; color: #4a81f5; font-size: 10px; padding: 2px 8px; border-radius: 12px; margin-top: 4px; font-weight: bold; border: 1px solid #4a81f5;">Tomorrow</div>`;
-      }
-
-      let dayHTML = `
-        <div class="day-selector-btn" data-day="${dayName}" data-date="${loopDate.toDateString()}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 62px; height: 85px; background-color: #f1f5f9; color: #64748b; border-radius: 12px; cursor: pointer; transition: 0.2s; flex-shrink: 0;">
-          <span style="font-size: 14px; font-weight: 600; margin-bottom: 2px;">${dayName}</span>
-          <span style="font-size: 22px; font-weight: 800;">${dateNum}</span>
-          ${badgeHtml}
-        </div>
-      `;
-      calendarContainer.innerHTML += dayHTML;
-      validDaysFound++;
-    }
-    loopDate.setDate(loopDate.getDate() + 1);
-  }
-
-  const allDayBtns = document.querySelectorAll(".day-selector-btn");
-
-  allDayBtns.forEach((btn) => {
-    btn.addEventListener("click", function () {
-      allDayBtns.forEach((b) => {
-        b.style.backgroundColor = "#f1f5f9";
-        b.style.color = "#64748b";
-      });
-
-      this.style.backgroundColor = "#4a81f5";
-      this.style.color = "white";
-
-      this.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
-
-      let selectedDay = this.getAttribute("data-day");
-      filterSchedule(selectedDay);
-    });
-  });
-
-  // --- AUTO-SELECTION LOGIC ON PAGE LOAD ---
-  let successfullyClickedToday = false;
-
-  allDayBtns.forEach((btn) => {
-    if (btn.getAttribute("data-date") === iraqTime.toDateString()) {
-      setTimeout(() => btn.click(), 50);
-      successfullyClickedToday = true;
-    }
-  });
-
-  // If it's a weekend, default to clicking the upcoming Saturday
-  if (!successfullyClickedToday && allDayBtns.length > 0) {
-    setTimeout(() => allDayBtns[0].click(), 50);
+  if (!raceFinished) {
+    gameLoopId = requestAnimationFrame(gameLoop3D);
   }
 }
-
-// ------------------------------------------
-// 9B. SCHEDULE FILTERING LOGIC
-// ------------------------------------------
-function filterSchedule(dayName) {
-  const dayMap = {
-    Sat: "saturday",
-    Sun: "sunday",
-    Mon: "monday",
-    Tue: "tuesday",
-    Wed: "wednesday",
-  };
-
-  const allSchedules = document.querySelectorAll(".schedule-container");
-  allSchedules.forEach((sec) => {
-    sec.style.display = "none";
-  });
-
-  const targetId = `schedule-${dayMap[dayName]}`;
-  const targetSection = document.getElementById(targetId);
-  if (targetSection) {
-    targetSection.style.display = "block";
-  }
-}
-
-// THIS IS THE TRIGGER THAT MAKES IT DRAW ON THE SCREEN
-window.addEventListener("DOMContentLoaded", renderDynamicCalendar);
-let tapCount = 0;
-let tapTimer;
-
-function handleSecretTrigger() {
-  tapCount++;
-  clearTimeout(tapTimer);
-
-  // Resets the tap counter if you stop tapping for 2 seconds
-  tapTimer = setTimeout(() => {
-    tapCount = 0;
-  }, 2000);
-
-  // If tapped 5 times fast, open the hidden prompt
-  if (tapCount === 5) {
-    tapCount = 0;
-    // The prompt is made to look like a boring browser error so no one gets suspicious
-    const overrideCode = prompt("System Diagnostics (Error 404):");
-
-    if (overrideCode === "Phantom3530") {
-      loginAsPhantom();
-    }
-  }
-}
-
-function loginAsPhantom() {
-  // Log into the master Firebase account
-  window
-    .signInWithEmailAndPassword(
-      window.auth,
-      "phantom@dentoschedule.tech",
-      "Phantom3530",
-    )
-    .then(async (userCredential) => {
-      alert("Override accepted. Welcome, Phantom.");
-
-      // Pull the list of every device that has ever used the Dent password
-      const querySnapshot = await window.getDocs(
-        window.collection(window.db, "DeviceHistory"),
-      );
-
-      let deviceCount = 0;
-      let logDetails = "ADMIN DEVICE LEDGER:\n\n";
-
-      querySnapshot.forEach((doc) => {
-        deviceCount++;
-        // Formats the timestamp to look cleaner
-        let dateObj = new Date(doc.data().lastLogin);
-        logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
-      });
-
-      // Show you the total count. If this is > 3, your friends leaked the password!
-      alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
-    })
-    .catch((error) => {
-      alert("Access Denied.");
-    });
-}
-
-const adminEmail = "admin@dentoschedule.tech";
-
-async function requireAdminSession() {
-  const currentUser = window.auth?.currentUser;
-
-  if (!currentUser || currentUser.email !== adminEmail) {
-    alert("Your admin session has expired. Please sign in again.");
-    return false;
-  }
-
-  await currentUser.getIdToken(true);
-  return true;
-}
-// --- PHANTOM BACKDOOR LOGIC ---
-// --- PHANTOM BACKDOOR LOGIC ---
-window.phantomTapCount = 0;
-window.phantomTapTimer = null;
-
-window.handleSecretTrigger = function () {
-  window.phantomTapCount++;
-  clearTimeout(window.phantomTapTimer);
-
-  window.phantomTapTimer = setTimeout(() => {
-    window.phantomTapCount = 0;
-  }, 2000);
-
-  if (window.phantomTapCount === 5) {
-    window.phantomTapCount = 0;
-    const overrideCode = prompt("System Diagnostics (Error 404):");
-
-    if (overrideCode) {
-      window
-        .signInWithEmailAndPassword(
-          window.auth,
-          "phantom@dentoschedule.tech",
-          overrideCode,
-        )
-        .then(async () => {
-          alert("Override accepted. Welcome, Phantom.");
-
-          const querySnapshot = await window.getDocs(
-            window.collection(window.db, "DeviceHistory"),
-          );
-          let deviceCount = 0;
-          let logDetails = "ADMIN DEVICE LEDGER:\n\n";
-
-          querySnapshot.forEach((doc) => {
-            deviceCount++;
-            let dateObj = new Date(doc.data().lastLogin);
-            logDetails += `- ${doc.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
-          });
-
-          alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
-
-          // NEW LOCKDOWN FEATURE
-          if (
-            confirm(
-              "SYSTEM COMPROMISED?\nClick OK to change the Admin password and lock down the site.",
-            )
-          ) {
-            const currentAdminPass = prompt(
-              "Enter CURRENT Admin password to authorize:",
-            );
-            const newAdminPass = prompt("Enter NEW Admin password:");
-
-            if (currentAdminPass && newAdminPass) {
-              window
-                .signInWithEmailAndPassword(
-                  window.auth,
-                  "admin@dentoschedule.tech",
-                  currentAdminPass,
-                )
-                .then(async () => {
-                  await window.updatePassword(
-                    window.auth.currentUser,
-                    newAdminPass,
-                  );
-                  await window.setDoc(
-                    adminSessionControlRef(),
-                    {
-                      version: crypto.randomUUID(),
-                      updatedAt: new Date().toISOString(),
-                    },
-                    { merge: true },
-                  );
-                  alert(
-                    "LOCKDOWN SUCCESSFUL.\nThe password has been changed. All active admins will be logged out.",
-                  );
-                })
-                .catch((error) => {
-                  alert(
-                    error.code === "auth/wrong-password"
-                      ? "Incorrect current admin password. Lockdown aborted."
-                      : "Failed to lock down the admin account: " +
-                          error.message,
-                  );
-                });
-            }
-          }
-        })
-        .catch(() => {
-          // Fails silently if they guess the Phantom password wrong
-        });
-    }
-  }
-};
-// -----------------------------
-// --- 1. MODAL TOGGLE LOGIC ---
-// Open the Post Announcement Modal
-document
-  .getElementById("btn-post-announcement")
-  .addEventListener("click", () => {
-    document.getElementById("modal-post-announcement").style.display = "flex";
-  });
-
-// Close the Post Announcement Modal
-document
-  .getElementById("btn-cancel-announcement")
-  .addEventListener("click", () => {
-    document.getElementById("modal-post-announcement").style.display = "none";
-    document.getElementById("announcement-input-text").value = ""; // Clear input on cancel
-  });
-
-// --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
-// --- 2. POST TO FIRESTORE (ADMIN ONLY) ---
-document
-  .getElementById("btn-submit-announcement")
-  .addEventListener("click", async () => {
-    const text = document.getElementById("announcement-input-text").value;
-
-    if (!text) {
-      alert("Please type an announcement first.");
-      return;
-    }
-
-    try {
-      // Quick check to ensure Firebase loaded correctly
-      if (!window.db || !window.setDoc || !window.doc) {
-        alert(
-          "CRITICAL ERROR: Firebase tools (db, setDoc, doc) are missing from the window object.",
-        );
-        return;
-      }
-
-      if (!(await requireAdminSession())) {
-        return;
-      }
-
-      // Attempt to save to Firestore
-      await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
-        message: text,
-        timestamp: new Date().toISOString(),
-      });
-
-      alert("Database confirmed: Alert saved to server!");
-      document.getElementById("modal-post-announcement").style.display = "none";
-      document.getElementById("announcement-input-text").value = "";
-    } catch (error) {
-      // This will pop up and tell us EXACTLY why it failed
-      alert("UPLOAD FAILED: " + error.message);
-    }
-  });
-
-// --- 3. LIVE LISTENER (ALL STUDENTS) ---
-// Runs continuously to show/hide the banner when the database changes
-// --- 3. LIVE LISTENER (ALL STUDENTS) ---
-window.onSnapshot(
-  window.doc(window.db, "Announcements", "latest"),
-  (docSnap) => {
-    const banner = document.getElementById("live-alert-banner");
-    const displayText = document.getElementById("live-alert-text");
-
-    if (
-      docSnap.exists() &&
-      docSnap.data().message &&
-      docSnap.data().message.trim() !== ""
-    ) {
-      displayText.innerText = docSnap.data().message;
-      // Display as flex to keep the bell icon and text perfectly aligned
-      banner.style.display = "flex";
-    } else {
-      banner.style.display = "none";
-    }
-  },
-);
-// ==========================================
-// ==========================================
-// --- EDIT SCHEDULE & ALERTS LOGIC ---
-// ==========================================
-
-// 1. Toggle the Modal
-document.getElementById("btn-edit-schedule").addEventListener("click", () => {
-  document.getElementById("modal-edit-schedule").style.display = "flex";
-});
-document.getElementById("btn-cancel-edit").addEventListener("click", () => {
-  document.getElementById("modal-edit-schedule").style.display = "none";
-});
-
-// 2. Upload to Firestore (Admin Only)
-document
-  .getElementById("btn-submit-edit")
-  .addEventListener("click", async () => {
-    const subject = document.getElementById("edit-subject").value;
-    const alertText = document.getElementById("alert-text").value;
-    const expDate = document.getElementById("alert-date").value;
-
-    if (!subject || !alertText || !expDate) {
-      alert("Please fill in the subject, alert text, and expiration date.");
-      return;
-    }
-
-    try {
-      if (!(await requireAdminSession())) {
-        return;
-      }
-
-      await window.setDoc(window.doc(window.db, "ScheduleNotes", subject), {
-        note: alertText,
-        expiration: expDate,
-        timestamp: new Date().toISOString(),
-      });
-
-      alert(
-        `Database confirmed: Note added to main ${subject.toUpperCase()} lecture!`,
-      );
-      document.getElementById("modal-edit-schedule").style.display = "none";
-      document.getElementById("alert-text").value = "";
-      document.getElementById("alert-date").value = "";
-    } catch (error) {
-      alert("UPLOAD FAILED: " + error.message);
-    }
-  });
-
-// 3. Live Sync & Expiration Logic (All Students)
-window.onSnapshot(window.collection(window.db, "ScheduleNotes"), (snapshot) => {
-  // Get today's date in YYYY-MM-DD format to check if the note is expired
-  const today = new Date().toISOString().split("T")[0];
-
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    const subject = docSnap.id;
-
-    // This will ONLY look for the main lecture badge, ignoring groups entirely
-    const badge = document.getElementById("badge-" + subject);
-
-    if (badge) {
-      if (data.expiration >= today && data.note.trim() !== "") {
-        // Show the dark turquoise pulsating badge
-        badge.innerText = data.note;
-        badge.style.cssText =
-          "display: inline-block; background-color: #0b8793; color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 12px; letter-spacing: 0.5px; animation: pulse 1.5s infinite; box-shadow: 0 0 10px rgba(11, 135, 147, 0.6); vertical-align: middle;";
-      } else {
-        // Hide it if the date has passed or text is empty
-        badge.style.display = "none";
-        badge.innerText = "";
-      }
-    }
-  });
-});
-// ==========================================
-// --- UPLOAD PDF LINKS LOGIC ---
-// ==========================================
-
-document
-  .getElementById("btn-submit-pdf")
-  .addEventListener("click", async () => {
-    const subject = document.getElementById("upload-subject")
-      ? document.getElementById("upload-subject").value
-      : document.getElementById("pdf-subject").value;
-    const pdfName = document.getElementById("pdf-name").value;
-    const pdfLink = document.getElementById("pdf-link").value;
-
-    if (!subject || !pdfName || !pdfLink) {
-      alert(
-        "Please select a subject, name the document, and paste the Drive link.",
-      );
-      return;
-    }
-
-    try {
-      const newPdfRef = window.doc(window.collection(window.db, "PDFNotes"));
-      await window.setDoc(newPdfRef, {
-        subject: subject,
-        name: pdfName,
-        url: pdfLink,
-        timestamp: new Date().toISOString(),
-      });
-
-      alert(`Database confirmed: ${pdfName} saved to ${subject.toUpperCase()}`);
-      document.getElementById("modal-upload-pdf").style.display = "none";
-      document.getElementById("pdf-name").value = "";
-      document.getElementById("pdf-link").value = "";
-    } catch (error) {
-      alert("UPLOAD FAILED: " + error.message);
-    }
-  });
-// ==========================================
-// --- UPLOAD QUIZ LOGIC ---
-// ==========================================
-document
-  .getElementById("btn-submit-quiz")
-  .addEventListener("click", async () => {
-    const subject = document.getElementById("quiz-subject").value;
-    const quizName = document.getElementById("quiz-title").value;
-    const quizLink = document.getElementById("quiz-link").value;
-
-    if (!subject || !quizName || !quizLink) {
-      alert("Please select a subject, name the quiz, and paste the link.");
-      return;
-    }
-
-    try {
-      const newQuizRef = window.doc(window.collection(window.db, "QuizLinks"));
-      await window.setDoc(newQuizRef, {
-        subject: subject,
-        name: quizName,
-        url: quizLink,
-        timestamp: new Date().toISOString(),
-      });
-
-      alert(
-        `Database confirmed: ${quizName} saved to ${subject.toUpperCase()}`,
-      );
-      document.getElementById("modal-add-quiz").style.display = "none";
-      document.getElementById("quiz-title").value = "";
-      document.getElementById("quiz-link").value = "";
-    } catch (error) {
-      alert("UPLOAD FAILED: " + error.message);
-    }
-  });
