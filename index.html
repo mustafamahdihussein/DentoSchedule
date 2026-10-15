@@ -1067,7 +1067,7 @@
       <!-- Post-Race Leaderboard Modal (Database Ready) -->
       <div
         id="scoreboard-modal"
-        class="scoreboard-modal"
+        class="scoreboard-modal scoreboard-shell"
         style="
           display: none;
           position: absolute;
@@ -1084,74 +1084,31 @@
           box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
         "
       >
-        <h2
-          id="scoreboard-heading"
-          style="
-            color: #f59e0b;
-            margin-top: 0;
-            text-align: center;
-            font-family: monospace;
-          "
-        >
+        <div class="scoreboard-kicker">AL-AMEEN ARCADE</div>
+        <h2 id="scoreboard-heading">
           🏁 RUN FINISHED 🏁
         </h2>
-        <h3
-          class="scoreboard-final-score"
-          style="color: white; font-family: monospace; margin: 6px 0"
-        >
-          Run Score:
-          <span id="final-score-display" style="color: #2ecc71">0</span>
+        <h3 class="scoreboard-final-score">
+          <span class="scoreboard-score-label">RUN SCORE</span>
+          <span id="final-score-display">0</span>
         </h3>
         <p
           id="final-run-subtitle"
-          style="
-            color: #94a3b8;
-            font-size: 12px;
-            text-align: center;
-            font-family: monospace;
-            margin-bottom: 8px;
-          "
         ></p>
 
-        <div
-          style="
-            width: 100%;
-            background-color: #0f172a;
-            border-radius: 8px;
-            margin: 10px 0 15px 0;
-            padding: 12px;
-            max-height: 280px;
-            overflow-y: auto;
-          "
-        >
-          <h4
-            style="
-              color: #e2e8f0;
-              margin: 0 0 10px 0;
-              text-align: center;
-              border-bottom: 1px solid #334155;
-              padding-bottom: 6px;
-              font-family: monospace;
-            "
-          >
-            👑 AL-AMEEN LIVE LEADERBOARD (TOP 10)
-          </h4>
+        <div class="leaderboard-panel">
+          <h4>👑 LIVE HALL OF FAME <span>TOP 10</span></h4>
 
           <button
             id="reset-leaderboard-btn"
             class="admin-btn"
             type="button"
-            style="
-              display: none;
-              width: 100%;
-              margin: 0 0 12px;
-              background-color: #991b1b;
-            "
+            style="display: none"
           >
             Reset All Scores
           </button>
 
-          <div id="leaderboard-list" style="width: 100%">
+          <div id="leaderboard-list">
             <div
               style="text-align: center; color: white; font-family: monospace"
             >
@@ -1162,12 +1119,6 @@
 
         <button
           class="admin-btn scoreboard-close"
-          style="
-            background-color: #ef4444;
-            padding: 12px 24px;
-            font-size: 16px;
-            width: 100%;
-          "
           onclick="quitGame()"
         >
           Close &amp; Return

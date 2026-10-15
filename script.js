@@ -2393,19 +2393,21 @@ function renderDriftLeaderboardUI(dataArray) {
   }
 
   dataArray.forEach((player, index) => {
-    const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
     const rowDiv = document.createElement("div");
-    rowDiv.style.cssText =
-      "display: flex; justify-content: space-between; align-items: center; color: white; margin-bottom: 8px; font-family: monospace; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;";
+    rowDiv.className = `leaderboard-row${index < 3 ? ` leaderboard-rank-${index + 1}` : ""}`;
 
+    const rankSpan = document.createElement("span");
+    rankSpan.className = "leaderboard-rank";
+    rankSpan.textContent = index === 0 ? "👑" : String(index + 1).padStart(2, "0");
     const infoSpan = document.createElement("span");
-    infoSpan.textContent = `${rankPrefix}${player.name}`;
+    infoSpan.className = "leaderboard-player";
+    infoSpan.textContent = player.name || "Student";
 
     const rightBox = document.createElement("div");
-    rightBox.style.cssText = "display: flex; align-items: center; gap: 10px;";
+    rightBox.className = "leaderboard-score-box";
 
     const scoreSpan = document.createElement("span");
-    scoreSpan.style.cssText = "color: #2ecc71; font-weight: bold;";
+    scoreSpan.className = "leaderboard-score";
     scoreSpan.textContent = String(player.score);
     rightBox.appendChild(scoreSpan);
 
@@ -2429,6 +2431,7 @@ function renderDriftLeaderboardUI(dataArray) {
       rightBox.appendChild(delScoreBtn);
     }
 
+    rowDiv.appendChild(rankSpan);
     rowDiv.appendChild(infoSpan);
     rowDiv.appendChild(rightBox);
     leaderboardList.appendChild(rowDiv);
