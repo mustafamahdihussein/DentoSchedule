@@ -332,111 +332,123 @@ window.handleSecretTrigger = function () {
 // ==========================================
 let mascotKeyLight = null;
 
-function buildAnatomicalMolarGeometry() {
-  const geo = new THREE.SphereGeometry(1, 64, 64);
-  const pos = geo.attributes.position;
-  const colors = [];
-  const colorObj = new THREE.Color();
+function createSculptedMolarGroup() {
+  const molarGroup = new THREE.Group();
+
+  // Shared glossy porcelain-enamel material with strong 3D shadow contrast
+  const enamelMat = new THREE.MeshPhysicalMaterial({
+    color: 0xf8fafc,
+    roughness: 0.18,
+    metalness: 0.05,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
+    reflectivity: 0.9,
+  });
+
+  // 1. THE CROWN (Dedicated 64x64 mesh with classic M-shaped 4-cusp silhouette)
+  const crownGeo = new THREE.SphereGeometry(1, 64, 64);
+  const pos = crownGeo.attributes.position;
 
   for (let i = 0; i < pos.count; i++) {
-    let u = pos.getX(i);
-    let v = pos.getY(i);
-    let w = pos.getZ(i);
+    let x = pos.getX(i);
+    let y = pos.getY(i);
+    let z = pos.getZ(i);
 
-    let x = u;
-    let y = v;
-    let z = w;
-    const rXZ = Math.sqrt(x * x + z * z) + 0.0001;
+    const theta = Math.atan2(z, x);
+    const rXZ = Math.sqrt(x * x + z * z);
 
-    if (y >= -0.15) {
-      // CROWN & OCCLUSAL TABLE (4 Anatomical Cusps + Central Fossa + Grooves)
-      const t = (y + 0.15) / 1.15; // 0 at CEJ neck, 1 at occlusal surface
-      const squarish =
-        1.0 + 0.12 * Math.pow((x * z) / (rXZ * rXZ), 2);
-      const bulge =
-        (0.76 + 0.34 * Math.sin(Math.min(1, t * 1.35) * Math.PI * 0.78)) *
-        squarish;
+    // Squircle molar outline (4 rounded corners for the 4 cusps)
+    const squircle = 1.0 + 0.11 * Math.cos(4 * theta);
 
-      x *= bulge * 1.12;
-      z *= bulge * 1.02;
-
-      if (t > 0.55) {
-        const occFactor = Math.pow((t - 0.55) / 0.45, 1.4);
-        // 4-cusp Gaussian peaks at MB, DB, ML, DL quadrants
-        const cMB = Math.exp(
-          -(Math.pow(x - 0.46, 2) + Math.pow(z - 0.42, 2)) * 4.5,
-        );
-        const cDB = Math.exp(
-          -(Math.pow(x + 0.46, 2) + Math.pow(z - 0.42, 2)) * 4.8,
-        );
-        const cML = Math.exp(
-          -(Math.pow(x - 0.44, 2) + Math.pow(z + 0.44, 2)) * 4.4,
-        );
-        const cDL = Math.exp(
-          -(Math.pow(x + 0.44, 2) + Math.pow(z + 0.44, 2)) * 5.0,
-        );
-        const cuspLift = (cMB * 0.42 + cDB * 0.36 + cML * 0.4 + cDL * 0.34);
-
-        // Central fossa depression & developmental grooves
-        const centralPit = Math.exp(-(x * x + z * z) * 5.5) * 0.34;
-        const grooveX = Math.exp(-x * x * 38) * Math.exp(-z * z * 2.2) * 0.08;
-        const grooveZ = Math.exp(-z * z * 38) * Math.exp(-x * x * 2.2) * 0.08;
-
-        y =
-          0.42 +
-          (t - 0.55) * 0.45 +
-          occFactor * (cuspLift - centralPit - grooveX - grooveZ);
-
-        // Subtle warm occlusal fissure shading vs bright pearly cusp tips
-        const fissureDepth = Math.max(0, centralPit + grooveX + grooveZ - 0.05);
-        colorObj.setRGB(
-          0.98 - fissureDepth * 0.35,
-          0.98 - fissureDepth * 0.42,
-          0.99 - fissureDepth * 0.55,
-        );
-      } else {
-        y = -0.15 + t * 1.02;
-        // Cervical enamel translucency near CEJ
-        const cejWarmth = Math.max(0, 1 - t * 2.2) * 0.08;
-        colorObj.setRGB(0.98, 0.97 - cejWarmth * 0.3, 0.96 - cejWarmth);
-      }
+    // Vertical profile: widest at mid-crown equator, tapering into cervical neck (y = -1)
+    let profileRadius;
+    if (y >= 0) {
+      profileRadius = 0.88 + 0.14 * Math.sin(y * Math.PI * 0.65);
     } else {
-      // ROOT TRUNK & FURCATED CURVED ROOTS
-      const depth = Math.min(1, (-0.15 - y) / 0.85); // 0 at CEJ, 1 at root apex
-      const split = Math.pow(depth, 0.75);
-      const side = u >= 0 ? 1 : -1;
+      // Smoothly narrow into the cervical neck (CEJ) at the bottom of the crown
+      const neckT = Math.min(1, -y);
+      profileRadius = 0.88 * (1.0 - 0.34 * Math.pow(neckT, 1.3));
+    }
 
-      // Pinch center to form root furcation dome
-      const centerPinch = Math.exp(-u * u * 10) * split * 0.55;
-      const rootRadius = (1 - depth * 0.72) * 0.42;
-      const localAngle = Math.atan2(w, Math.abs(u) - 0.32 * split);
+    x *= profileRadius * squircle * 0.95;
+    z *= profileRadius * squircle * 0.88;
 
-      const rootCenterX =
-        side * (0.18 + split * 0.36) + Math.pow(depth, 1.8) * 0.16; // Distal apical curve
-      x = rootCenterX + Math.cos(localAngle) * rootRadius * 0.85;
-      z = w * (0.72 - depth * 0.48);
-      y = -0.15 - depth * 1.15 + centerPinch;
+    if (y > 0) {
+      // Classic "M-shaped" twin-cusp silhouette + deep central occlusal fossa
+      const cornerLobe = 0.55 + 0.45 * Math.cos(4 * theta - Math.PI); // Peaks at 4 corners, dips on all 4 sides
+      const rimHeight = Math.pow(rXZ, 1.55) * (0.32 + 0.36 * cornerLobe);
+      const centralFossaDip = Math.exp(-rXZ * rXZ * 5.0) * 0.32;
 
-      // Warm anatomical cementum / dentin ivory root color
-      colorObj.setRGB(
-        0.95 - depth * 0.05,
-        0.89 - depth * 0.08,
-        0.74 - depth * 0.12,
-      );
+      // Cross-shaped developmental fissures (+) in the occlusal table
+      const fissureX = Math.exp(-x * x * 45) * Math.exp(-z * z * 2.5) * 0.09;
+      const fissureZ = Math.exp(-z * z * 45) * Math.exp(-x * x * 2.5) * 0.09;
+
+      y = y * 0.52 + rimHeight - centralFossaDip - fissureX - fissureZ;
+    } else {
+      // Flatten the bottom of the crown slightly where the roots emerge
+      y *= 0.48;
     }
 
     pos.setXYZ(i, x, y, z);
-    colors.push(colorObj.r, colorObj.g, colorObj.b);
+  }
+  crownGeo.computeVertexNormals();
+
+  const crownMesh = new THREE.Mesh(crownGeo, enamelMat);
+  crownMesh.position.y = 0.38;
+  molarGroup.add(crownMesh);
+
+  // 2. SEPARATE, SMOOTHLY CURVED ROOTS (Zero polygon stretching across the furcation)
+  function createCurvedRoot(offsetX, offsetZ, curveDirX, scaleZ) {
+    const rootGeo = new THREE.SphereGeometry(1, 36, 48);
+    const rPos = rootGeo.attributes.position;
+
+    for (let i = 0; i < rPos.count; i++) {
+      let rx = rPos.getX(i);
+      let ry = rPos.getY(i);
+      let rz = rPos.getZ(i);
+
+      // Map y from [-1..1] to t in [0..1] (0 = top inside crown, 1 = root tip apex)
+      const t = (1 - ry) * 0.5;
+
+      // Smooth conical root taper with a rounded anatomical apex
+      const taper = (1.0 - 0.72 * Math.pow(t, 1.15)) * Math.sin(Math.acos(ry));
+      const radiusX = 0.36 * (1.0 - 0.68 * t);
+      const radiusZ = 0.44 * scaleZ * (1.0 - 0.65 * t);
+
+      rx = rx * radiusX + curveDirX * Math.pow(t, 2.1) * 0.22;
+      rz = rz * radiusZ;
+      ry = 0.22 - t * 1.28;
+
+      rPos.setXYZ(i, rx, ry, rz);
+    }
+    rootGeo.computeVertexNormals();
+
+    const rootMesh = new THREE.Mesh(rootGeo, enamelMat);
+    rootMesh.position.set(offsetX, 0.08, offsetZ);
+    return rootMesh;
   }
 
-  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geo.computeVertexNormals();
-  return geo;
+  // Mesial & Distal roots with a clean furcation gap between them
+  const mesialRoot = createCurvedRoot(-0.34, 0.0, 0.18, 1.05);
+  const distalRoot = createCurvedRoot(0.34, 0.0, 0.24, 0.95);
+  molarGroup.add(mesialRoot);
+  molarGroup.add(distalRoot);
+
+  return molarGroup;
 }
 
 function initHeader3DMascot() {
   const canvas = document.getElementById("header-3d-canvas");
   if (!canvas || typeof THREE === "undefined") return;
+
+  // Give the 3D wrapper a deep navy studio backdrop so the white enamel pops in 3D
+  if (canvas.parentElement) {
+    canvas.parentElement.style.background =
+      "radial-gradient(circle at 30% 25%, #1e3a8a 0%, #0f172a 85%)";
+    canvas.parentElement.style.borderColor = "#38bdf8";
+    canvas.parentElement.style.boxShadow =
+      "0 8px 20px rgba(15, 23, 42, 0.25), inset 0 0 12px rgba(56, 189, 248, 0.25)";
+  }
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -445,56 +457,39 @@ function initHeader3DMascot() {
   });
   renderer.setSize(86, 86);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
-  camera.position.set(0, 0.15, 3.8);
+  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+  camera.position.set(0, 0.05, 4.1);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+  // Low ambient light + 3-point studio lighting so cusps and roots have deep 3D shadows
+  const ambientLight = new THREE.AmbientLight(0xcbd5e1, 0.38);
   scene.add(ambientLight);
 
-  mascotKeyLight = new THREE.DirectionalLight(0x38bdf8, 1.6);
-  mascotKeyLight.position.set(4, 6, 5);
+  mascotKeyLight = new THREE.DirectionalLight(0xffffff, 1.35);
+  mascotKeyLight.position.set(3.5, 5.5, 4.5);
   scene.add(mascotKeyLight);
 
-  const rimLight = new THREE.PointLight(0x2563eb, 2.2, 12);
-  rimLight.position.set(-4, -3, 3);
-  scene.add(rimLight);
+  const cyanRimLight = new THREE.DirectionalLight(0x38bdf8, 0.95);
+  cyanRimLight.position.set(-4.5, 1.5, -2.5);
+  scene.add(cyanRimLight);
 
-  const toothGroup = new THREE.Group();
+  const bottomFillLight = new THREE.DirectionalLight(0x6366f1, 0.55);
+  bottomFillLight.position.set(0, -5, 2);
+  scene.add(bottomFillLight);
+
+  const toothGroup = createSculptedMolarGroup();
   scene.add(toothGroup);
 
-  const molarGeo = buildAnatomicalMolarGeometry();
-  const molarMat = new THREE.MeshPhysicalMaterial({
-    vertexColors: true,
-    roughness: 0.16,
-    metalness: 0.04,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.08,
-  });
-
-  const molarMesh = new THREE.Mesh(molarGeo, molarMat);
-  molarMesh.position.y = 0.12;
-  toothGroup.add(molarMesh);
-
-  // Subtle floating orthodontic/clinical halo ring
-  const ringGeo = new THREE.TorusGeometry(1.15, 0.025, 16, 64);
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: 0x38bdf8,
-    transparent: true,
-    opacity: 0.45,
-  });
-  const haloRing = new THREE.Mesh(ringGeo, ringMat);
-  haloRing.rotation.x = Math.PI / 2.3;
-   haloRing.position.y = -0.1;
-  toothGroup.add(haloRing);
-
-  toothGroup.rotation.x = 0.28;
-  toothGroup.rotation.y = -0.4;
+  // Tilt slightly forward so both the 4-cusp occlusal table and twin roots are visible
+  toothGroup.rotation.x = 0.32;
+  toothGroup.rotation.y = -0.45;
 
   let isDragging = false;
   let prevPos = { x: 0, y: 0 };
-  let clock = 0;
+  let floatClock = 0;
 
   canvas.addEventListener("pointerdown", (e) => {
     isDragging = true;
@@ -505,10 +500,10 @@ function initHeader3DMascot() {
     if (!isDragging) return;
     const dx = e.clientX - prevPos.x;
     const dy = e.clientY - prevPos.y;
-    toothGroup.rotation.y += dx * 0.014;
+    toothGroup.rotation.y += dx * 0.015;
     toothGroup.rotation.x = Math.max(
-      -0.8,
-      Math.min(1.0, toothGroup.rotation.x + dy * 0.014),
+      -0.7,
+      Math.min(0.9, toothGroup.rotation.x + dy * 0.015),
     );
     prevPos = { x: e.clientX, y: e.clientY };
   });
@@ -519,225 +514,16 @@ function initHeader3DMascot() {
 
   function animateMascot() {
     requestAnimationFrame(animateMascot);
-    clock += 0.03;
+    floatClock += 0.035;
     if (!isDragging) {
-      toothGroup.rotation.y += 0.011;
+      toothGroup.rotation.y += 0.012;
     }
-    toothGroup.position.y = Math.sin(clock) * 0.07;
-    haloRing.rotation.z -= 0.015;
+    toothGroup.position.y = Math.sin(floatClock) * 0.06;
     renderer.render(scene, camera);
   }
   animateMascot();
 }
 window.addEventListener("DOMContentLoaded", initHeader3DMascot);
-
-// ==========================================
-// 3. LO-FI CHILL HOP SYNTHESIZER (APP-WIDE)
-// ==========================================
-const lofiPlayer = {
-  ctx: null,
-  isPlaying: false,
-  chordTimer: null,
-  beatTimer: null,
-  masterGain: null,
-  vinylNode: null,
-  stepIndex: 0,
-  chords: [
-    [174.61, 220.0, 261.63, 329.63, 392.0], // Fmaj9
-    [164.81, 196.0, 246.94, 293.66, 369.99], // Em9
-    [146.83, 174.61, 220.0, 261.63, 329.63], // Dm9
-    [130.81, 164.81, 196.0, 246.94, 293.66], // Cmaj9
-  ],
-
-  injectToolbarButton() {
-    const toolbar = document.querySelector(".quick-toolbar");
-    if (!toolbar || document.getElementById("btn-toolbar-lofi")) return;
-
-    const lofiBtn = document.createElement("button");
-    lofiBtn.id = "btn-toolbar-lofi";
-    lofiBtn.type = "button";
-    lofiBtn.className = "admin-btn toolbar-btn";
-    lofiBtn.style.backgroundColor = "#6366f1";
-    lofiBtn.textContent = "🎵 Lo-Fi: OFF";
-    lofiBtn.addEventListener("click", () => this.toggle());
-
-    const logoutBtn = document.getElementById("btn-logout");
-    if (logoutBtn) {
-      toolbar.insertBefore(lofiBtn, logoutBtn);
-    } else {
-      toolbar.appendChild(lofiBtn);
-    }
-  },
-
-  syncButtons() {
-    const toolbarBtn = document.getElementById("btn-toolbar-lofi");
-    const pomoBtn = document.getElementById("btn-focus-sound");
-
-    if (toolbarBtn) {
-      toolbarBtn.textContent = this.isPlaying ? "🎵 Lo-Fi: ON" : "🎵 Lo-Fi: OFF";
-      toolbarBtn.style.backgroundColor = this.isPlaying ? "#10b981" : "#6366f1";
-    }
-    if (pomoBtn) {
-      pomoBtn.classList.toggle("active", this.isPlaying);
-      pomoBtn.textContent = this.isPlaying
-        ? "🎧 Lo-Fi Chill Beats: ON (Playing)"
-        : "🎧 Lo-Fi Chill Beats: OFF";
-    }
-  },
-
-  playChord(freqs) {
-    if (!this.ctx || !this.isPlaying) return;
-    const now = this.ctx.currentTime;
-
-    freqs.forEach((f, idx) => {
-      const osc = this.ctx.createOscillator();
-      const noteGain = this.ctx.createGain();
-      const filter = this.ctx.createBiquadFilter();
-
-      // Warm Rhodes-style electric piano voice with subtle tape detune
-      osc.type = idx === 0 ? "sine" : "triangle";
-      osc.frequency.setValueAtTime(f, now);
-      osc.detune.setValueAtTime(
-        Math.sin(now + idx) * 6 + (idx % 2 === 0 ? 3 : -3),
-        now,
-      );
-
-      filter.type = "lowpass";
-      filter.frequency.setValueAtTime(950, now);
-
-      const peak = idx === 0 ? 0.065 : 0.038;
-      noteGain.gain.setValueAtTime(0.0001, now);
-      noteGain.gain.linearRampToValueAtTime(peak, now + 0.08 + idx * 0.03);
-      noteGain.gain.exponentialRampToValueAtTime(0.008, now + 3.1);
-
-      osc.connect(filter);
-      filter.connect(noteGain);
-      noteGain.connect(this.masterGain);
-
-      osc.start(now + idx * 0.025);
-      osc.stop(now + 3.2);
-    });
-  },
-
-  playDrumStep(step) {
-    if (!this.ctx || !this.isPlaying) return;
-    const now = this.ctx.currentTime;
-
-    // Soft Lo-Fi Kick on steps 0 and 5
-    if (step === 0 || step === 5) {
-      const osc = this.ctx.createOscillator();
-      const g = this.ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(110, now);
-      osc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
-      g.gain.setValueAtTime(0.16, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-      osc.connect(g);
-      g.connect(this.masterGain);
-      osc.start(now);
-      osc.stop(now + 0.24);
-    }
-
-    // Mellow Lo-Fi Brush Snare on steps 2 and 6
-    if (step === 2 || step === 6) {
-      const bufSize = this.ctx.sampleRate * 0.12;
-      const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < bufSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.35));
-      }
-      const noise = this.ctx.createBufferSource();
-      noise.buffer = buf;
-
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = "bandpass";
-      filter.frequency.value = 1100;
-
-      const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.06, now);
-      g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-      noise.connect(filter);
-      filter.connect(g);
-      g.connect(this.masterGain);
-      noise.start(now);
-    }
-  },
-
-  start() {
-    try {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.85;
-      this.masterGain.connect(this.ctx.destination);
-
-      // Subtle warm vinyl dust layer
-      const bufSize = 2 * this.ctx.sampleRate;
-      const vinylBuf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
-      const out = vinylBuf.getChannelData(0);
-      let last = 0;
-      for (let i = 0; i < bufSize; i++) {
-        const w = Math.random() * 2 - 1;
-        out[i] = (last + 0.03 * w) / 1.03;
-        last = out[i];
-      }
-      this.vinylNode = this.ctx.createBufferSource();
-      this.vinylNode.buffer = vinylBuf;
-      this.vinylNode.loop = true;
-
-      const vinylGain = this.ctx.createGain();
-      vinylGain.gain.value = 0.015;
-      this.vinylNode.connect(vinylGain);
-      vinylGain.connect(this.masterGain);
-      this.vinylNode.start(0);
-
-      this.isPlaying = true;
-      this.stepIndex = 0;
-
-      const tick = () => {
-        if (!this.isPlaying) return;
-        const barStep = this.stepIndex % 8;
-        if (barStep === 0) {
-          const chordIdx = Math.floor(this.stepIndex / 8) % this.chords.length;
-          this.playChord(this.chords[chordIdx]);
-        }
-        this.playDrumStep(barStep);
-        this.stepIndex++;
-      };
-
-      tick();
-      this.beatTimer = setInterval(tick, 400); // ~75 BPM chill groove
-      this.syncButtons();
-    } catch (e) {
-      console.warn("Unable to start Lo-Fi synthesizer:", e);
-    }
-  },
-
-  stop() {
-    this.isPlaying = false;
-    if (this.beatTimer) {
-      clearInterval(this.beatTimer);
-      this.beatTimer = null;
-    }
-    if (this.ctx) {
-      this.ctx.close().catch(() => {});
-      this.ctx = null;
-    }
-    this.syncButtons();
-  },
-
-  toggle() {
-    if (this.isPlaying) {
-      this.stop();
-    } else {
-      this.start();
-    }
-  },
-};
-
-window.addEventListener("DOMContentLoaded", () => {
-  lofiPlayer.injectToolbarButton();
-});
 
 // ==========================================
 // 4. ALL ADMIN DASHBOARD MODALS & HANDLERS
