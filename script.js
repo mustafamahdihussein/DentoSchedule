@@ -952,7 +952,7 @@ if (btnCancelLofi) {
 }
 
 const LOFI_MAX_FILE_SIZE = 25 * 1024 * 1024;
-const LOFI_CHUNK_SIZE = 700000;
+const LOFI_CHUNK_SIZE = 500 * 1024;
 
 if (btnSubmitLofi) {
   btnSubmitLofi.addEventListener("click", async () => {
@@ -1877,35 +1877,32 @@ const lofiPlayer = {
   loading: false,
   playing: false,
   async loadTrack() {
-    if (this.loading) return;
-    this.loading = true;
-    try {
-      const metadata = await window.getDoc(
-        window.doc(window.db, "Announcements", "lofi_meta"),
-      );
-      if (!metadata.exists()) {
-        throw new Error("No Lo-Fi track has been published yet.");
-      }
-      const { trackId, totalChunks, mimeType = "audio/mpeg" } = metadata.data();
-      const chunks = await Promise.all(
-        Array.from({ length: Number(totalChunks) }, (_, index) =>
-          window.getDoc(
-            window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
-          ),
-        ),
-      );
-      if (chunks.some((chunk) => !chunk.exists() || chunk.data().trackId !== trackId)) {
-        throw new Error("The published Lo-Fi track is incomplete.");
-      }
-      const base64 = chunks.map((chunk) => chunk.data().data).join("");
-      this.trackId = trackId;
-      this.audio.src = `data:${mimeType};base64,${base64}`;
-      this.audio.load();
-    } finally {
-      this.loading = false;
+    const metadata = await window.getDoc(
+      window.doc(window.db, "Announcements", "lofi_meta"),
+    );
+    if (!metadata.exists()) {
+      throw new Error("No Lo-Fi track has been published yet.");
     }
+    const { trackId, totalChunks, mimeType = "audio/mpeg" } = metadata.data();
+    const chunks = await Promise.all(
+      Array.from({ length: Number(totalChunks) }, (_, index) =>
+        window.getDoc(
+          window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
+        ),
+      ),
+    );
+    if (chunks.some((chunk) => !chunk.exists() || chunk.data().trackId !== trackId)) {
+      throw new Error("The published Lo-Fi track is incomplete.");
+    }
+    const base64 = chunks.map((chunk) => chunk.data().data).join("");
+    this.trackId = trackId;
+    this.audio.src = `data:${mimeType};base64,${base64}`;
+    this.audio.load();
   },
   async toggle() {
+    if (this.loading) return;
+    this.loading = true;
+    this.updateButtons();
     try {
       if (!this.audio.src) await this.loadTrack();
       if (this.playing) {
@@ -1914,20 +1911,25 @@ const lofiPlayer = {
         await this.audio.play();
       }
       this.playing = !this.playing;
-      this.updateButtons();
     } catch (error) {
       this.playing = false;
-      this.updateButtons();
       console.error("Unable to start Lo-Fi playback.", error);
       alert(error?.message || "Unable to start Lo-Fi playback.");
+    } finally {
+      this.loading = false;
+      this.updateButtons();
     }
   },
   updateButtons() {
     [btnFocusSound, btnToolbarLofi].filter(Boolean).forEach((button) => {
-      button.textContent = this.playing
+      button.textContent = this.loading
+        ? "🎧 Loading Lo-Fi..."
+        : this.playing
         ? "🎧 Lo-Fi Beats: ON"
         : "🎧 Lo-Fi Beats: OFF";
       button.classList.toggle("active", this.playing);
+      button.disabled = this.loading;
+      button.setAttribute("aria-busy", String(this.loading));
     });
   },
   loadUploadedTrack(trackId, base64) {
@@ -2259,505 +2261,3 @@ if (btnResetClinicLog) {
     }
   });
 }
-
-// ==========================================
-// 11. ARCADE LEADERBOARD
-// ==========================================
-let arcadePlayerName = "";
-
-window.openGameMenu = function () {
-  const playerName = prompt(
-    "Enter your name for the Al-Ameen Arcade Leaderboard:",
-    localStorage.getItem("dento_student") || "",
-  );
-  if (!playerName || !playerName.trim()) return;
-
-  arcadePlayerName = playerName.trim().slice(0, 30);
-  localStorage.setItem("dento_student", arcadePlayerName);
-
-  const nameLabel = document.getElementById("arcade-player-name-label");
-  if (nameLabel) nameLabel.textContent = arcadePlayerName;
-
-  const menu = document.getElementById("game-selection-overlay");
-  if (menu) menu.style.display = "flex";
-};
-
-window.closeGameMenu = function () {
-  const menu = document.getElementById("game-selection-overlay");
-  if (menu) menu.style.display = "none";
-};
-
-window.openStandaloneLeaderboard = function () {
-  const scoreboardModal = document.getElementById("scoreboard-modal");
-  const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
-  const menu = document.getElementById("game-selection-overlay");
-
-  if (menu) menu.style.display = "none";
-  if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
-
-  const heading = document.getElementById("scoreboard-heading");
-  const finalScoreDisp = document.getElementById("final-score-display");
-  const finalSub = document.getElementById("final-run-subtitle");
-
-  if (heading) heading.textContent = "🏆 AL-AMEEN HIGH SCORES";
-  if (finalScoreDisp) finalScoreDisp.textContent = "---";
-  if (finalSub) finalSub.textContent = "Global Hall of Fame (Cumulative)";
-
-  if (scoreboardModal) scoreboardModal.style.display = "flex";
-  fetchDriftLeaderboard();
-};
-
-// --- FIREBASE SCOREBOARD SYNC ---
-async function submitDriftScore(playerName, playerScore) {
-  const studentName =
-    playerName?.trim() || localStorage.getItem("dento_student") || "Student";
-  const currentUser = window.auth?.currentUser;
-  const isAdmin = currentUser?.email === adminEmail;
-  const displayName = isAdmin ? "Admin" : studentName;
-  const docId = isAdmin
-    ? "admin_master"
-    : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
-
-  if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
-    return false;
-  }
-
-  try {
-    const docRef = window.doc(window.db, "DriftScores", docId);
-    const docSnap = await window.getDoc(docRef);
-    const previousScore = docSnap.exists()
-      ? Number(docSnap.data().score) || 0
-      : 0;
-    const sanitizedGain = Math.min(
-      50000,
-      Math.max(0, Math.round(Number(playerScore) || 0)),
-    );
-    const cumulativeScore = previousScore + sanitizedGain;
-
-    await window.setDoc(docRef, {
-      name: displayName,
-      score: cumulativeScore,
-      timestamp: new Date().toISOString(),
-    });
-    return true;
-  } catch (error) {
-    console.error("Firebase score error:", error);
-    return false;
-  }
-}
-
-async function fetchDriftLeaderboard() {
-  const leaderboardList = document.getElementById("leaderboard-list");
-  if (leaderboardList) {
-    leaderboardList.innerHTML = `<div style="text-align: center; color: white; font-family: monospace;">Fetching Live Scores...</div>`;
-  }
-  try {
-    const scoresQuery = window.query(
-      window.collection(window.db, "DriftScores"),
-      window.orderBy("score", "desc"),
-      window.limit(10),
-    );
-    const snapshot = await window.getDocs(scoresQuery);
-    const dataArray = [];
-    snapshot.forEach((docSnap) => {
-      const d = docSnap.data();
-      dataArray.push({ id: docSnap.id, name: d.name, score: d.score });
-    });
-    renderDriftLeaderboardUI(dataArray);
-  } catch (error) {
-    if (leaderboardList) {
-      leaderboardList.innerHTML = `<div style="text-align: center; color: #ef4444; font-family: monospace;">Unable to load live scores.</div>`;
-    }
-  }
-}
-
-function renderDriftLeaderboardUI(dataArray) {
-  const leaderboardList = document.getElementById("leaderboard-list");
-  const resetLeaderboardButton = document.getElementById(
-    "reset-leaderboard-btn",
-  );
-  if (!leaderboardList) return;
-  leaderboardList.innerHTML = "";
-
-  const isAdmin =
-    window.auth &&
-    window.auth.currentUser &&
-    window.auth.currentUser.email === adminEmail;
-  if (resetLeaderboardButton) {
-    resetLeaderboardButton.style.display = isAdmin ? "block" : "none";
-  }
-
-  if (dataArray.length === 0) {
-    leaderboardList.innerHTML = `<div style="text-align: center; color: #94a3b8; font-family: monospace;">No scores yet. Set the record!</div>`;
-    return;
-  }
-
-  dataArray.forEach((player, index) => {
-    const rowDiv = document.createElement("div");
-    rowDiv.className = `leaderboard-row${index < 3 ? ` leaderboard-rank-${index + 1}` : ""}`;
-
-    const rankSpan = document.createElement("span");
-    rankSpan.className = "leaderboard-rank";
-    rankSpan.textContent = index === 0 ? "👑" : String(index + 1).padStart(2, "0");
-    const infoSpan = document.createElement("span");
-    infoSpan.className = "leaderboard-player";
-    infoSpan.textContent = player.name || "Student";
-
-    const rightBox = document.createElement("div");
-    rightBox.className = "leaderboard-score-box";
-
-    const scoreSpan = document.createElement("span");
-    scoreSpan.className = "leaderboard-score";
-    scoreSpan.textContent = String(player.score);
-    rightBox.appendChild(scoreSpan);
-
-    if (isAdmin) {
-      const delScoreBtn = document.createElement("button");
-      delScoreBtn.className = "delete-resource-btn";
-      delScoreBtn.textContent = "🗑️";
-      delScoreBtn.title = "Delete score";
-      delScoreBtn.addEventListener("click", async () => {
-        if (confirm(`Delete score for ${player.name}?`)) {
-          try {
-            await window.deleteDoc(
-              window.doc(window.db, "DriftScores", player.id),
-            );
-            rowDiv.remove();
-          } catch (err) {
-            alert("Delete failed: " + err.message);
-          }
-        }
-      });
-      rightBox.appendChild(delScoreBtn);
-    }
-
-    rowDiv.appendChild(rankSpan);
-    rowDiv.appendChild(infoSpan);
-    rowDiv.appendChild(rightBox);
-    leaderboardList.appendChild(rowDiv);
-  });
-}
-
-async function resetDriftLeaderboard() {
-  const currentUser = window.auth?.currentUser;
-  if (currentUser?.email !== adminEmail) {
-    alert("Only the administrator can reset leaderboard scores.");
-    return;
-  }
-
-  if (
-    !confirm(
-      "Reset all leaderboard scores? This permanently deletes every saved score.",
-    )
-  ) {
-    return;
-  }
-
-  try {
-    const snapshot = await window.getDocs(
-      window.collection(window.db, "DriftScores"),
-    );
-    await Promise.all(
-      snapshot.docs.map((scoreDoc) =>
-        window.deleteDoc(window.doc(window.db, "DriftScores", scoreDoc.id)),
-      ),
-    );
-    await fetchDriftLeaderboard();
-  } catch (error) {
-    console.error("Leaderboard reset error:", error);
-    alert("Unable to reset leaderboard scores. Please try again.");
-  }
-}
-
-document
-  .getElementById("reset-leaderboard-btn")
-  ?.addEventListener("click", resetDriftLeaderboard);
-
-window.finishArcadeRun = async function (finalScore, gameTitle = "ARCADE") {
-  const scoreboardModal = document.getElementById("scoreboard-modal");
-  const heading = document.getElementById("scoreboard-heading");
-  const finalScoreDisplay = document.getElementById("final-score-display");
-  const finalSubtitle = document.getElementById("final-run-subtitle");
-
-  if (heading) heading.textContent = `🏁 ${gameTitle} FINISHED`;
-  if (finalScoreDisplay) finalScoreDisplay.textContent = String(finalScore);
-  if (finalSubtitle) finalSubtitle.textContent = "Score submitted to the Hall of Fame";
-  if (scoreboardModal) scoreboardModal.style.display = "flex";
-
-  await submitDriftScore(arcadePlayerName, finalScore);
-  await fetchDriftLeaderboard();
-};
-
-// ==========================================
-// 12. CROSSY ROADS (LIGHTWEIGHT THREE.JS)
-// ==========================================
-const hopper = {
-  renderer: null,
-  scene: null,
-  camera: null,
-  player: null,
-  rows: [],
-  rowMeshes: new Map(),
-  running: false,
-  gameOver: false,
-  x: 0,
-  z: 0,
-  score: 0,
-  furthestRow: 0,
-  animationFrame: 0,
-  lastTime: 0,
-  hop: null,
-};
-
-const HOPPER_COLORS = {
-  grass: 0x65a30d,
-  grassDark: 0x4d7c0f,
-  road: 0x334155,
-  roadLine: 0xf8fafc,
-  water: 0x0284c7,
-  log: 0x92400e,
-  tree: 0x166534,
-  player: 0xfacc15,
-  car: 0xef4444,
-  truck: 0xf97316,
-};
-
-function hopperBox(width, height, depth, color) {
-  return new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, depth),
-    new THREE.MeshLambertMaterial({ color }),
-  );
-}
-
-function hopperCreateRow(z) {
-  const type = z === 0 ? "grass" : z % 5 === 0 ? "river" : z % 3 === 0 ? "road" : "grass";
-  const row = {
-    z,
-    type,
-    speed: type === "road" ? (z % 2 ? 1.9 : -1.5) : z % 2 ? 0.65 : -0.5,
-    objects: [],
-  };
-  const ground = hopperBox(13, 0.2, 1, type === "river" ? HOPPER_COLORS.water : type === "road" ? HOPPER_COLORS.road : HOPPER_COLORS.grass);
-  ground.position.set(0, -0.1, z);
-  hopper.scene.add(ground);
-  row.objects.push(ground);
-
-  if (type === "road") {
-    const line = hopperBox(12.5, 0.02, 0.04, HOPPER_COLORS.roadLine);
-    line.position.set(0, 0.01, z);
-    hopper.scene.add(line);
-    row.objects.push(line);
-    for (let i = 0; i < 2; i += 1) {
-      const vehicle = hopperBox(i ? 1.45 : 1.05, i ? 0.42 : 0.32, 0.62, i ? HOPPER_COLORS.truck : HOPPER_COLORS.car);
-      vehicle.position.set((i ? -1 : 1) * (2.5 + (z % 3)), 0.28, z);
-      hopper.scene.add(vehicle);
-      row.objects.push(vehicle);
-    }
-  } else if (type === "river") {
-    for (let i = 0; i < 2; i += 1) {
-      const log = hopperBox(2.2, 0.25, 0.58, HOPPER_COLORS.log);
-      log.position.set(i ? -2.5 : 2.4, 0.16, z);
-      hopper.scene.add(log);
-      row.objects.push(log);
-    }
-  } else {
-    for (let i = 0; i < 2; i += 1) {
-      const tree = new THREE.Group();
-      const trunk = hopperBox(0.18, 0.5, 0.18, 0x78350f);
-      trunk.position.y = 0.25;
-      const crown = hopperBox(0.62, 0.65, 0.62, HOPPER_COLORS.tree);
-      crown.position.y = 0.72;
-      tree.add(trunk, crown);
-      tree.position.set(i ? -4.4 : 4.2, 0, z);
-      hopper.scene.add(tree);
-      row.objects.push(tree);
-    }
-  }
-  hopper.rows.push(row);
-  hopper.rowMeshes.set(z, row);
-}
-
-function hopperRemoveBehind() {
-  while (hopper.rows.length && hopper.rows[0].z < hopper.z - 4) {
-    const oldRow = hopper.rows.shift();
-    oldRow.objects.forEach((object) => hopper.scene.remove(object));
-    hopper.rowMeshes.delete(oldRow.z);
-  }
-}
-
-function hopperResetWorld() {
-  hopper.rows.forEach((row) => row.objects.forEach((object) => hopper.scene.remove(object)));
-  hopper.rows = [];
-  hopper.rowMeshes.clear();
-  hopper.x = 0;
-  hopper.z = 0;
-  hopper.score = 0;
-  hopper.furthestRow = 0;
-  hopper.gameOver = false;
-  for (let z = -3; z < 18; z += 1) hopperCreateRow(z);
-  hopper.player.position.set(0, 0.35, 0);
-  document.getElementById("hopper-score").textContent = "0";
-  document.getElementById("hopper-message").style.display = "none";
-}
-
-function hopperCollision(row) {
-  const x = hopper.x;
-  return row.objects.some((object) => {
-    if (row.type === "road") return object.position.y > 0.2 && Math.abs(object.position.x - x) < 0.78;
-    if (row.type === "river") return object.position.y > 0 && Math.abs(object.position.x - x) < 1.25;
-    return false;
-  });
-}
-
-function hopperEndRun(reason) {
-  if (hopper.gameOver) return;
-  hopper.gameOver = true;
-  hopper.running = false;
-  cancelAnimationFrame(hopper.animationFrame);
-  const message = document.getElementById("hopper-message");
-  message.innerHTML = `<strong>${reason}</strong><span>Final distance: ${hopper.score} points</span>`;
-  message.style.display = "flex";
-  window.finishArcadeRun(hopper.score, "HOPPER");
-}
-
-function hopperMove(direction) {
-  if (!hopper.running || hopper.gameOver || hopper.hop) return;
-  if (direction === "left") hopper.x = Math.max(-5, hopper.x - 1);
-  if (direction === "right") hopper.x = Math.min(5, hopper.x + 1);
-  if (direction !== "forward") return;
-  hopper.z += 1;
-  hopper.score = Math.max(hopper.score, hopper.z * 10);
-  hopper.furthestRow = Math.max(hopper.furthestRow, hopper.z);
-  document.getElementById("hopper-score").textContent = String(hopper.score);
-  while (hopper.rows[hopper.rows.length - 1].z < hopper.z + 10) {
-    hopperCreateRow(hopper.rows[hopper.rows.length - 1].z + 1);
-  }
-  hopperRemoveBehind();
-  const row = hopper.rowMeshes.get(hopper.z);
-  if (!row || (row.type === "road" && hopperCollision(row)) || (row.type === "river" && !hopperCollision(row))) {
-    hopperEndRun(row?.type === "river" ? "🌊 Splash!" : "💥 Ouch!");
-    return;
-  }
-  hopper.hop = { from: hopper.player.position.clone(), to: new THREE.Vector3(hopper.x, 0.35, hopper.z), started: performance.now() };
-}
-
-function hopperAnimate(now) {
-  if (!hopper.running) return;
-  hopper.animationFrame = requestAnimationFrame(hopperAnimate);
-  const delta = Math.min(0.05, (now - hopper.lastTime) / 1000 || 0);
-  hopper.lastTime = now;
-  hopper.rows.forEach((row) => {
-    if (row.type === "road" || row.type === "river") {
-      row.objects.slice(1).forEach((object) => {
-        object.position.x += row.speed * delta;
-        if (object.position.x > 7) object.position.x = -7;
-        if (object.position.x < -7) object.position.x = 7;
-      });
-    }
-  });
-  if (hopper.hop) {
-    const progress = Math.min(1, (now - hopper.hop.started) / 180);
-    hopper.player.position.lerpVectors(hopper.hop.from, hopper.hop.to, progress);
-    hopper.player.position.y += Math.sin(progress * Math.PI) * 0.65;
-    if (progress === 1) hopper.hop = null;
-  }
-  hopper.camera.position.z += (hopper.z + 6 - hopper.camera.position.z) * 0.08;
-  hopper.camera.lookAt(0, 0, hopper.z + 2);
-  const row = hopper.rowMeshes.get(hopper.z);
-  if (
-    row &&
-    ((row.type === "road" && hopperCollision(row)) ||
-      (row.type === "river" && !hopperCollision(row) && !hopper.hop))
-  ) {
-    hopperEndRun(row.type === "river" ? "🌊 Splash!" : "💥 Ouch!");
-    return;
-  }
-  hopper.renderer.render(hopper.scene, hopper.camera);
-}
-
-function initHopper() {
-  const canvas = document.getElementById("hopper-canvas");
-  if (!canvas || typeof THREE === "undefined" || hopper.renderer) return;
-  hopper.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
-  hopper.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  hopper.scene = new THREE.Scene();
-  hopper.scene.background = new THREE.Color(0x7dd3fc);
-  hopper.scene.add(new THREE.HemisphereLight(0xdbeafe, 0x365314, 1.8));
-  hopper.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  hopper.camera.position.set(9, 9, 10);
-  hopper.player = hopperBox(0.55, 0.65, 0.55, HOPPER_COLORS.player);
-  hopper.player.position.y = 0.35;
-  hopper.scene.add(hopper.player);
-  const resize = () => {
-    const mount = document.getElementById("arcade-2d-mount");
-    const width = mount.clientWidth;
-    const height = mount.clientHeight;
-    hopper.renderer.setSize(width, height, false);
-    hopper.camera.aspect = width / height;
-    hopper.camera.updateProjectionMatrix();
-  };
-  window.addEventListener("resize", resize);
-  resize();
-  document.querySelectorAll("[data-hopper-move]").forEach((button) => {
-    button.addEventListener("click", () => hopperMove(button.dataset.hopperMove));
-  });
-  window.addEventListener("keydown", (event) => {
-    if (
-      event.target instanceof HTMLInputElement ||
-      event.target instanceof HTMLTextAreaElement ||
-      event.target instanceof HTMLSelectElement
-    ) {
-      return;
-    }
-    const moves = { ArrowUp: "forward", w: "forward", W: "forward", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
-    if (moves[event.key]) {
-      event.preventDefault();
-      hopperMove(moves[event.key]);
-    }
-  });
-}
-
-let crossyRoadsCleanup = null;
-
-window.startHopperGame = async function () {
-  const menu = document.getElementById("game-selection-overlay");
-  const overlay = document.getElementById("game-canvas-overlay");
-  const mount = document.getElementById("arcade-2d-mount");
-  const message = document.getElementById("hopper-message");
-  if (menu) menu.style.display = "none";
-  if (overlay) overlay.style.display = "flex";
-  if (message) message.style.display = "none";
-  if (!mount) return;
-  if (crossyRoadsCleanup) crossyRoadsCleanup();
-  try {
-    const { startCrossyRoads } = await import("./crossyroad-game.js");
-    crossyRoadsCleanup = await startCrossyRoads(mount, (score, reason) => {
-      const gameMessage = document.getElementById("hopper-message");
-      if (gameMessage) {
-        gameMessage.innerHTML = `<strong>${reason}</strong><span>Final distance: ${score} points</span>`;
-        gameMessage.style.display = "flex";
-      }
-      window.finishArcadeRun(score, "CROSSY ROADS 🐔");
-    });
-  } catch (error) {
-    console.error("Unable to start Crossy Roads.", error);
-    if (message) {
-      message.innerHTML = "<strong>Game unavailable</strong><span>Unable to load the Crossy Roads assets.</span>";
-      message.style.display = "flex";
-    }
-  }
-};
-
-window.quitGame = function () {
-  const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
-  const scoreboardModal = document.getElementById("scoreboard-modal");
-  if (crossyRoadsCleanup) {
-    crossyRoadsCleanup();
-    crossyRoadsCleanup = null;
-  }
-  hopper.running = false;
-  hopper.gameOver = true;
-  cancelAnimationFrame(hopper.animationFrame);
-  if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
-  if (scoreboardModal) scoreboardModal.style.display = "none";
-};
