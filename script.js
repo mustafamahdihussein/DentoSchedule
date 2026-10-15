@@ -2717,21 +2717,44 @@ function initHopper() {
   });
 }
 
-window.startHopperGame = function () {
+let crossyRoadsCleanup = null;
+
+window.startHopperGame = async function () {
   const menu = document.getElementById("game-selection-overlay");
   const overlay = document.getElementById("game-canvas-overlay");
+  const mount = document.getElementById("arcade-2d-mount");
+  const message = document.getElementById("hopper-message");
   if (menu) menu.style.display = "none";
   if (overlay) overlay.style.display = "flex";
-  initHopper();
-  hopperResetWorld();
-  hopper.running = true;
-  hopper.lastTime = performance.now();
-  hopper.animationFrame = requestAnimationFrame(hopperAnimate);
+  if (message) message.style.display = "none";
+  if (!mount) return;
+  if (crossyRoadsCleanup) crossyRoadsCleanup();
+  try {
+    const { startCrossyRoads } = await import("./crossyroad-game.js");
+    crossyRoadsCleanup = await startCrossyRoads(mount, (score, reason) => {
+      const gameMessage = document.getElementById("hopper-message");
+      if (gameMessage) {
+        gameMessage.innerHTML = `<strong>${reason}</strong><span>Final distance: ${score} points</span>`;
+        gameMessage.style.display = "flex";
+      }
+      window.finishArcadeRun(score, "CROSSY ROADS 🐔");
+    });
+  } catch (error) {
+    console.error("Unable to start Crossy Roads.", error);
+    if (message) {
+      message.innerHTML = "<strong>Game unavailable</strong><span>Unable to load the Crossy Roads assets.</span>";
+      message.style.display = "flex";
+    }
+  }
 };
 
 window.quitGame = function () {
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   const scoreboardModal = document.getElementById("scoreboard-modal");
+  if (crossyRoadsCleanup) {
+    crossyRoadsCleanup();
+    crossyRoadsCleanup = null;
+  }
   hopper.running = false;
   hopper.gameOver = true;
   cancelAnimationFrame(hopper.animationFrame);
