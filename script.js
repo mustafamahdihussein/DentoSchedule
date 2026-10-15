@@ -2075,13 +2075,10 @@ if (pomodoroModal && btnOpenPomodoro) {
 // 10. 4TH-YEAR CLINICAL REQUIREMENTS TRACKER
 // ==========================================
 const clinicRequirementsConfig = [
-  { id: "cons_amal", title: "Conservative: Amalgam Restorations", target: 15 },
-  { id: "cons_comp", title: "Conservative: Composite Restorations", target: 20 },
-  { id: "surg_ext", title: "Oral Surgery: Simple Extractions", target: 12 },
-  { id: "prost_cd", title: "Prosthodontics: Complete Denture Cases", target: 2 },
+  { id: "cons_comp", title: "Conservative: Composite Restorations", target: 8 },
+  { id: "surg_ext", title: "Oral Surgery: Simple Extractions", target: 8 },
   { id: "prost_pd", title: "Prosthodontics: Partial Denture Cases", target: 4 },
   { id: "perio_sc", title: "Periodontics: Scaling & Root Planing", target: 10 },
-  { id: "pedo_rest", title: "Pedodontics: Pediatric Restorations", target: 8 },
 ];
 
 const modalClinicLog = document.getElementById("modal-clinic-log");
