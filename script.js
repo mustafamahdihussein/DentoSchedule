@@ -2245,7 +2245,7 @@ window.openStandaloneLeaderboard = function () {
   fetchDriftLeaderboard();
 };
 
-// --- CAR MP3 AUDIO & WEB AUDIO SYNTHESIS ---
+// --- AUDIO & LAZY WEB AUDIO SYNTHESIS ---
 const soundtrack = new Audio("soundtrack.mp3");
 soundtrack.loop = true;
 soundtrack.volume = 0.35;
@@ -2259,19 +2259,18 @@ driftAudio.loop = true;
 driftAudio.volume = 0;
 
 let arcadeAudioCtx = null;
-
 function getArcadeAudioCtx() {
-  if (arcadeAudioCtx) return arcadeAudioCtx;
-
-  const AudioContextConstructor =
-    window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextConstructor) return null;
-
-  try {
-    arcadeAudioCtx = new AudioContextConstructor();
-  } catch (error) {
-    console.warn("Web Audio API unavailable.", error);
-    return null;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!arcadeAudioCtx) {
+    try {
+      arcadeAudioCtx = new AudioContextClass();
+    } catch (e) {
+      return null;
+    }
+  }
+  if (arcadeAudioCtx.state === "suspended") {
+    arcadeAudioCtx.resume().catch(() => {});
   }
   return arcadeAudioCtx;
 }
@@ -2282,72 +2281,67 @@ const dentalArcadeSynth = {
   drillOsc: null,
   drillGain: null,
   notes: [
+    329.63, 392.0, 493.88, 659.25, 493.88, 392.0,
+    293.66, 369.99, 440.0, 587.33, 440.0, 369.99,
     261.63, 329.63, 392.0, 523.25, 392.0, 329.63,
-    293.66, 349.23, 440.0, 587.33, 440.0, 349.23,
-    246.94, 329.63, 392.0, 493.88, 392.0, 329.63,
-    261.63, 311.13, 392.0, 523.25, 622.25, 523.25,
+    293.66, 369.99, 440.0, 587.33, 659.25, 587.33,
   ],
   startMusic() {
     this.stopMusic();
-    const audioCtx = getArcadeAudioCtx();
-    if (!audioCtx) return;
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume().catch(() => {});
-    }
+    const ctx = getArcadeAudioCtx();
+    if (!ctx) return;
+
     this.step = 0;
     this.timer = setInterval(() => {
       try {
-        const now = audioCtx.currentTime;
+        const now = ctx.currentTime;
         const freq = this.notes[this.step % this.notes.length];
-        const osc = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        osc.type = this.step % 6 === 0 ? "square" : "triangle";
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = this.step % 4 === 0 ? "triangle" : "sine";
         osc.frequency.setValueAtTime(freq, now);
-        g.gain.setValueAtTime(0.045, now);
-        g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        g.gain.setValueAtTime(0.04, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
         osc.connect(g);
-        g.connect(audioCtx.destination);
+        g.connect(ctx.destination);
         osc.start(now);
-        osc.stop(now + 0.15);
+        osc.stop(now + 0.14);
 
-        // Bass pulse on every 3rd step
-        if (this.step % 3 === 0) {
-          const bass = audioCtx.createOscillator();
-          const bg = audioCtx.createGain();
+        if (this.step % 2 === 0) {
+          const bass = ctx.createOscillator();
+          const bg = ctx.createGain();
           bass.type = "sawtooth";
           bass.frequency.setValueAtTime(freq * 0.25, now);
-          bg.gain.setValueAtTime(0.055, now);
-          bg.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          bg.gain.setValueAtTime(0.045, now);
+          bg.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
           bass.connect(bg);
-          bg.connect(audioCtx.destination);
+          bg.connect(ctx.destination);
           bass.start(now);
-          bass.stop(now + 0.19);
+          bass.stop(now + 0.17);
         }
         this.step++;
       } catch (e) {}
-    }, 150);
+    }, 135);
 
-    // Continuous high-speed turbine whirr node (volume controlled by Drill button)
     try {
-      this.drillOsc = audioCtx.createOscillator();
-      this.drillGain = audioCtx.createGain();
+      this.drillOsc = ctx.createOscillator();
+      this.drillGain = ctx.createGain();
       this.drillOsc.type = "sine";
-      this.drillOsc.frequency.setValueAtTime(2900, audioCtx.currentTime);
-      this.drillGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      this.drillOsc.frequency.setValueAtTime(3100, ctx.currentTime);
+      this.drillGain.gain.setValueAtTime(0.0001, ctx.currentTime);
       this.drillOsc.connect(this.drillGain);
-      this.drillGain.connect(audioCtx.destination);
+      this.drillGain.connect(ctx.destination);
       this.drillOsc.start();
     } catch (e) {}
   },
   setDrillActive(isActive) {
-    if (!this.drillGain || !this.drillOsc) return;
-    const audioCtx = getArcadeAudioCtx();
-    if (!audioCtx) return;
+    const ctx = getArcadeAudioCtx();
+    if (!ctx || !this.drillGain || !this.drillOsc) return;
     try {
-      const now = audioCtx.currentTime;
-      this.drillGain.gain.setTargetAtTime(isActive ? 0.045 : 0.0001, now, 0.04);
+      const now = ctx.currentTime;
+      this.drillGain.gain.setTargetAtTime(isActive ? 0.04 : 0.0001, now, 0.03);
       this.drillOsc.frequency.setTargetAtTime(
-        isActive ? 3400 + Math.random() * 250 : 2600,
+        isActive ? 3600 + Math.random() * 300 : 2800,
         now,
         0.03,
       );
@@ -2381,54 +2375,36 @@ function stopArcadeAudio() {
 
 const sfx = {
   init() {
-    const audioCtx = getArcadeAudioCtx();
-    if (!audioCtx) return;
-    if (audioCtx.state === "suspended") {
-      audioCtx.resume().catch(() => {});
-    }
+    getArcadeAudioCtx();
+  },
+  playTone(freq, endFreq, duration = 0.18, type = "sine", vol = 0.16) {
+    const ctx = getArcadeAudioCtx();
+    if (!ctx) return;
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(
+        endFreq,
+        ctx.currentTime + duration,
+      );
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration + 0.01);
+    } catch (e) {}
   },
   playDing(pitch = 880) {
-    const audioCtx = getArcadeAudioCtx();
-    if (!audioCtx) return;
-    try {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        pitch * 1.5,
-        audioCtx.currentTime + 0.12,
-      );
-      gain.gain.setValueAtTime(0.16, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.2);
-    } catch (e) {}
+    this.playTone(pitch, pitch * 1.45, 0.18, "sine", 0.16);
+  },
+  playCountdownBeep(isGo = false) {
+    this.playTone(isGo ? 1046.5 : 523.25, isGo ? 1318.5 : 523.25, isGo ? 0.35 : 0.15, "triangle", 0.2);
   },
   playCrash() {
-    const audioCtx = getArcadeAudioCtx();
-    if (!audioCtx) return;
-    try {
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        35,
-        audioCtx.currentTime + 0.35,
-      );
-      gain.gain.setValueAtTime(0.32, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(
-        0.001,
-        audioCtx.currentTime + 0.35,
-      );
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.35);
-    } catch (e) {}
+    this.playTone(150, 32, 0.35, "sawtooth", 0.3);
   },
 };
 
@@ -2453,7 +2429,8 @@ async function submitDriftScore(playerName, playerScore) {
     const previousScore = docSnap.exists()
       ? Number(docSnap.data().score) || 0
       : 0;
-    const cumulativeScore = previousScore + Math.max(0, Math.round(Number(playerScore) || 0));
+    const sanitizedGain = Math.min(50000, Math.max(0, Math.round(Number(playerScore) || 0)));
+    const cumulativeScore = previousScore + sanitizedGain;
 
     await window.setDoc(docRef, {
       name: displayName,
@@ -2551,11 +2528,10 @@ function renderDriftLeaderboardUI(dataArray) {
 }
 
 // ==========================================
-// 12. PROCEDURAL 3D MODEL BUILDERS (THREE.JS)
+// 12. PROCEDURAL CANVAS TEXTURES & 3D SPRITES
 // ==========================================
 window.input = { gas: false, left: false, right: false };
 
-// Desktop Keyboard Support (Arrows / WASD / Space)
 window.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") window.input.left = true;
   if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") window.input.right = true;
@@ -2567,12 +2543,115 @@ window.addEventListener("keyup", (e) => {
   if (e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === " ") window.input.gas = false;
 });
 
+function createTextBannerTexture(title, subtitle, bgHex = "#0f172a", borderHex = "#38bdf8", textHex = "#ffffff") {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 128;
+  const ctx = c.getContext("2d");
+
+  ctx.fillStyle = bgHex;
+  ctx.fillRect(0, 0, 512, 128);
+
+  // Checkered racing strips on left/right edges
+  for (let y = 0; y < 128; y += 16) {
+    for (let x = 0; x < 32; x += 16) {
+      ctx.fillStyle = (x + y) % 32 === 0 ? "#ffffff" : "#000000";
+      ctx.fillRect(x, y, 16, 16);
+      ctx.fillRect(512 - 32 + x, y, 16, 16);
+    }
+  }
+
+  ctx.strokeStyle = borderHex;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(3, 3, 506, 122);
+
+  ctx.fillStyle = textHex;
+  ctx.font = "900 38px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(title, 256, 58);
+
+  ctx.fillStyle = borderHex;
+  ctx.font = "700 24px monospace";
+  ctx.fillText(subtitle, 256, 98);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.needsUpdate = true;
+  return tex;
+}
+
+function createBadgeSprite(labelText, bgColor = "#1e293b", borderColor = "#38bdf8", textColor = "#ffffff") {
+  const c = document.createElement("canvas");
+  c.width = 256;
+  c.height = 80;
+  const ctx = c.getContext("2d");
+
+  ctx.fillStyle = bgColor;
+  ctx.beginPath();
+  ctx.roundRect(8, 8, 240, 64, 18);
+  ctx.fill();
+
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 5;
+  ctx.stroke();
+
+  ctx.fillStyle = textColor;
+  ctx.font = "900 28px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(labelText, 128, 41);
+
+  const tex = new THREE.CanvasTexture(c);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2.2, 0.7, 1);
+  return sprite;
+}
+
+function build3DGantryArch(title, subtitle, accentColor = 0x38bdf8, borderHex = "#38bdf8") {
+  const archGroup = new THREE.Group();
+  const pillarMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    metalness: 0.75,
+    roughness: 0.25,
+  });
+  const neonMat = new THREE.MeshBasicMaterial({ color: accentColor });
+
+  [-7.2, 7.2].forEach((px) => {
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.28, 0.34, 6.2, 12),
+      pillarMat,
+    );
+    pillar.position.set(px, 3.1, 0);
+    archGroup.add(pillar);
+
+    const neonStrip = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 5.8, 0.12),
+      neonMat,
+    );
+    neonStrip.position.set(px > 0 ? px - 0.28 : px + 0.28, 3.1, 0);
+    archGroup.add(neonStrip);
+  });
+
+  const bannerTex = createTextBannerTexture(title, subtitle, "#090d16", borderHex, "#ffffff");
+  const bannerBoard = new THREE.Mesh(
+    new THREE.BoxGeometry(14.8, 2.2, 0.45),
+    new THREE.MeshBasicMaterial({ map: bannerTex }),
+  );
+  bannerBoard.position.set(0, 5.4, 0);
+  archGroup.add(bannerBoard);
+
+  return archGroup;
+}
+
+// ==========================================
+// 13. DETAILED 3D MODELS (CARS, HANDPIECE, TEETH)
+// ==========================================
 function build3DCarMesh(carType, isTraffic = false) {
   const carGroup = new THREE.Group();
   const bodyPivot = new THREE.Group();
   carGroup.add(bodyPivot);
 
-  let primaryColor = 0xdc2626; // G37 Crimson Sport
+  let primaryColor = 0xdc2626; // G37x Sport Crimson
   let neonColor = 0xef4444;
   if (carType === "skyline") {
     primaryColor = 0x0284c7; // Bayside Blue GT-R
@@ -2581,94 +2660,81 @@ function build3DCarMesh(carType, isTraffic = false) {
     primaryColor = 0xf59e0b; // Cyber Gold Tuner
     neonColor = 0xfacc15;
   } else if (isTraffic) {
-    const palette = [0x64748b, 0x334155, 0x475569, 0x1e293b, 0x7c2d12, 0x1e3a8a];
+    const palette = [0x475569, 0x334155, 0x1e293b, 0x64748b, 0x312e81, 0x7f1d1d];
     primaryColor = palette[Math.floor(Math.random() * palette.length)];
   }
 
   const paintMat = new THREE.MeshPhysicalMaterial({
     color: primaryColor,
-    metalness: 0.55,
-    roughness: 0.22,
+    metalness: 0.6,
+    roughness: 0.18,
     clearcoat: 1.0,
-    clearcoatRoughness: 0.08,
+    clearcoatRoughness: 0.06,
   });
   const darkTrimMat = new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
-    roughness: 0.5,
-    metalness: 0.3,
+    color: 0x090d16,
+    roughness: 0.4,
+    metalness: 0.5,
   });
   const glassMat = new THREE.MeshPhysicalMaterial({
-    color: 0x090d16,
-    metalness: 0.2,
-    roughness: 0.1,
-    transparent: true,
-    opacity: 0.88,
+    color: 0x020617,
+    metalness: 0.25,
+    roughness: 0.08,
+    clearcoat: 1.0,
   });
 
-  // Lower Sculpted Chassis
-  const chassisLength = carType === "accent" ? 3.8 : 4.3;
-  const chassis = new THREE.Mesh(
-    new THREE.BoxGeometry(1.92, 0.54, chassisLength),
+  const chassisLength = carType === "accent" ? 3.85 : 4.35;
+
+  // Lower Body + Sculpted Hood & Fenders
+  const lowerBody = new THREE.Mesh(
+    new THREE.BoxGeometry(1.94, 0.52, chassisLength),
     paintMat,
   );
-  chassis.position.y = 0.48;
-  bodyPivot.add(chassis);
+  lowerBody.position.y = 0.48;
+  bodyPivot.add(lowerBody);
 
-  // Front Splitter & Side Skirts
+  // Aero Splitter & Rear Diffuser
   const splitter = new THREE.Mesh(
-    new THREE.BoxGeometry(1.98, 0.12, chassisLength + 0.14),
+    new THREE.BoxGeometry(2.04, 0.12, chassisLength + 0.18),
     darkTrimMat,
   );
   splitter.position.y = 0.24;
   bodyPivot.add(splitter);
 
-  // Tapered Aerodynamic Cabin / Greenhouse
-  const cabinGeo = new THREE.CylinderGeometry(1.02, 1.32, 0.52, 4);
+  // Sleek Fastback Cabin
+  const cabinGeo = new THREE.CylinderGeometry(1.0, 1.34, 0.52, 4);
   cabinGeo.rotateY(Math.PI / 4);
-  cabinGeo.scale(1.0, 1.0, carType === "accent" ? 1.45 : 1.55);
+  cabinGeo.scale(1.0, 1.0, carType === "accent" ? 1.48 : 1.58);
   const cabin = new THREE.Mesh(cabinGeo, glassMat);
-  cabin.position.set(0, 0.96, carType === "accent" ? 0.15 : -0.1);
+  cabin.position.set(0, 0.96, carType === "accent" ? 0.12 : -0.08);
   bodyPivot.add(cabin);
 
-  // Roof Cap
   const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(1.36, 0.06, carType === "accent" ? 1.75 : 1.65),
+    new THREE.BoxGeometry(1.34, 0.06, carType === "accent" ? 1.7 : 1.65),
     paintMat,
   );
-  roof.position.set(0, 1.22, carType === "accent" ? 0.15 : -0.1);
+  roof.position.set(0, 1.22, carType === "accent" ? 0.12 : -0.08);
   bodyPivot.add(roof);
 
-  // Side Mirrors
-  [-1.02, 1.02].forEach((mx) => {
-    const mirror = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.12, 0.22),
-      paintMat,
-    );
-    mirror.position.set(mx, 0.78, -0.55);
-    bodyPivot.add(mirror);
-  });
-
-  // 4 Wheels + Metallic Rims
-  const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.26, 20);
+  // 4 Wheels + Chrome Rims + Brake Calipers
+  const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.28, 20);
   wheelGeo.rotateZ(Math.PI / 2);
-  const tireMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85 });
-
-  const rimGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.28, 12);
+  const tireMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.85 });
+  const rimGeo = new THREE.CylinderGeometry(0.23, 0.23, 0.3, 12);
   rimGeo.rotateZ(Math.PI / 2);
   const rimMat = new THREE.MeshStandardMaterial({
-    color: 0xe2e8f0,
-    metalness: 0.85,
-    roughness: 0.2,
+    color: 0xf1f5f9,
+    metalness: 0.9,
+    roughness: 0.15,
   });
 
-  const zWheelOffset = chassisLength * 0.32;
-  const wheelCoords = [
-    [-0.95, 0.36, -zWheelOffset],
-    [0.95, 0.36, -zWheelOffset],
-    [-0.95, 0.36, zWheelOffset],
-    [0.95, 0.36, zWheelOffset],
-  ];
-  wheelCoords.forEach(([wx, wy, wz]) => {
+  const zWheel = chassisLength * 0.32;
+  [
+    [-0.96, 0.36, -zWheel],
+    [0.96, 0.36, -zWheel],
+    [-0.96, 0.36, zWheel],
+    [0.96, 0.36, zWheel],
+  ].forEach(([wx, wy, wz]) => {
     const w = new THREE.Mesh(wheelGeo, tireMat);
     w.position.set(wx, wy, wz);
     carGroup.add(w);
@@ -2677,243 +2743,279 @@ function build3DCarMesh(carType, isTraffic = false) {
     carGroup.add(r);
   });
 
-  // Headlights (Front is -Z)
+  // Front Headlights
   const headMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
-  [-0.65, 0.65].forEach((hx) => {
+  [-0.66, 0.66].forEach((hx) => {
     const hl = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.08), headMat);
-    hl.position.set(hx, 0.55, -chassisLength / 2 - 0.02);
+    hl.position.set(hx, 0.54, -chassisLength / 2 - 0.02);
     bodyPivot.add(hl);
   });
 
-  // Signature Taillights & Spoilers (Rear is +Z)
+  // Rear Taillights, Exhausts & Nitro Flames
   const tailGlowMat = new THREE.MeshBasicMaterial({ color: 0xff1e27 });
   const rearZ = chassisLength / 2 + 0.02;
 
   if (carType === "g37" && !isTraffic) {
-    // G37 Signature Quad LED Halo Rings + Ducktail Trunk Lip + Dual Exhaust
     [-0.68, -0.44, 0.44, 0.68].forEach((tx, idx) => {
-      const radius = idx === 0 || idx === 3 ? 0.11 : 0.085;
+      const radius = idx === 0 || idx === 3 ? 0.115 : 0.088;
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius, 0.028, 10, 24),
+        new THREE.TorusGeometry(radius, 0.03, 10, 24),
         tailGlowMat,
       );
       ring.position.set(tx, 0.56, rearZ);
       bodyPivot.add(ring);
     });
     const ducktail = new THREE.Mesh(
-      new THREE.BoxGeometry(1.76, 0.1, 0.22),
+      new THREE.BoxGeometry(1.78, 0.11, 0.24),
       paintMat,
     );
     ducktail.position.set(0, 0.78, rearZ - 0.12);
-    ducktail.rotation.x = 0.25;
+    ducktail.rotation.x = 0.26;
     bodyPivot.add(ducktail);
   } else if (carType === "skyline" && !isTraffic) {
-    // GT-R Quad Round Stove-Pipe Taillights + Raised Carbon GT Wing
     [-0.68, -0.42, 0.42, 0.68].forEach((tx, idx) => {
-      const radius = idx === 0 || idx === 3 ? 0.12 : 0.09;
+      const radius = idx === 0 || idx === 3 ? 0.12 : 0.092;
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(radius, 0.032, 10, 24),
+        new THREE.TorusGeometry(radius, 0.034, 10, 24),
         tailGlowMat,
       );
       ring.position.set(tx, 0.56, rearZ);
       bodyPivot.add(ring);
     });
     const wingBlade = new THREE.Mesh(
-      new THREE.BoxGeometry(1.9, 0.06, 0.32),
+      new THREE.BoxGeometry(1.94, 0.07, 0.34),
       darkTrimMat,
     );
-    wingBlade.position.set(0, 1.02, rearZ - 0.18);
+    wingBlade.position.set(0, 1.04, rearZ - 0.18);
     bodyPivot.add(wingBlade);
-    [-0.55, 0.55].forEach((sx) => {
+    [-0.58, 0.58].forEach((sx) => {
       const strut = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.28, 0.18),
+        new THREE.BoxGeometry(0.08, 0.3, 0.18),
         darkTrimMat,
       );
-      strut.position.set(sx, 0.86, rearZ - 0.18);
+      strut.position.set(sx, 0.88, rearZ - 0.18);
       bodyPivot.add(strut);
     });
   } else {
-    // Wide LED Tailbar (Accent & Traffic Cars)
     const bar = new THREE.Mesh(
-      new THREE.BoxGeometry(1.65, 0.14, 0.06),
+      new THREE.BoxGeometry(1.66, 0.15, 0.06),
       tailGlowMat,
     );
     bar.position.set(0, 0.56, rearZ);
     bodyPivot.add(bar);
   }
 
+  let exhaustFlames = null;
   if (!isTraffic) {
-    // Underbody Neon Street Glow + Projected Headlight Cones on Asphalt
     const neonPlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.3, chassisLength + 0.4),
+      new THREE.PlaneGeometry(2.35, chassisLength + 0.45),
       new THREE.MeshBasicMaterial({
         color: neonColor,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.3,
       }),
     );
     neonPlane.rotation.x = -Math.PI / 2;
     neonPlane.position.y = 0.03;
     carGroup.add(neonPlane);
 
-    const beamMat = new THREE.MeshBasicMaterial({
-      color: 0xe0f2fe,
+    // Twin Nitro Afterburner Cones on the Exhaust Pipes
+    exhaustFlames = new THREE.Group();
+    const flameMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.85,
     });
-    [-0.65, 0.65].forEach((bx) => {
-      const beam = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 9.0), beamMat);
-      beam.rotation.x = -Math.PI / 2;
-      beam.position.set(bx, 0.04, -chassisLength / 2 - 4.6);
-      bodyPivot.add(beam);
+    [-0.52, 0.52].forEach((fx) => {
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(0.14, 0.95, 12),
+        flameMat,
+      );
+      cone.rotation.x = Math.PI / 2;
+      cone.position.set(fx, 0.28, rearZ + 0.45);
+      exhaustFlames.add(cone);
     });
+    exhaustFlames.visible = false;
+    bodyPivot.add(exhaustFlames);
   }
 
-  carGroup.userData = { bodyPivot };
+  carGroup.userData = { bodyPivot, exhaustFlames };
   return carGroup;
 }
 
+// ERGONOMIC SIDE-ANGLED 3D PRO HANDPIECE + LASER RETICLE (Never blocks the screen!)
 function build3DDentalHandpiece() {
-  const group = new THREE.Group();
+  const rootGroup = new THREE.Group();
+
+  // We angle the handpiece in from the bottom-right like a real clinician's hand
+  const handpieceRig = new THREE.Group();
+  handpieceRig.position.set(1.25, 0.85, 0.45);
+  handpieceRig.rotation.set(0.22, 0.48, -0.42);
+  rootGroup.add(handpieceRig);
 
   const chromeMat = new THREE.MeshPhysicalMaterial({
-    color: 0xe2e8f0,
-    metalness: 0.85,
-    roughness: 0.15,
+    color: 0xf1f5f9,
+    metalness: 0.88,
+    roughness: 0.14,
     clearcoat: 1.0,
   });
-  const gripRingMat = new THREE.MeshStandardMaterial({
+  const gripMat = new THREE.MeshStandardMaterial({
     color: 0x0284c7,
-    metalness: 0.5,
-    roughness: 0.3,
+    metalness: 0.65,
+    roughness: 0.25,
   });
-  const burMat = new THREE.MeshStandardMaterial({
-    color: 0x94a3b8,
-    metalness: 0.9,
-    roughness: 0.3,
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xfacc15,
+    metalness: 0.85,
+    roughness: 0.2,
   });
 
-  // Main Contra-Angle Turbine Handle (Angled forward)
-  const handle = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.26, 3.2, 20),
+  // Sleek Tapered Turbine Body (Viewed from a 3/4 diagonal angle)
+  const shaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16, 0.21, 3.0, 24),
     chromeMat,
   );
-  handle.rotation.x = Math.PI / 2.6;
-  handle.position.set(0, 1.55, 1.05);
-  group.add(handle);
+  shaft.rotation.x = Math.PI / 2;
+  shaft.position.set(0, 0, 1.3);
+  handpieceRig.add(shaft);
 
-  // Anodized Blue Grip Rings
-  [-0.4, 0.2].forEach((offset) => {
+  // Tactile Blue & Gold Anodized Rings
+  [0.5, 0.9, 1.8].forEach((zPos, i) => {
     const ring = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.25, 0.25, 0.18, 20),
-      gripRingMat,
+      new THREE.CylinderGeometry(0.195, 0.195, 0.14, 24),
+      i === 1 ? goldMat : gripMat,
     );
-    ring.rotation.x = Math.PI / 2.6;
-    ring.position.set(0, 1.55 + offset * 0.35, 1.05 + offset * 0.9);
-    group.add(ring);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(0, 0, zPos);
+    handpieceRig.add(ring);
   });
 
-  // Contra-Angle Neck
+  // Contra-Angle Neck & Miniature Turbine Head reaching to the center lane
   const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.18, 0.22, 1.1, 16),
+    new THREE.CylinderGeometry(0.13, 0.16, 1.35, 20),
     chromeMat,
   );
-  neck.rotation.x = Math.PI / 3.8;
-  neck.position.set(0, 1.05, -0.45);
-  group.add(neck);
+  neck.rotation.z = Math.PI / 3.4;
+  neck.rotation.x = Math.PI / 2.3;
+  neck.position.set(-0.55, -0.18, -0.35);
+  handpieceRig.add(neck);
 
-  // Turbine Chuck Head
-  const head = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.28, 0.26, 0.68, 24),
+  // Chuck Head centered over the active tooth lane
+  const chuckHead = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.24, 0.22, 0.58, 24),
     chromeMat,
   );
-  head.position.set(0, 0.82, -0.95);
-  group.add(head);
+  chuckHead.position.set(0, 1.05, -0.85);
+  rootGroup.add(chuckHead);
 
-  // LED Fiber-Optic Ring under Head
-  const ledRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.22, 0.035, 10, 24),
+  const headCap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.23, 18, 12),
+    gripMat,
+  );
+  headCap.scale.set(1, 0.45, 1);
+  headCap.position.set(0, 1.35, -0.85);
+  rootGroup.add(headCap);
+
+  // Spinning Diamond Bur Tip
+  const burPivot = new THREE.Group();
+  burPivot.position.set(0, 0.75, -0.85);
+  const burShaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.04, 0.04, 0.52, 12),
+    chromeMat,
+  );
+  burShaft.position.y = -0.2;
+  burPivot.add(burShaft);
+
+  const diamondTip = new THREE.Mesh(
+    new THREE.ConeGeometry(0.12, 0.35, 14),
     new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
   );
-  ledRing.rotation.x = Math.PI / 2;
-  ledRing.position.set(0, 0.48, -0.95);
-  group.add(ledRing);
-
-  // High-Speed Diamond Bur (Spins rapidly)
-  const burPivot = new THREE.Group();
-  burPivot.position.set(0, 0.45, -0.95);
-  const burShaft = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.045, 0.045, 0.55, 12),
-    burMat,
-  );
-  burShaft.position.y = -0.22;
-  burPivot.add(burShaft);
-  const diamondTip = new THREE.Mesh(
-    new THREE.SphereGeometry(0.11, 14, 14),
-    new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.5,
-      roughness: 0.2,
-    }),
-  );
-  diamondTip.position.y = -0.48;
+  diamondTip.rotation.x = Math.PI;
+  diamondTip.position.y = -0.45;
   burPivot.add(diamondTip);
-  group.add(burPivot);
+  rootGroup.add(burPivot);
 
-  // Water-Spray & Laser Excavation Cone (Visible when holding Drill button)
-  const sprayCone = new THREE.Mesh(
-    new THREE.ConeGeometry(0.55, 1.1, 18, 1, true),
+  // Long-Range Ultrasonic Hydro-Laser Beam (Fires forward when holding Drill!)
+  const laserBeam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.12, 0.28, 15.0, 16),
     new THREE.MeshBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
       opacity: 0.0,
-      side: THREE.DoubleSide,
     }),
   );
-  sprayCone.position.set(0, -0.1, -0.95);
-  group.add(sprayCone);
+  laserBeam.rotation.x = Math.PI / 2;
+  laserBeam.position.set(0, 0.45, -8.35);
+  rootGroup.add(laserBeam);
 
-  group.userData = { burPivot, sprayCone };
-  return group;
+  // Glowing Aiming Reticle Ring on the Tooth Surface Ahead
+  const aimRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.45, 0.62, 24),
+    new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.7,
+    }),
+  );
+  aimRing.rotation.x = -Math.PI / 2;
+  aimRing.position.set(0, 0.14, -2.5);
+  rootGroup.add(aimRing);
+
+  rootGroup.userData = { burPivot, laserBeam, aimRing, handpieceRig };
+  return rootGroup;
+}
+
+// SCULPTED 4-CUSP PORCELAIN MOLAR CROWN FOR THE DENTAL ARCH
+let cachedArchMolarGeo = null;
+function getArchMolarGeometry() {
+  if (cachedArchMolarGeo) return cachedArchMolarGeo;
+  const geo = new THREE.BoxGeometry(1.95, 0.95, 1.95, 12, 8, 12);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    let y = pos.getY(i);
+    let z = pos.getZ(i);
+
+    // Round the corners into a natural molar squircle and narrow the cervical base
+    const rXZ = Math.sqrt(x * x + z * z);
+    const neckTaper = y < 0 ? 1.0 + y * 0.28 : 1.0 - y * 0.06;
+    x *= neckTaper;
+    z *= neckTaper;
+
+    if (y > 0.1) {
+      // Carve 4 distinct anatomical cusps and a central occlusal pit
+      const cuspBump =
+        Math.cos(x * 2.4) * Math.cos(z * 2.4) * -0.18 +
+        (Math.abs(x) * Math.abs(z)) * 0.26;
+      const centralPit = Math.exp(-rXZ * rXZ * 2.8) * 0.28;
+      y += cuspBump - centralPit;
+    }
+    pos.setXYZ(i, x, y, z);
+  }
+  geo.computeVertexNormals();
+  cachedArchMolarGeo = geo;
+  return geo;
 }
 
 function build3DCrownPlatformMesh() {
-  const crownGroup = new THREE.Group();
-  const enamelMat = new THREE.MeshPhysicalMaterial({
+  const molarMat = new THREE.MeshPhysicalMaterial({
     color: 0xf8fafc,
-    roughness: 0.2,
-    metalness: 0.05,
-    clearcoat: 0.9,
+    roughness: 0.22,
+    metalness: 0.04,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.08,
   });
-
-  // Main Molar Crown Base
-  const base = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.65, 2.2), enamelMat);
-  base.position.y = -0.35;
-  crownGroup.add(base);
-
-  // 4 Rounded Occlusal Cusps on the corners
-  const cuspGeo = new THREE.SphereGeometry(0.58, 12, 10);
-  cuspGeo.scale(1.0, 0.35, 1.0);
-  [
-    [-0.55, -0.02, -0.55],
-    [0.55, -0.02, -0.55],
-    [-0.55, -0.02, 0.55],
-    [0.55, -0.02, 0.55],
-  ].forEach(([cx, cy, cz]) => {
-    const c = new THREE.Mesh(cuspGeo, enamelMat);
-    c.position.set(cx, cy, cz);
-    crownGroup.add(c);
-  });
-
-  return crownGroup;
+  const mesh = new THREE.Mesh(getArchMolarGeometry(), molarMat);
+  mesh.position.y = -0.42;
+  return mesh;
 }
 
 // ==========================================
-// 13. DUAL-MODE 3D ARCADE STATE & MAIN LOOP
+// 14. SHARED ARCADE STATE, COUNTDOWN & STAGES
 // ==========================================
 let gameLoopId = null;
-let activeGameMode = "drift"; // "drift" or "dental_runner"
+let activeGameMode = "drift";
 let activeCarSelection = "g37";
 
 let webglRenderer = null;
@@ -2921,41 +3023,59 @@ let webglScene = null;
 let webglCamera = null;
 let playerMesh = null;
 
-// Shared Game State
 let score = 0;
 let comboMultiplier = 1;
 let distanceTraveled = 0;
-const totalRunDistance = 1800; // 100% progress target
+let totalRunDistance = 4200; // Proper ~75-second full 3-stage arcade run
+let currentStageNumber = 1;
+let countdownTimer = 180; // 3 seconds @ 60fps ("3... 2... 1... GO!")
+let victoryFreezeTimer = 0;
 let raceFinished = false;
 let startTime = 0;
 let crashShake = 0;
 let bannerTimeout = null;
 
 // Drift Mode Specific State
-let playerX = 0;
+let playerLaneOffset = 0; // Offset from the curving road center
 let playerSpeed = 0;
 let driftSlipAngle = 0;
-let roadProps = [];
+let activeDriftBank = 0;
+let roadSegments = [];
 let trafficCars = [];
 let nitroPads = [];
 let smokeParticles = [];
+let startGantry = null;
+let finishGantry = null;
 
 // Dental Runner Specific State
-let dentalTargetLane = 0; // -1 (Left), 0 (Center), 1 (Right)
+let dentalTargetLane = 0;
 let dentalCurrentX = 0;
 let laneSwitchLocked = false;
 let molarRows = [];
 let dentalTargets = [];
 let shatterParticles = [];
 
-function showHudBanner(text, color = "#facc15") {
+function showHudBanner(text, color = "#facc15", duration = 1200) {
   const banner = document.getElementById("hud-floating-banner");
   if (!banner) return;
   banner.textContent = text;
   banner.style.color = color;
   banner.classList.add("show");
   if (bannerTimeout) clearTimeout(bannerTimeout);
-  bannerTimeout = setTimeout(() => banner.classList.remove("show"), 1150);
+  bannerTimeout = setTimeout(() => banner.classList.remove("show"), duration);
+}
+
+// Mathematical S-Curve Function for the Winding 3D Touge Highway
+function getTougeCurveX(worldDistance) {
+  if (worldDistance < 80) return 0; // Keep starting grid straight
+  const d = worldDistance - 80;
+  const ramp = Math.min(1.0, d / 150);
+  return (
+    ramp *
+    (Math.sin(d * 0.011) * 7.5 +
+      Math.sin(d * 0.023) * 4.2 +
+      Math.cos(d * 0.005) * 5.0)
+  );
 }
 
 window.startGame = function (modeOrCar) {
@@ -2972,8 +3092,10 @@ window.startGame = function (modeOrCar) {
   score = 0;
   comboMultiplier = 1;
   distanceTraveled = 0;
+  currentStageNumber = 1;
+  countdownTimer = 180; // 3-2-1 countdown
+  victoryFreezeTimer = 0;
   raceFinished = false;
-  startTime = Date.now();
   crashShake = 0;
 
   sfx.init();
@@ -2981,13 +3103,15 @@ window.startGame = function (modeOrCar) {
 
   if (modeOrCar === "dental_runner") {
     activeGameMode = "dental_runner";
-    if (actionBtn) actionBtn.textContent = "⚡ Drill / Zap";
-    if (secLabel) secLabel.textContent = "CLEANED";
+    totalRunDistance = 3200; // ~70s 3-Stage Clinical Rush
+    if (actionBtn) actionBtn.textContent = "⚡ Hold Drill / Laser";
+    if (secLabel) secLabel.textContent = "STREAK";
     initDentalRunnerScene();
     dentalArcadeSynth.startMusic();
   } else {
     activeGameMode = "drift";
     activeCarSelection = modeOrCar || "g37";
+    totalRunDistance = 4200; // ~75s 3-Sector Touge Run
     if (actionBtn) actionBtn.textContent = "⏫ Drift Gas";
     if (secLabel) secLabel.textContent = "COMBO";
     initNightDriftScene();
@@ -3030,146 +3154,155 @@ function ensureWebGLRenderer() {
 }
 
 // ==========================================
-// 14. MODE A: 3D MIDNIGHT TOUGE DRIFT SCENE & LOOP
+// 15. MODE A: 3D MIDNIGHT TOUGE DRIFT (WINDING ROAD)
 // ==========================================
 function initNightDriftScene() {
   if (!ensureWebGLRenderer()) return;
 
   webglScene = new THREE.Scene();
-  webglScene.background = new THREE.Color(0x060913);
-  webglScene.fog = new THREE.FogExp2(0x060913, 0.011);
+  webglScene.background = new THREE.Color(0x050811);
+  webglScene.fog = new THREE.FogExp2(0x050811, 0.01);
 
-  webglCamera = new THREE.PerspectiveCamera(60, 600 / 800, 0.1, 220);
+  webglCamera = new THREE.PerspectiveCamera(60, 600 / 800, 0.1, 240);
 
-  const hemi = new THREE.HemisphereLight(0x93c5fd, 0x0f172a, 0.85);
+  const hemi = new THREE.HemisphereLight(0xbae6fd, 0x0f172a, 0.9);
   webglScene.add(hemi);
 
-  const dirLight = new THREE.DirectionalLight(0xe0f2fe, 1.35);
-  dirLight.position.set(12, 28, 16);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.4);
+  dirLight.position.set(15, 30, 18);
   webglScene.add(dirLight);
 
-  // Asphalt Highway Plane
-  const roadMat = new THREE.MeshStandardMaterial({
+  // Build 36 Segmented Winding HighwaySlices (Curves smoothly in real-time!)
+  roadSegments = [];
+  const asphaltMat = new THREE.MeshStandardMaterial({
     color: 0x111827,
-    roughness: 0.45,
-    metalness: 0.2,
+    roughness: 0.4,
+    metalness: 0.25,
   });
-  const roadMesh = new THREE.Mesh(new THREE.PlaneGeometry(15, 300), roadMat);
-  roadMesh.rotation.x = -Math.PI / 2;
-  roadMesh.position.z = -120;
-  webglScene.add(roadMesh);
-
-  // Glowing Cyan Guardrails
-  const railMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-  [-7.6, 7.6].forEach((rx) => {
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.65, 300), railMat);
-    rail.position.set(rx, 0.35, -120);
-    webglScene.add(rail);
-  });
-
-  // Repeating Road Props (Lane Dashes, Red/White Curbs, Streetlamps, Skyline Buildings)
-  roadProps = [];
-  const dashMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
   const redCurbMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
   const whiteCurbMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+  const railMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
   const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 });
   const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
   const bldgMat = new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
+    color: 0x0b1120,
     emissive: 0x1e293b,
-    emissiveIntensity: 0.4,
+    emissiveIntensity: 0.45,
   });
 
-  for (let i = 0; i < 28; i++) {
-    const z = -i * 8;
-    const rowGroup = new THREE.Group();
-    rowGroup.position.z = z;
+  for (let i = 0; i < 36; i++) {
+    const segGroup = new THREE.Group();
+    const zOffset = -i * 6;
+    segGroup.userData = { baseIndex: i, zLocal: zOffset };
 
-    // 2 Lane Divider Dashes
-    [-2.5, 2.5].forEach((lx) => {
-      const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 3.2), dashMat);
-      dash.rotation.x = -Math.PI / 2;
-      dash.position.set(lx, 0.02, 0);
-      rowGroup.add(dash);
+    // Road Slab
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(14.6, 0.2, 6.2), asphaltMat);
+    slab.position.y = -0.1;
+    segGroup.add(slab);
+
+    // Racing Curbs & Neon Guardrails
+    const cMat = i % 2 === 0 ? redCurbMat : whiteCurbMat;
+    [-7.4, 7.4].forEach((cx) => {
+      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.16, 6.1), cMat);
+      curb.position.set(cx, 0.08, 0);
+      segGroup.add(curb);
+
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.55, 6.1), railMat);
+      rail.position.set(cx > 0 ? cx + 0.35 : cx - 0.35, 0.35, 0);
+      segGroup.add(rail);
     });
 
-    // Left & Right Alternating Red/White Racing Curbs
-    const curbMat = i % 2 === 0 ? redCurbMat : whiteCurbMat;
-    [-7.35, 7.35].forEach((cx) => {
-      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.12, 8.0), curbMat);
-      curb.position.set(cx, 0.06, 0);
-      rowGroup.add(curb);
-    });
-
-    // Streetlamps & City Buildings every 3rd segment
-    if (i % 3 === 0) {
-      [-8.5, 8.5].forEach((px) => {
-        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 6.5, 8), poleMat);
-        pole.position.set(px, 3.25, 0);
-        rowGroup.add(pole);
-
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 0.15), poleMat);
-        arm.position.set(px > 0 ? px - 0.8 : px + 0.8, 6.4, 0);
-        rowGroup.add(arm);
-
-        const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 0.3), lampGlowMat);
-        bulb.position.set(px > 0 ? px - 1.4 : px + 1.4, 6.32, 0);
-        rowGroup.add(bulb);
-      });
-
-      [-18 - Math.random() * 8, 18 + Math.random() * 8].forEach((bx) => {
-        const h = 14 + Math.random() * 26;
-        const bldg = new THREE.Mesh(new THREE.BoxGeometry(7, h, 7), bldgMat);
-        bldg.position.set(bx, h / 2, 0);
-        rowGroup.add(bldg);
+    // Lane Divider Dashes
+    if (i % 2 === 0) {
+      [-2.4, 2.4].forEach((lx) => {
+        const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 3.0), dashMat);
+        dash.rotation.x = -Math.PI / 2;
+        dash.position.set(lx, 0.02, 0);
+        segGroup.add(dash);
       });
     }
 
-    webglScene.add(rowGroup);
-    roadProps.push(rowGroup);
+    // Streetlamps & City Buildings every 4th slice
+    if (i % 4 === 0) {
+      [-8.4, 8.4].forEach((px) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 6.2, 8), poleMat);
+        pole.position.set(px, 3.1, 0);
+        segGroup.add(pole);
+
+        const bulb = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 0.3), lampGlowMat);
+        bulb.position.set(px > 0 ? px - 0.55 : px + 0.55, 6.15, 0);
+        segGroup.add(bulb);
+      });
+
+      [-19, 19].forEach((bx) => {
+        const h = 14 + ((i * 7) % 24);
+        const bldg = new THREE.Mesh(new THREE.BoxGeometry(6.5, h, 5.8), bldgMat);
+        bldg.position.set(bx, h / 2, 0);
+        segGroup.add(bldg);
+      });
+    }
+
+    webglScene.add(segGroup);
+    roadSegments.push(segGroup);
   }
 
-  // Player 3D Car
-  playerX = 0;
-  playerSpeed = 0.25;
+  // 3D Starting Grid Gantry & Finish Line Gantry
+  startGantry = build3DGantryArch("STAGE 1: BAGHDAD TOUGE", "HOLD DRIFT GAS TO LAUNCH", 0x38bdf8, "#38bdf8");
+  startGantry.position.set(0, 0, -14);
+  webglScene.add(startGantry);
+
+  finishGantry = build3DGantryArch("🏁 FINISH LINE 🏁", "AL-AMEEN CHAMPIONSHIP", 0x10b981, "#10b981");
+  finishGantry.visible = false;
+  webglScene.add(finishGantry);
+
+  // Player Car
+  playerLaneOffset = 0;
+  playerSpeed = 0;
   driftSlipAngle = 0;
+  activeDriftBank = 0;
   playerMesh = build3DCarMesh(activeCarSelection, false);
   webglScene.add(playerMesh);
 
-  // 3D Traffic Cars Pool
+  // 3D Traffic Cars
   trafficCars = [];
-  const laneCenters = [-4.6, 0, 4.6];
+  const lanes = [-4.5, 0, 4.5];
   for (let i = 0; i < 6; i++) {
     const tCar = build3DCarMesh("traffic", true);
-    const lane = laneCenters[i % 3];
-    tCar.position.set(lane, 0, -45 - i * 36);
-    tCar.userData.speed = 0.42 + (i % 3) * 0.08;
-    tCar.userData.nearMissed = false;
+    tCar.userData = {
+      laneOffset: lanes[i % 3],
+      zDist: -50 - i * 38,
+      speed: 0.42 + (i % 3) * 0.08,
+      nearMissed: false,
+    };
     webglScene.add(tCar);
     trafficCars.push(tCar);
   }
 
-  // Glowing Nitro Pads on the Road
+  // Nitro Boost Pads
   nitroPads = [];
   const nitroMat = new THREE.MeshBasicMaterial({
     color: 0x10b981,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.85,
   });
   for (let i = 0; i < 3; i++) {
-    const pad = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 4.5), nitroMat);
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 4.8), nitroMat);
     pad.rotation.x = -Math.PI / 2;
-    pad.position.set(laneCenters[(i + 1) % 3], 0.03, -65 - i * 75);
+    pad.userData = {
+      laneOffset: lanes[(i + 1) % 3],
+      zDist: -70 - i * 75,
+    };
     webglScene.add(pad);
     nitroPads.push(pad);
   }
 
-  // 3D Tire Smoke Particle Pool
+  // 3D Tire Smoke Particles
   smokeParticles = [];
-  const smokeGeo = new THREE.SphereGeometry(0.28, 8, 8);
-  for (let i = 0; i < 24; i++) {
+  const smokeGeo = new THREE.SphereGeometry(0.32, 8, 8);
+  for (let i = 0; i < 28; i++) {
     const sMat = new THREE.MeshBasicMaterial({
-      color: 0xcbd5e1,
+      color: 0xe2e8f0,
       transparent: true,
       opacity: 0,
     });
@@ -3179,216 +3312,358 @@ function initNightDriftScene() {
     webglScene.add(puff);
     smokeParticles.push(puff);
   }
+
+  positionWindingDriftWorld();
+}
+
+function positionWindingDriftWorld() {
+  const playerCurveX = getTougeCurveX(distanceTraveled);
+  const playerNextCurveX = getTougeCurveX(distanceTraveled + 6);
+  const roadHeading = Math.atan2(playerNextCurveX - playerCurveX, 6);
+
+  // Position winding road slices ahead of player
+  roadSegments.forEach((seg) => {
+    const zRel = seg.userData.zLocal; // 0 down to -216
+    const segWorldDist = distanceTraveled - zRel;
+    const segCurveX = getTougeCurveX(segWorldDist);
+    const nextCurveX = getTougeCurveX(segWorldDist + 6);
+    const segAngle = Math.atan2(nextCurveX - segCurveX, 6);
+
+    seg.position.set(segCurveX, 0, zRel);
+    seg.rotation.y = -segAngle;
+  });
+
+  // Position Start & Finish Gantries
+  if (startGantry) {
+    const startZ = -14 + distanceTraveled;
+    startGantry.visible = startZ < 15;
+    if (startGantry.visible) {
+      startGantry.position.set(getTougeCurveX(14), 0, startZ);
+    }
+  }
+
+  if (finishGantry) {
+    const remDist = totalRunDistance - distanceTraveled;
+    finishGantry.visible = remDist < 210;
+    if (finishGantry.visible) {
+      const finZ = -remDist;
+      finishGantry.position.set(getTougeCurveX(totalRunDistance), 0, finZ);
+    }
+  }
+
+  // Position Player Car on the Curving Highway
+  const worldPlayerX = playerCurveX + playerLaneOffset;
+  if (playerMesh) {
+    playerMesh.position.set(worldPlayerX, 0, 0);
+    playerMesh.rotation.y = -roadHeading + driftSlipAngle;
+    if (playerMesh.userData.bodyPivot) {
+      playerMesh.userData.bodyPivot.rotation.z = -driftSlipAngle * 0.32;
+    }
+    if (playerMesh.userData.exhaustFlames) {
+      playerMesh.userData.exhaustFlames.visible =
+        window.input.gas && playerSpeed > 0.85;
+      playerMesh.userData.exhaustFlames.scale.z = 0.8 + Math.random() * 0.6;
+    }
+  }
+
+  // Position Camera Following the Winding Road
+  const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.45 : 0;
+  const shakeY = crashShake > 0 ? (Math.random() - 0.5) * 0.35 : 0;
+  if (crashShake > 0) crashShake--;
+
+  if (victoryFreezeTimer > 0) {
+    // Cinematic slow-mo orbit at Finish Line!
+    const angle = (120 - victoryFreezeTimer) * 0.045;
+    webglCamera.position.set(
+      worldPlayerX + Math.sin(angle) * 7.5,
+      3.4,
+      Math.cos(angle) * 7.5,
+    );
+    webglCamera.lookAt(worldPlayerX, 0.8, 0);
+  } else if (countdownTimer > 0) {
+    // Starting Grid Dramatic Camera Swoop
+    const t = countdownTimer / 180;
+    webglCamera.position.set(
+      worldPlayerX + Math.sin(t * 1.8) * 3.5,
+      2.6 + (1 - t) * 1.2,
+      6.2 + t * 2.5,
+    );
+    webglCamera.lookAt(worldPlayerX, 0.9, -10);
+  } else {
+    webglCamera.fov = 58 + playerSpeed * 11;
+    webglCamera.updateProjectionMatrix();
+    const lookAheadCurveX = getTougeCurveX(distanceTraveled + 18);
+    webglCamera.position.set(
+      playerCurveX + playerLaneOffset * 0.68 + shakeX,
+      3.65 + shakeY,
+      7.4,
+    );
+    webglCamera.lookAt(
+      lookAheadCurveX + playerLaneOffset * 0.45,
+      0.85,
+      -16,
+    );
+  }
 }
 
 function updateNightDriftLoop() {
-  const topSpeed = activeCarSelection === "skyline" ? 1.52 : activeCarSelection === "g37" ? 1.44 : 1.38;
-  const accel = window.input.gas ? 0.022 : -0.014;
-  playerSpeed = Math.max(0.28, Math.min(topSpeed, playerSpeed + accel));
+  const topSpeed =
+    activeCarSelection === "skyline"
+      ? 1.55
+      : activeCarSelection === "g37"
+        ? 1.48
+        : 1.42;
 
-  // Steering & Drift Slip Angle Physics
-  const steerRate = activeCarSelection === "accent" ? 0.19 : 0.165;
+  const accel = window.input.gas ? 0.024 : -0.015;
+  playerSpeed = Math.max(0.32, Math.min(topSpeed, playerSpeed + accel));
+
+  // Road Curvature Centrifugal Push + Player Counter-Steer
+  const c0 = getTougeCurveX(distanceTraveled);
+  const c1 = getTougeCurveX(distanceTraveled + 5);
+  const c2 = getTougeCurveX(distanceTraveled + 10);
+  const roadCurvature = (c2 - 2 * c1 + c0) * 1.85;
+
   let steerInput = 0;
   if (window.input.left) steerInput = -1;
   if (window.input.right) steerInput = 1;
 
-  playerX += steerInput * steerRate * (0.55 + playerSpeed * 0.45);
+  const steerRate = activeCarSelection === "accent" ? 0.21 : 0.185;
+  playerLaneOffset +=
+    steerInput * steerRate * (0.55 + playerSpeed * 0.45) -
+    roadCurvature * playerSpeed * 0.35;
 
+  // Drift Slip Angle & Active Drift Score Bank
   const targetSlip =
     steerInput !== 0 && window.input.gas && playerSpeed > 0.65
-      ? -steerInput * 0.42
-      : 0;
-  driftSlipAngle += (targetSlip - driftSlipAngle) * 0.14;
+      ? -steerInput * 0.46 - roadCurvature * 0.5
+      : -roadCurvature * 0.35;
+  driftSlipAngle += (targetSlip - driftSlipAngle) * 0.15;
 
-  // Guardrail Wall Collision Check
-  if (Math.abs(playerX) > 6.35) {
-    playerX = Math.sign(playerX) * 6.1;
+  const isDrifting = Math.abs(driftSlipAngle) > 0.17 && playerSpeed > 0.72;
+  if (isDrifting) {
+    const gain = Math.ceil(6 * comboMultiplier);
+    activeDriftBank += gain;
+    score += gain;
+
+    if (activeDriftBank % 240 < 20) {
+      showHudBanner(
+        `🔥 DRIFTING! +${activeDriftBank} (x${comboMultiplier})`,
+        "#38bdf8",
+        500,
+      );
+    }
+
+    // Spawn Twin Tire Smoke Clouds
+    const freeSmoke = smokeParticles.find((p) => p.userData.life <= 0);
+    if (freeSmoke && playerMesh) {
+      freeSmoke.visible = true;
+      freeSmoke.position.set(
+        playerMesh.position.x + (Math.random() - 0.5) * 1.5,
+        0.24,
+        1.9,
+      );
+      freeSmoke.scale.set(0.65, 0.65, 0.65);
+      freeSmoke.material.opacity = 0.6;
+      freeSmoke.userData = {
+        life: 1.0,
+        vx: (Math.random() - 0.5) * 0.09,
+        vy: 0.03 + Math.random() * 0.02,
+        vz: playerSpeed * 0.55,
+      };
+    }
+  } else {
+    if (activeDriftBank >= 300) {
+      comboMultiplier = Math.min(10, comboMultiplier + 1);
+      sfx.playDing(780 + comboMultiplier * 60);
+      showHudBanner(
+        `✅ DRIFT BANKED! +${activeDriftBank} (Combo x${comboMultiplier})`,
+        "#34d399",
+      );
+    }
+    activeDriftBank = 0;
+    if (playerSpeed > 0.5) score += 2;
+  }
+
+  // Guardrail Collision Check
+  if (Math.abs(playerLaneOffset) > 6.3) {
+    playerLaneOffset = Math.sign(playerLaneOffset) * 6.0;
     playerSpeed *= 0.55;
     driftSlipAngle = 0;
+    activeDriftBank = 0;
     comboMultiplier = 1;
-    score = Math.max(0, score - 150);
-    crashShake = 12;
+    score = Math.max(0, score - 200);
+    crashShake = 14;
     sfx.playCrash();
-    showHudBanner("💥 GUARDRAIL HIT! -150", "#ef4444");
+    showHudBanner("💥 GUARDRAIL SLAM! -200", "#ef4444");
   }
 
   distanceTraveled += playerSpeed;
 
-  // Drift Points & 3D Tire Smoke Spawning
-  const isDrifting = Math.abs(driftSlipAngle) > 0.16 && playerSpeed > 0.7;
-  if (isDrifting) {
-    score += Math.ceil(3 * comboMultiplier);
-    const freeSmoke = smokeParticles.find((p) => p.userData.life <= 0);
-    if (freeSmoke) {
-      freeSmoke.visible = true;
-      freeSmoke.position.set(
-        playerX + (Math.random() - 0.5) * 1.4,
-        0.22,
-        1.8,
-      );
-      freeSmoke.scale.set(0.6, 0.6, 0.6);
-      freeSmoke.material.opacity = 0.55;
-      freeSmoke.userData = {
-        life: 1.0,
-        vx: (Math.random() - 0.5) * 0.08,
-        vy: 0.03 + Math.random() * 0.02,
-        vz: playerSpeed * 0.5,
-      };
-    }
-  } else if (playerSpeed > 0.6) {
-    score += 1;
+  // Stage Progression Announcements (3 Distinct Sectors)
+  const progRatio = distanceTraveled / totalRunDistance;
+  if (progRatio >= 0.33 && currentStageNumber === 1) {
+    currentStageNumber = 2;
+    score += 1000;
+    sfx.playCountdownBeep(true);
+    showHudBanner("🌆 SECTOR 2: NEON CYBER TUNNEL! +1000", "#38bdf8", 1800);
+    webglScene.background.setHex(0x090618);
+    webglScene.fog.color.setHex(0x090618);
+  } else if (progRatio >= 0.66 && currentStageNumber === 2) {
+    currentStageNumber = 3;
+    score += 1500;
+    sfx.playCountdownBeep(true);
+    showHudBanner("🔥 FINAL SECTOR: TOUGE HAIRPINS! +1500", "#facc15", 1800);
+    webglScene.background.setHex(0x140714);
+    webglScene.fog.color.setHex(0x140714);
   }
 
-  // Animate Smoke Particles
+  // Scroll Road Slices
+  roadSegments.forEach((seg) => {
+    seg.userData.zLocal += playerSpeed;
+    if (seg.userData.zLocal > 12) {
+      seg.userData.zLocal -= 36 * 6;
+    }
+  });
+
+  // Update Nitro Pads along the Winding Road
+  const lanes = [-4.5, 0, 4.5];
+  nitroPads.forEach((pad) => {
+    pad.userData.zDist += playerSpeed;
+    const padWorldDist = distanceTraveled - pad.userData.zDist;
+    const padX = getTougeCurveX(padWorldDist) + pad.userData.laneOffset;
+    pad.position.set(padX, 0.04, pad.userData.zDist);
+
+    if (
+      Math.abs(pad.userData.zDist) < 2.5 &&
+      Math.abs(playerLaneOffset - pad.userData.laneOffset) < 1.55
+    ) {
+      playerSpeed = Math.min(topSpeed + 0.4, playerSpeed + 0.4);
+      const pts = 350 * comboMultiplier;
+      score += pts;
+      sfx.playDing(1150);
+      showHudBanner(`🚀 NITRO OVERDRIVE! +${pts}`, "#34d399");
+      pad.userData.zDist = -200 - Math.random() * 40;
+      pad.userData.laneOffset = lanes[Math.floor(Math.random() * 3)];
+    } else if (pad.userData.zDist > 14) {
+      pad.userData.zDist = -200 - Math.random() * 40;
+      pad.userData.laneOffset = lanes[Math.floor(Math.random() * 3)];
+    }
+  });
+
+  // Update 3D Traffic Cars along the Winding Road
+  trafficCars.forEach((tCar) => {
+    tCar.userData.zDist += playerSpeed - tCar.userData.speed;
+    const carWorldDist = distanceTraveled - tCar.userData.zDist;
+    const curveX = getTougeCurveX(carWorldDist);
+    const nextCurveX = getTougeCurveX(carWorldDist + 5);
+    tCar.position.set(
+      curveX + tCar.userData.laneOffset,
+      0,
+      tCar.userData.zDist,
+    );
+    tCar.rotation.y = -Math.atan2(nextCurveX - curveX, 5);
+
+    const dz = Math.abs(tCar.userData.zDist);
+    const dx = Math.abs(playerLaneOffset - tCar.userData.laneOffset);
+
+    if (dz < 3.4 && dx < 1.65) {
+      playerSpeed = 0.35;
+      activeDriftBank = 0;
+      comboMultiplier = 1;
+      score = Math.max(0, score - 250);
+      crashShake = 18;
+      sfx.playCrash();
+      showHudBanner("💥 TRAFFIC COLLISION! -250", "#ef4444");
+      tCar.userData.zDist = -185 - Math.random() * 55;
+      tCar.userData.laneOffset = lanes[Math.floor(Math.random() * 3)];
+      tCar.userData.nearMissed = false;
+    } else if (
+      tCar.userData.zDist > 0.5 &&
+      tCar.userData.zDist < 5.2 &&
+      dx < 3.0 &&
+      !tCar.userData.nearMissed
+    ) {
+      tCar.userData.nearMissed = true;
+      comboMultiplier = Math.min(10, comboMultiplier + 1);
+      const pts = 350 * comboMultiplier;
+      score += pts;
+      sfx.playDing(900 + comboMultiplier * 70);
+      showHudBanner(`⚡ NEAR MISS! +${pts} (x${comboMultiplier})`, "#facc15");
+    }
+
+    if (tCar.userData.zDist > 16) {
+      tCar.userData.zDist = -185 - Math.random() * 55;
+      tCar.userData.laneOffset = lanes[Math.floor(Math.random() * 3)];
+      tCar.userData.nearMissed = false;
+    }
+  });
+
+  // Update Smoke Particles
   smokeParticles.forEach((p) => {
     if (p.userData.life > 0) {
       p.position.x += p.userData.vx;
       p.position.y += p.userData.vy;
       p.position.z += p.userData.vz;
       p.scale.multiplyScalar(1.06);
-      p.userData.life -= 0.06;
-      p.material.opacity = Math.max(0, p.userData.life * 0.5);
+      p.userData.life -= 0.055;
+      p.material.opacity = Math.max(0, p.userData.life * 0.55);
       if (p.userData.life <= 0) p.visible = false;
     }
   });
 
-  // Scroll Infinite Road Segments
-  roadProps.forEach((seg) => {
-    seg.position.z += playerSpeed;
-    if (seg.position.z > 14) {
-      seg.position.z -= 28 * 8;
-    }
-  });
+  positionWindingDriftWorld();
 
-  // Update Nitro Boost Pads
-  const laneCenters = [-4.6, 0, 4.6];
-  nitroPads.forEach((pad) => {
-    pad.position.z += playerSpeed;
-    if (
-      Math.abs(pad.position.z) < 2.4 &&
-      Math.abs(playerX - pad.position.x) < 1.5
-    ) {
-      playerSpeed = Math.min(topSpeed + 0.35, playerSpeed + 0.35);
-      score += 250 * comboMultiplier;
-      sfx.playDing(1100);
-      showHudBanner("⚡ NITRO BOOST! +250", "#34d399");
-      pad.position.z = -210;
-      pad.position.x = laneCenters[Math.floor(Math.random() * 3)];
-    }
-    if (pad.position.z > 15) {
-      pad.position.z = -210 - Math.random() * 40;
-      pad.position.x = laneCenters[Math.floor(Math.random() * 3)];
-    }
-  });
-
-  // Update Traffic Cars & Check Collisions / Near-Misses
-  trafficCars.forEach((tCar) => {
-    const relZ = playerSpeed - tCar.userData.speed;
-    tCar.position.z += relZ;
-
-    const dz = Math.abs(tCar.position.z);
-    const dx = Math.abs(playerX - tCar.position.x);
-
-    if (dz < 3.5 && dx < 1.68) {
-      // Traffic Collision
-      playerSpeed = 0.3;
-      comboMultiplier = 1;
-      score = Math.max(0, score - 250);
-      crashShake = 18;
-      sfx.playCrash();
-      showHudBanner("💥 TRAFFIC CRASH! -250", "#ef4444");
-      tCar.position.z = -180 - Math.random() * 50;
-      tCar.position.x = laneCenters[Math.floor(Math.random() * 3)];
-      tCar.userData.nearMissed = false;
-    } else if (
-      tCar.position.z > 0.5 &&
-      tCar.position.z < 5.0 &&
-      dx < 2.95 &&
-      !tCar.userData.nearMissed
-    ) {
-      // High-Speed Near-Miss!
-      tCar.userData.nearMissed = true;
-      comboMultiplier = Math.min(10, comboMultiplier + 1);
-      const pts = 300 * comboMultiplier;
-      score += pts;
-      sfx.playDing(880 + comboMultiplier * 70);
-      showHudBanner(`🔥 NEAR MISS! +${pts} (x${comboMultiplier})`, "#facc15");
-    }
-
-    if (tCar.position.z > 16) {
-      tCar.position.z = -190 - Math.random() * 65;
-      tCar.position.x = laneCenters[Math.floor(Math.random() * 3)];
-      tCar.userData.nearMissed = false;
-    }
-  });
-
-  // Update Player Car Transform & Dynamic Chase Camera
-  if (playerMesh) {
-    playerMesh.position.set(playerX, 0, 0);
-    playerMesh.rotation.y = driftSlipAngle;
-    if (playerMesh.userData.bodyPivot) {
-      playerMesh.userData.bodyPivot.rotation.z = -driftSlipAngle * 0.28;
-      playerMesh.userData.bodyPivot.position.y =
-        Math.sin(distanceTraveled * 1.5) * 0.015;
-    }
-  }
-
-  const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.45 : 0;
-  const shakeY = crashShake > 0 ? (Math.random() - 0.5) * 0.35 : 0;
-  if (crashShake > 0) crashShake--;
-
-  webglCamera.fov = 58 + playerSpeed * 9;
-  webglCamera.updateProjectionMatrix();
-  webglCamera.position.set(playerX * 0.65 + shakeX, 3.8 + shakeY, 7.6);
-  webglCamera.lookAt(playerX * 0.85, 0.9, -12);
-
-  // Balance Engine & Tire Screech Audio
+  // Engine & Tire Screech Audio
   engineAudio.volume = Math.min(0.2, 0.03 + playerSpeed * 0.11);
   engineAudio.playbackRate = 0.8 + playerSpeed * 0.45;
   driftAudio.volume = isDrifting ? 0.09 : 0;
 }
 
 // ==========================================
-// 15. MODE B: 3D CROWN & CARIES RUNNER SCENE & LOOP
+// 16. MODE B: 3D DENTAL CLINIC RUSH (PRO HANDPIECE & LASER)
 // ==========================================
 function initDentalRunnerScene() {
   if (!ensureWebGLRenderer()) return;
 
   webglScene = new THREE.Scene();
-  webglScene.background = new THREE.Color(0x130d26);
-  webglScene.fog = new THREE.FogExp2(0x130d26, 0.012);
+  webglScene.background = new THREE.Color(0x0d1326);
+  webglScene.fog = new THREE.FogExp2(0x0d1326, 0.011);
 
-  webglCamera = new THREE.PerspectiveCamera(56, 600 / 800, 0.1, 200);
+  webglCamera = new THREE.PerspectiveCamera(54, 600 / 800, 0.1, 200);
 
-  const hemi = new THREE.HemisphereLight(0xffffff, 0xec4899, 0.95);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xf43f5e, 0.9);
   webglScene.add(hemi);
 
-  const surgicalLight = new THREE.DirectionalLight(0xffffff, 1.45);
-  surgicalLight.position.set(8, 25, 14);
-  webglScene.add(surgicalLight);
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  keyLight.position.set(10, 24, 14);
+  webglScene.add(keyLight);
 
-  // Left & Right Pink Gingiva (Gum) Alveolar Ridges
+  const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.8);
+  rimLight.position.set(-10, 8, -10);
+  webglScene.add(rimLight);
+
+  // Scalloped Pink Gingiva (Gum) Walls on Left & Right
   const gumMat = new THREE.MeshPhysicalMaterial({
-    color: 0xf43f5e,
-    roughness: 0.35,
-    clearcoat: 0.8,
+    color: 0xe11d48,
+    roughness: 0.32,
+    clearcoat: 0.85,
   });
-  [-5.2, 5.2].forEach((gx) => {
+  [-4.6, 4.6].forEach((gx) => {
     const gum = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.6, 2.0, 260, 16),
+      new THREE.CylinderGeometry(1.3, 1.6, 260, 16),
       gumMat,
     );
     gum.rotation.x = Math.PI / 2;
-    gum.position.set(gx, -0.4, -110);
+    gum.position.set(gx, -0.55, -110);
     webglScene.add(gum);
   });
 
-  // 3 Lanes of 3D Porcelain Molar Crowns
+  // 3 Lanes of Sculpted 4-Cusp Porcelain Molars
   molarRows = [];
-  const laneX = [-2.6, 0, 2.6];
-  for (let r = 0; r < 24; r++) {
+  const laneX = [-2.4, 0, 2.4];
+  for (let r = 0; r < 26; r++) {
     const rowGroup = new THREE.Group();
-    rowGroup.position.z = -r * 4.2;
+    rowGroup.position.z = -r * 3.8;
     laneX.forEach((lx) => {
       const molar = build3DCrownPlatformMesh();
       molar.position.x = lx;
@@ -3398,27 +3673,36 @@ function initDentalRunnerScene() {
     molarRows.push(rowGroup);
   }
 
-  // Player 3D High-Speed Dental Handpiece
+  // Start & Finish Clinical Archways
+  startGantry = build3DGantryArch("🦷 STAGE 1: PROPHYLAXIS", "HOLD DRILL TO BLAST DECAY", 0x10b981, "#10b981");
+  startGantry.position.set(0, 0, -12);
+  webglScene.add(startGantry);
+
+  finishGantry = build3DGantryArch("✨ FULL ARCH RESTORED ✨", "GOLDEN SMILE FINALE", 0xfacc15, "#facc15");
+  finishGantry.visible = false;
+  webglScene.add(finishGantry);
+
+  // Side-Angled Pro Dental Handpiece + Laser Aiming Reticle
   dentalTargetLane = 0;
   dentalCurrentX = 0;
   laneSwitchLocked = false;
   playerMesh = build3DDentalHandpiece();
-  playerMesh.position.set(0, 0.5, 0);
+  playerMesh.position.set(0, 0.42, 0);
   webglScene.add(playerMesh);
 
-  // Spawn 3D Dental Targets (Caries, Calculus, Pulp Horns, Fluoride Orbs, Ortho Clamps)
+  // Spawn Clear, Labeled 3D Clinical Targets
   dentalTargets = [];
-  for (let i = 0; i < 16; i++) {
-    const targetGroup = new THREE.Group();
-    webglScene.add(targetGroup);
-    respawnDentalTarget(targetGroup, -22 - i * 11);
-    dentalTargets.push(targetGroup);
+  for (let i = 0; i < 15; i++) {
+    const tGroup = new THREE.Group();
+    webglScene.add(tGroup);
+    respawnDentalTarget(tGroup, -24 - i * 11.5);
+    dentalTargets.push(tGroup);
   }
 
   // 3D Shatter Debris Particle Pool
   shatterParticles = [];
-  const pGeo = new THREE.OctahedronGeometry(0.16, 0);
-  for (let i = 0; i < 24; i++) {
+  const pGeo = new THREE.OctahedronGeometry(0.18, 0);
+  for (let i = 0; i < 28; i++) {
     const pMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
     const part = new THREE.Mesh(pGeo, pMat);
     part.visible = false;
@@ -3433,80 +3717,132 @@ function respawnDentalTarget(targetGroup, zPos) {
     targetGroup.remove(targetGroup.children[0]);
   }
 
-  const laneX = [-2.6, 0, 2.6];
+  const laneX = [-2.4, 0, 2.4];
   const laneIdx = Math.floor(Math.random() * 3);
   targetGroup.position.set(laneX[laneIdx], 0.15, zPos);
   targetGroup.userData.resolved = false;
+  targetGroup.userData.hp = 100;
 
   const roll = Math.random();
-  if (roll < 0.42) {
-    // 1. Dark Carious Lesion (Hold Drill to Excavate & Restore!)
-    targetGroup.userData.type = "caries";
-    const cariesMat = new THREE.MeshStandardMaterial({
-      color: 0x3f2314,
-      roughness: 0.9,
+  if (roll < 0.56) {
+    // 1. CARIES / TARTAR MONSTER CLUSTER (Hold Drill/Laser to Excavate & Crown!)
+    const isCalculus = Math.random() < 0.45;
+    targetGroup.userData.type = isCalculus ? "calculus" : "caries";
+
+    const clusterGroup = new THREE.Group();
+    const mat = new THREE.MeshStandardMaterial({
+      color: isCalculus ? 0xeab308 : 0x451a03,
+      roughness: 0.45,
+      metalness: isCalculus ? 0.4 : 0.1,
     });
-    for (let k = 0; k < 4; k++) {
-      const lump = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(0.42, 0),
-        cariesMat,
+
+    for (let k = 0; k < 5; k++) {
+      const blob = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.42, 1),
+        mat,
       );
-      lump.position.set(
-        (Math.random() - 0.5) * 0.45,
-        0.15,
+      blob.position.set(
+        (Math.random() - 0.5) * 0.55,
+        0.22 + (k % 2) * 0.18,
         (Math.random() - 0.5) * 0.45,
       );
-      targetGroup.add(lump);
+      clusterGroup.add(blob);
     }
-  } else if (roll < 0.68) {
-    // 2. Golden Tartar / Calculus Deposit (Hold Drill to Scale!)
-    targetGroup.userData.type = "calculus";
-    const calcMesh = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.56, 1),
-      new THREE.MeshStandardMaterial({
-        color: 0xeab308,
-        roughness: 0.4,
-        metalness: 0.3,
+    targetGroup.add(clusterGroup);
+    targetGroup.userData.clusterGroup = clusterGroup;
+
+    // Gleaming Gold/Porcelain Crown (Hidden until player drills the decay away!)
+    const restoredCrown = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.68, 0.58, 0.55, 16),
+      new THREE.MeshPhysicalMaterial({
+        color: isCalculus ? 0xffffff : 0xfacc15,
+        metalness: isCalculus ? 0.1 : 0.85,
+        roughness: 0.12,
+        clearcoat: 1.0,
       }),
     );
-    calcMesh.scale.set(1.2, 0.7, 1.1);
-    calcMesh.position.y = 0.22;
-    targetGroup.add(calcMesh);
-  } else if (roll < 0.86) {
-    // 3. Glowing Red Exposed Pulp Horn (DO NOT DRILL! Release Drill or Dodge!)
-    targetGroup.userData.type = "pulp";
-    const pulpMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.52, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xff1e42 }),
+    restoredCrown.position.y = 0.28;
+    restoredCrown.visible = false;
+    targetGroup.add(restoredCrown);
+    targetGroup.userData.restoredCrown = restoredCrown;
+
+    // Floating 3D Instruction Badge
+    const badge = createBadgeSprite(
+      isCalculus ? "⚡ SCALE TARTAR" : "⚡ DRILL CARIES",
+      "#064e3b",
+      "#34d399",
+      "#a7f3d0",
     );
-    pulpMesh.scale.set(1.0, 0.65, 1.0);
-    pulpMesh.position.y = 0.18;
-    targetGroup.add(pulpMesh);
+    badge.position.set(0, 1.35, 0);
+    targetGroup.add(badge);
+    targetGroup.userData.badge = badge;
+  } else if (roll < 0.82) {
+    // 2. EXPOSED NERVE / PULP BIO-HAZARD GATE (Steer Left/Right to Dodge!)
+    targetGroup.userData.type = "nerve_hazard";
+
+    const pillarMat = new THREE.MeshBasicMaterial({ color: 0xff1e42 });
+    [-0.75, 0.75].forEach((px) => {
+      const p = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.12, 1.6, 12),
+        pillarMat,
+      );
+      p.position.set(px, 0.8, 0);
+      targetGroup.add(p);
+    });
+
+    const laserBar = new THREE.Mesh(
+      new THREE.BoxGeometry(1.65, 0.9, 0.15),
+      new THREE.MeshBasicMaterial({
+        color: 0xff1e42,
+        transparent: true,
+        opacity: 0.65,
+      }),
+    );
+    laserBar.position.set(0, 0.75, 0);
+    targetGroup.add(laserBar);
+
+    const warnBadge = createBadgeSprite(
+      "⚠️ NERVE: DODGE!",
+      "#7f1d1d",
+      "#f87171",
+      "#fecaca",
+    );
+    warnBadge.position.set(0, 1.75, 0);
+    targetGroup.add(warnBadge);
   } else {
-    // 4. Cyan Fluoride Shield Orb (Touch to Collect +500!)
+    // 3. FLUORIDE HYPER-RING (Fly through for +500 Boost!)
     targetGroup.userData.type = "fluoride";
-    const orb = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.48, 1),
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.68, 0.12, 12, 28),
       new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
     );
-    orb.position.y = 0.55;
-    targetGroup.add(orb);
+    ring.position.y = 0.75;
+    targetGroup.add(ring);
+
+    const boostBadge = createBadgeSprite(
+      "💎 +500 BOOST",
+      "#0c4a6e",
+      "#38bdf8",
+      "#e0f2fe",
+    );
+    boostBadge.position.set(0, 1.75, 0);
+    targetGroup.add(boostBadge);
   }
 }
 
 function spawnShatterBurst(x, z, hexColor) {
   let spawned = 0;
-  for (let i = 0; i < shatterParticles.length && spawned < 8; i++) {
+  for (let i = 0; i < shatterParticles.length && spawned < 9; i++) {
     const p = shatterParticles[i];
     if (p.userData.life <= 0) {
       p.visible = true;
       p.material.color.setHex(hexColor);
-      p.position.set(x, 0.35, z);
+      p.position.set(x, 0.45, z);
       p.userData = {
         life: 1.0,
-        vx: (Math.random() - 0.5) * 0.24,
-        vy: 0.12 + Math.random() * 0.16,
-        vz: (Math.random() - 0.5) * 0.24,
+        vx: (Math.random() - 0.5) * 0.28,
+        vy: 0.14 + Math.random() * 0.18,
+        vz: (Math.random() - 0.5) * 0.28,
       };
       spawned++;
     }
@@ -3514,11 +3850,30 @@ function spawnShatterBurst(x, z, hexColor) {
 }
 
 function updateDentalRunnerLoop() {
-  const forwardSpeed = 0.88;
+  const stageSpeedBoost = (currentStageNumber - 1) * 0.1;
+  const forwardSpeed = 0.72 + stageSpeedBoost;
   distanceTraveled += forwardSpeed;
-  score += 1;
+  score += 2;
 
-  // Discrete 3-Lane Switching on Left/Right Tap or Continuous Glide
+  // Stage Progression Announcements
+  const progRatio = distanceTraveled / totalRunDistance;
+  if (progRatio >= 0.33 && currentStageNumber === 1) {
+    currentStageNumber = 2;
+    score += 1000;
+    sfx.playCountdownBeep(true);
+    showHudBanner("🦷 STAGE 2: ENDODONTIC & CROWN PREP! +1000", "#38bdf8", 1800);
+    webglScene.background.setHex(0x130924);
+    webglScene.fog.color.setHex(0x130924);
+  } else if (progRatio >= 0.66 && currentStageNumber === 2) {
+    currentStageNumber = 3;
+    score += 1500;
+    sfx.playCountdownBeep(true);
+    showHudBanner("👑 FINAL STAGE: FULL ARCH REHAB! +1500", "#facc15", 1800);
+    webglScene.background.setHex(0x062026);
+    webglScene.fog.color.setHex(0x062026);
+  }
+
+  // Smooth 3-Lane Switching
   if (!window.input.left && !window.input.right) {
     laneSwitchLocked = false;
   } else if (!laneSwitchLocked) {
@@ -3531,121 +3886,146 @@ function updateDentalRunnerLoop() {
     }
   }
 
-  const targetX = dentalTargetLane * 2.6;
+  const targetX = dentalTargetLane * 2.4;
   dentalCurrentX += (targetX - dentalCurrentX) * 0.22;
 
   const isDrilling = Boolean(window.input.gas);
   dentalArcadeSynth.setDrillActive(isDrilling);
 
-  // Animate 3D Handpiece Position, Banking, Spinning Bur & Water Spray
+  // Animate Ergonomic Side-Angled Handpiece & Long-Range Hydro-Laser
   if (playerMesh) {
-    const targetY = isDrilling ? 0.18 : 0.55;
+    const targetY = isDrilling ? 0.32 : 0.52;
     playerMesh.position.x = dentalCurrentX;
     playerMesh.position.y += (targetY - playerMesh.position.y) * 0.25;
-    playerMesh.rotation.z = (dentalCurrentX - targetX) * 0.18;
+    playerMesh.rotation.z = (dentalCurrentX - targetX) * 0.14;
 
     if (playerMesh.userData.burPivot) {
-      playerMesh.userData.burPivot.rotation.y += isDrilling ? 0.85 : 0.2;
+      playerMesh.userData.burPivot.rotation.y += isDrilling ? 0.95 : 0.25;
     }
-    if (playerMesh.userData.sprayCone) {
-      playerMesh.userData.sprayCone.material.opacity = isDrilling ? 0.42 : 0.0;
-      playerMesh.userData.sprayCone.rotation.y += 0.35;
+    if (playerMesh.userData.laserBeam) {
+      playerMesh.userData.laserBeam.material.opacity = isDrilling
+        ? 0.55 + Math.random() * 0.25
+        : 0.0;
+    }
+    if (playerMesh.userData.aimRing) {
+      playerMesh.userData.aimRing.rotation.z += 0.08;
+      playerMesh.userData.aimRing.scale.setScalar(isDrilling ? 1.25 : 0.9);
+    }
+  }
+
+  // Scroll Start & Finish Gantries
+  if (startGantry) {
+    startGantry.position.z = -12 + distanceTraveled;
+    startGantry.visible = startGantry.position.z < 12;
+  }
+  if (finishGantry) {
+    const remDist = totalRunDistance - distanceTraveled;
+    finishGantry.visible = remDist < 190;
+    if (finishGantry.visible) {
+      finishGantry.position.set(0, 0, -remDist);
     }
   }
 
   // Scroll 3D Molar Arch Rows
   molarRows.forEach((row) => {
     row.position.z += forwardSpeed;
-    if (row.position.z > 8.4) {
-      row.position.z -= 24 * 4.2;
+    if (row.position.z > 7.6) {
+      row.position.z -= 26 * 3.8;
     }
   });
 
-  // Update Dental Targets & Check Clinical Interactions
-  const burZ = -0.95;
+  // Update Targets: Long-Range Laser Drilling & Obstacle Dodging
   dentalTargets.forEach((tGroup) => {
     tGroup.position.z += forwardSpeed;
-    tGroup.rotation.y += 0.03;
+    const type = tGroup.userData.type;
+    const inSameLane = Math.abs(dentalCurrentX - tGroup.position.x) < 1.1;
 
-    const dz = Math.abs(tGroup.position.z - burZ);
-    const dx = Math.abs(dentalCurrentX - tGroup.position.x);
+    // 1. Long-Range Hydro-Laser Excavates Caries/Calculus up to 14 units ahead!
+    if (
+      !tGroup.userData.resolved &&
+      (type === "caries" || type === "calculus") &&
+      isDrilling &&
+      inSameLane &&
+      tGroup.position.z < 0.5 &&
+      tGroup.position.z > -15.5
+    ) {
+      tGroup.userData.hp -= 26;
+      if (tGroup.userData.clusterGroup) {
+        tGroup.userData.clusterGroup.scale.setScalar(
+          Math.max(0.1, tGroup.userData.hp / 100),
+        );
+        tGroup.userData.clusterGroup.rotation.y += 0.35;
+      }
 
-    if (!tGroup.userData.resolved && dz < 1.05 && dx < 1.15) {
-      const type = tGroup.userData.type;
-
-      if (type === "caries" || type === "calculus") {
-        if (isDrilling) {
-          tGroup.userData.resolved = true;
-          comboMultiplier = Math.min(12, comboMultiplier + 1);
-          const pts = (type === "caries" ? 350 : 400) * comboMultiplier;
-          score += pts;
-          sfx.playDing(920 + comboMultiplier * 65);
-          spawnShatterBurst(
-            tGroup.position.x,
-            tGroup.position.z,
-            type === "caries" ? 0xffffff : 0xfacc15,
-          );
-          showHudBanner(
-            type === "caries"
-              ? `🦷 CARIES RESTORED! +${pts}`
-              : `✨ CALCULUS SCALED! +${pts}`,
-            "#34d399",
-          );
-          tGroup.visible = false;
+      if (tGroup.userData.hp <= 0) {
+        tGroup.userData.resolved = true;
+        if (tGroup.userData.clusterGroup) {
+          tGroup.userData.clusterGroup.visible = false;
         }
-      } else if (type === "pulp") {
-        if (isDrilling) {
-          // Drilled into an exposed vital pulp chamber!
-          tGroup.userData.resolved = true;
-          comboMultiplier = 1;
-          score = Math.max(0, score - 300);
-          crashShake = 16;
-          sfx.playCrash();
-          spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0xff1e42);
-          showHudBanner("🩸 PULP EXPOSURE! -300 (Release Drill!)", "#ef4444");
-          tGroup.visible = false;
-        } else {
-          // Passed safely over vital pulp without drilling!
-          tGroup.userData.resolved = true;
-          score += 150;
-          sfx.playDing(720);
-          showHudBanner("✅ PULP PRESERVED! +150", "#38bdf8");
+        if (tGroup.userData.restoredCrown) {
+          tGroup.userData.restoredCrown.visible = true;
         }
+        if (tGroup.userData.badge) {
+          tGroup.userData.badge.visible = false;
+        }
+
+        comboMultiplier = Math.min(12, comboMultiplier + 1);
+        const pts = (type === "caries" ? 400 : 450) * comboMultiplier;
+        score += pts;
+        sfx.playDing(920 + comboMultiplier * 70);
+        spawnShatterBurst(
+          tGroup.position.x,
+          tGroup.position.z,
+          type === "caries" ? 0xfacc15 : 0xffffff,
+        );
+        showHudBanner(
+          type === "caries"
+            ? `👑 CROWN PLACED! +${pts} (x${comboMultiplier})`
+            : `✨ TARTAR SCALED! +${pts} (x${comboMultiplier})`,
+          "#34d399",
+        );
+      }
+    }
+
+    // 2. Direct Contact Checks near z = -0.85
+    if (
+      !tGroup.userData.resolved &&
+      Math.abs(tGroup.position.z - -0.85) < 1.0 &&
+      inSameLane
+    ) {
+      if (type === "nerve_hazard") {
+        tGroup.userData.resolved = true;
+        comboMultiplier = 1;
+        score = Math.max(0, score - 300);
+        crashShake = 16;
+        sfx.playCrash();
+        spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0xff1e42);
+        showHudBanner("🩸 NERVE HIT! -300 (Dodge Red Gates!)", "#ef4444");
       } else if (type === "fluoride") {
         tGroup.userData.resolved = true;
-        score += 500;
-        sfx.playDing(1250);
+        const pts = 500 * comboMultiplier;
+        score += pts;
+        sfx.playDing(1300);
         spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0x38bdf8);
-        showHudBanner("💎 FLUORIDE BOOST! +500", "#38bdf8");
+        showHudBanner(`💎 FLUORIDE SHIELD! +${pts}`, "#38bdf8");
         tGroup.visible = false;
       }
     }
 
-    // Missed caries penalty if it passes behind the bur uncleaned
-    if (
-      !tGroup.userData.resolved &&
-      tGroup.position.z > 2.2 &&
-      (tGroup.userData.type === "caries" || tGroup.userData.type === "calculus")
-    ) {
-      tGroup.userData.resolved = true;
-      comboMultiplier = 1;
-      showHudBanner("⚠️ MISSED LESION! Combo Reset", "#fb923c");
-    }
-
-    if (tGroup.position.z > 10) {
+    if (tGroup.position.z > 9) {
       tGroup.visible = true;
-      respawnDentalTarget(tGroup, -165 - Math.random() * 25);
+      respawnDentalTarget(tGroup, -165 - Math.random() * 20);
     }
   });
 
-  // Animate Shatter Debris Particles
+  // Animate Debris Particles
   shatterParticles.forEach((p) => {
     if (p.userData.life > 0) {
       p.position.x += p.userData.vx;
       p.position.y += p.userData.vy;
       p.position.z += p.userData.vz;
       p.userData.vy -= 0.012;
-      p.rotation.x += 0.15;
+      p.rotation.x += 0.16;
       p.userData.life -= 0.05;
       p.scale.setScalar(Math.max(0.01, p.userData.life));
       if (p.userData.life <= 0) p.visible = false;
@@ -3655,16 +4035,135 @@ function updateDentalRunnerLoop() {
   const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.35 : 0;
   if (crashShake > 0) crashShake--;
 
-  webglCamera.position.set(dentalCurrentX * 0.55 + shakeX, 3.6, 5.2);
-  webglCamera.lookAt(dentalCurrentX * 0.75, 0.2, -9);
+  if (victoryFreezeTimer > 0) {
+    const angle = (120 - victoryFreezeTimer) * 0.045;
+    webglCamera.position.set(
+      Math.sin(angle) * 6.5,
+      3.5,
+      Math.cos(angle) * 6.5,
+    );
+    webglCamera.lookAt(0, 0.4, 0);
+  } else if (countdownTimer > 0) {
+    const t = countdownTimer / 180;
+    webglCamera.position.set(
+      dentalCurrentX * 0.5,
+      3.9 + t * 1.5,
+      5.2 + t * 2.5,
+    );
+    webglCamera.lookAt(0, 0.3, -10);
+  } else {
+    webglCamera.position.set(dentalCurrentX * 0.52 + shakeX, 3.85, 5.2);
+    webglCamera.lookAt(dentalCurrentX * 0.72, 0.25, -10);
+  }
 }
 
 // ==========================================
-// 16. MASTER 60FPS RENDER & COMPLETION HANDLER
+// 17. MASTER 60FPS LOOP (COUNTDOWN, GAMEPLAY & VICTORY)
 // ==========================================
 function masterArcadeLoop() {
   if (raceFinished) return;
 
+  // PHASE 1: 3-2-1-GO STARTING GRID COUNTDOWN
+  if (countdownTimer > 0) {
+    if (countdownTimer === 175) {
+      sfx.playCountdownBeep(false);
+      showHudBanner("🔴 3...", "#ef4444", 900);
+    } else if (countdownTimer === 115) {
+      sfx.playCountdownBeep(false);
+      showHudBanner("🟠 2...", "#fb923c", 900);
+    } else if (countdownTimer === 55) {
+      sfx.playCountdownBeep(false);
+      showHudBanner("🟡 1...", "#facc15", 900);
+    } else if (countdownTimer === 1) {
+      sfx.playCountdownBeep(true);
+      showHudBanner(
+        activeGameMode === "dental_runner"
+          ? "🟢 CLINIC OPEN! HOLD DRILL!"
+          : "🟢 GO!! DRIFT THE CORNERS!",
+        "#34d399",
+        1300,
+      );
+      startTime = Date.now();
+    }
+    countdownTimer--;
+
+    if (activeGameMode === "dental_runner") {
+      if (webglCamera) {
+        const t = countdownTimer / 180;
+        webglCamera.position.set(0, 3.8 + t * 1.4, 5.2 + t * 2.2);
+        webglCamera.lookAt(0, 0.3, -10);
+      }
+    } else {
+      positionWindingDriftWorld();
+    }
+
+    if (webglRenderer && webglScene && webglCamera) {
+      webglRenderer.render(webglScene, webglCamera);
+    }
+    gameLoopId = requestAnimationFrame(masterArcadeLoop);
+    return;
+  }
+
+  // PHASE 2: FINISH LINE SLOW-MOTION VICTORY CAMERA ORBIT
+  if (victoryFreezeTimer > 0) {
+    victoryFreezeTimer--;
+    if (activeGameMode === "dental_runner") {
+      const angle = (110 - victoryFreezeTimer) * 0.045;
+      webglCamera.position.set(
+        Math.sin(angle) * 6.5,
+        3.4,
+        Math.cos(angle) * 6.5,
+      );
+      webglCamera.lookAt(0, 0.4, 0);
+    } else {
+      positionWindingDriftWorld();
+    }
+
+    if (webglRenderer && webglScene && webglCamera) {
+      webglRenderer.render(webglScene, webglCamera);
+    }
+
+    if (victoryFreezeTimer === 0) {
+      raceFinished = true;
+      stopArcadeAudio();
+
+      const timeTaken = (Date.now() - startTime) / 1000;
+      const grade =
+        score >= 25000
+          ? "S+ MASTER"
+          : score >= 15000
+            ? "A+ SENIOR"
+            : "B RESIDENT";
+
+      const scoreboardModal = document.getElementById("scoreboard-modal");
+      const finalScoreDisplay = document.getElementById("final-score-display");
+      const finalSub = document.getElementById("final-run-subtitle");
+      const heading = document.getElementById("scoreboard-heading");
+
+      if (heading) {
+        heading.textContent =
+          activeGameMode === "dental_runner"
+            ? `🦷 SHIFT COMPLETE (${grade}) 🦷`
+            : `🏁 TOUGE COMPLETE (${grade}) 🏁`;
+      }
+      if (finalScoreDisplay) finalScoreDisplay.textContent = String(score);
+      if (finalSub) {
+        finalSub.textContent = `Time: ${timeTaken.toFixed(1)}s | Rank: ${grade}`;
+      }
+
+      if (scoreboardModal) scoreboardModal.style.display = "flex";
+      setTimeout(async () => {
+        const saved = await submitDriftScore(arcadePlayerName, score);
+        if (saved) fetchDriftLeaderboard();
+      }, 80);
+      return;
+    }
+
+    gameLoopId = requestAnimationFrame(masterArcadeLoop);
+    return;
+  }
+
+  // PHASE 3: ACTIVE 60FPS GAMEPLAY
   if (activeGameMode === "dental_runner") {
     updateDentalRunnerLoop();
   } else {
@@ -3687,36 +4186,18 @@ function masterArcadeLoop() {
   if (elCombo) elCombo.textContent = `x${comboMultiplier}`;
   if (elProg) elProg.textContent = `${progress.toFixed(1)}%`;
 
-  if (distanceTraveled >= totalRunDistance) {
-    raceFinished = true;
-    stopArcadeAudio();
-
+  // Trigger Finish Line Celebration at 100%
+  if (distanceTraveled >= totalRunDistance && victoryFreezeTimer === 0) {
+    victoryFreezeTimer = 110; // ~1.8s slow-mo victory camera orbit
     const timeTaken = (Date.now() - startTime) / 1000;
-    const speedBonus = Math.max(0, Math.floor((65 - timeTaken) * 45));
+    const speedBonus = Math.max(0, Math.floor((95 - timeTaken) * 50));
     score += speedBonus;
-
-    const scoreboardModal = document.getElementById("scoreboard-modal");
-    const finalScoreDisplay = document.getElementById("final-score-display");
-    const finalSub = document.getElementById("final-run-subtitle");
-    const heading = document.getElementById("scoreboard-heading");
-
-    if (heading) {
-      heading.textContent =
-        activeGameMode === "dental_runner"
-          ? "🦷 CLINICAL SHIFT COMPLETE 🦷"
-          : "🏁 MIDNIGHT RUN COMPLETE 🏁";
-    }
-    if (finalScoreDisplay) finalScoreDisplay.textContent = String(score);
-    if (finalSub) {
-      finalSub.textContent = `Time: ${timeTaken.toFixed(1)}s | Speed Bonus: +${speedBonus}`;
-    }
-
-    if (scoreboardModal) scoreboardModal.style.display = "flex";
-    setTimeout(async () => {
-      const saved = await submitDriftScore(arcadePlayerName, score);
-      if (saved) fetchDriftLeaderboard();
-    }, 80);
-    return;
+    sfx.playCountdownBeep(true);
+    showHudBanner(
+      `🏆 FINISH LINE! SPEED BONUS +${speedBonus}`,
+      "#facc15",
+      2000,
+    );
   }
 
   gameLoopId = requestAnimationFrame(masterArcadeLoop);
