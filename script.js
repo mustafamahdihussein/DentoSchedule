@@ -333,7 +333,6 @@ window.handleSecretTrigger = function () {
 let mascotKeyLight = null;
 
 function buildSeamlessPorcelainMolarGeometry() {
-  // Polynomial smooth-minimum & smooth-maximum (fuses 3D shapes like liquid porcelain)
   function smin(a, b, k) {
     const h = Math.max(k - Math.abs(a - b), 0.0) / k;
     return Math.min(a, b) - h * h * k * 0.25;
@@ -342,69 +341,79 @@ function buildSeamlessPorcelainMolarGeometry() {
     return -smin(-a, -b, k);
   }
 
-  // Signed Distance Field (SDF) defining the exact tooth from the reference image
   function toothSDF(x, y, z) {
-    // 1. 4 Plump, Rounded Cusp Lobes at the top corners
-    const cuspPositions = [
-      [0.31, 0.54, 0.29],
-      [-0.31, 0.54, 0.29],
-      [0.31, 0.54, -0.29],
-      [-0.31, 0.54, -0.29],
+    // 1. CONTINUOUS CROWN WALLS (No mid-crown pinch; smooth taper from upper crown to waist)
+    const yc = Math.max(-0.04, Math.min(0.52, y));
+    const s = (yc + 0.04) / 0.56; // 0 at cervical waist, 1 at cusp base
+    const crownHalfWidth = 0.42 + 0.115 * Math.sin(s * Math.PI * 0.65);
+
+    // Rounded-square (squircle) cross-section with subtle mid-wall developmental groove
+    const qx = Math.max(Math.abs(x) - crownHalfWidth * 0.42, 0.0);
+    const qz = Math.max(Math.abs(z) - crownHalfWidth * 0.4, 0.0);
+    const sideGroove =
+      0.014 *
+      s *
+      (Math.exp(-x * x * 35) + Math.exp(-z * z * 35));
+    const dxz =
+      Math.sqrt(qx * qx + qz * qz) - crownHalfWidth * 0.58 + sideGroove;
+
+    const dy = Math.max(-0.04 - y, y - 0.52, 0.0);
+    const dCrownBody =
+      Math.min(Math.max(dxz, -0.04 - y, y - 0.52), 0.0) +
+      Math.sqrt(Math.max(dxz, 0.0) * Math.max(dxz, 0.0) + dy * dy);
+
+    // 2. 4 PILLOWY ROUNDED CUSPS (Aligned flush with the crown walls)
+    const cuspOffsets = [
+      [0.24, 0.52, 0.23],
+      [-0.24, 0.52, 0.23],
+      [0.24, 0.52, -0.23],
+      [-0.24, 0.52, -0.23],
     ];
     let dCusps = 999;
     for (let i = 0; i < 4; i++) {
-      const cx = (x - cuspPositions[i][0]) / 1.02;
-      const cy = (y - cuspPositions[i][1]) / 1.08;
-      const cz = (z - cuspPositions[i][2]) / 0.98;
-      const d = Math.sqrt(cx * cx + cy * cy + cz * cz) - 0.39;
-      dCusps = i === 0 ? d : smin(dCusps, d, 0.26);
+      const cx = x - cuspOffsets[i][0];
+      const cy = (y - cuspOffsets[i][1]) / 0.96;
+      const cz = z - cuspOffsets[i][2];
+      const d = Math.sqrt(cx * cx + cy * cy + cz * cz) - 0.305;
+      dCusps = i === 0 ? d : smin(dCusps, d, 0.22);
     }
 
-    // Smoothly carve the soft central occlusal valley between the 4 cusps
-    const dCentralValley =
-      Math.sqrt(x * x + Math.pow(y - 1.12, 2) + z * z) - 0.44;
-    dCusps = smax(dCusps, -dCentralValley, 0.22);
+    let dCrown = smin(dCrownBody, dCusps, 0.16);
 
-    // 2. Smooth Mid-Crown & Narrowed Cervical Waist (Neck)
-    const waistY = (y - 0.14) / 0.42;
-    const squircleXZ = Math.pow(
-      Math.pow(x / 0.49, 4) + Math.pow(z / 0.46, 4),
-      0.25,
-    );
-    const dNeck =
-      (Math.sqrt(squircleXZ * squircleXZ + waistY * waistY) - 1.0) * 0.42;
+    // Soft occlusal valley in the center of the 4 cusps
+    const dOcclusalValley =
+      Math.sqrt(x * x + Math.pow(y - 0.98, 2) + z * z) - 0.35;
+    dCrown = smax(dCrown, -dOcclusalValley, 0.18);
 
-    let dCrown = smin(dCusps, dNeck, 0.28);
-
-    // 3. 4 Tapering, Slightly Inward-Curving Roots with Smooth Furcation Arches
+    // 3. 4 STURDY CONICAL ROOTS WITH HIGH INVERTED-U FURCATION ARCH
     const rootSigns = [
       [1, 1],
       [-1, 1],
       [1, -1],
       [-1, -1],
     ];
-    const t = Math.max(0, Math.min(1, (0.08 - y) / 1.16)); // 0 at neck, 1 at root tips
-    const rootY = 0.08 - t * 1.16;
-    // Bow slightly outward at mid-root, then curve gently inward at the root tips
-    const spread = 0.25 + 0.055 * Math.sin(t * Math.PI) - 0.065 * (t * t);
-    const rootRadius = 0.235 * (1.0 - 0.72 * Math.pow(t, 1.15));
+    const t = Math.max(0.0, Math.min(1.0, (0.04 - y) / 0.88)); // 0 at waist, 1 at root tips
+    const rootY = 0.04 - t * 0.88;
+
+    // Gentle outward bow at mid-root, curving slightly inward at the root tips
+    const spread = 0.215 + 0.032 * Math.sin(t * Math.PI) - 0.045 * (t * t);
+    const rootRadius = 0.055 + 0.18 * Math.pow(1.0 - t, 0.88);
 
     let dRoots = 999;
     for (let i = 0; i < 4; i++) {
       const rx = rootSigns[i][0] * spread;
-      const rz = rootSigns[i][1] * (spread * 0.94);
+      const rz = rootSigns[i][1] * (spread * 0.95);
       const dist =
         Math.sqrt(
           Math.pow(x - rx, 2) + Math.pow(y - rootY, 2) + Math.pow(z - rz, 2),
         ) - rootRadius;
-      dRoots = i === 0 ? dist : smin(dRoots, dist, 0.09);
+      dRoots = i === 0 ? dist : smin(dRoots, dist, 0.055);
     }
 
-    // Fuse the 4 roots seamlessly into the waist of the crown
-    return smin(dCrown, dRoots, 0.2);
+    // Fuse roots smoothly into the cervical waist
+    return smin(dCrown, dRoots, 0.12);
   }
 
-  // Analytical 3D gradient for 100% smooth, crease-free normals
   function getNormal(x, y, z) {
     const eps = 0.002;
     const nx = toothSDF(x + eps, y, z) - toothSDF(x - eps, y, z);
@@ -414,16 +423,15 @@ function buildSeamlessPorcelainMolarGeometry() {
     return [nx / len, ny / len, nz / len];
   }
 
-  // Extract watertight isosurface via Marching Tetrahedra
-  const nx = 40,
-    ny = 48,
-    nz = 40;
-  const minX = -0.88,
-    maxX = 0.88;
-  const minY = -1.22,
-    maxY = 1.02;
-  const minZ = -0.88,
-    maxZ = 0.88;
+  const nx = 42,
+    ny = 52,
+    nz = 42;
+  const minX = -0.72,
+    maxX = 0.72;
+  const minY = -0.98,
+    maxY = 0.92;
+  const minZ = -0.72,
+    maxZ = 0.72;
   const dx = (maxX - minX) / nx;
   const dy = (maxY - minY) / ny;
   const dz = (maxZ - minZ) / nz;
@@ -460,7 +468,6 @@ function buildSeamlessPorcelainMolarGeometry() {
     let vy = p1[1] + mu * (p2[1] - p1[1]);
     let vz = p1[2] + mu * (p2[2] - p1[2]);
 
-    // Project vertex directly onto the exact SDF = 0 porcelain surface
     for (let step = 0; step < 2; step++) {
       const dist = toothSDF(vx, vy, vz);
       const n = getNormal(vx, vy, vz);
@@ -664,7 +671,6 @@ function initHeader3DMascot() {
   const canvas = document.getElementById("header-3d-canvas");
   if (!canvas || typeof THREE === "undefined") return;
 
-  // Keep the dark navy studio background
   if (canvas.parentElement) {
     canvas.parentElement.style.background =
       "radial-gradient(circle at 30% 25%, #1e3a8a 0%, #0f172a 85%)";
@@ -682,44 +688,47 @@ function initHeader3DMascot() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
-  camera.position.set(0, -0.05, 3.85);
+  // Framed further back so the entire tooth sits inside the box with clean padding
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
+  camera.position.set(0, 0.0, 4.45);
 
-  // Studio Hemisphere + Specular Lighting so the tooth is bright white (never dark grey)
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x60a5fa, 0.95);
+  // Pure white & soft silver studio lighting (eliminates the cyan/blue stain on the tooth)
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.95);
   hemiLight.position.set(0, 5, 0);
   scene.add(hemiLight);
 
   mascotKeyLight = new THREE.DirectionalLight(0xffffff, 1.15);
-  mascotKeyLight.position.set(3.5, 5.0, 4.5);
+  mascotKeyLight.position.set(2.8, 4.5, 4.5);
   scene.add(mascotKeyLight);
 
-  const rimLight = new THREE.DirectionalLight(0xbae6fd, 0.75);
-  rimLight.position.set(-4.0, 2.0, -3.0);
-  scene.add(rimLight);
+  const fillLight = new THREE.DirectionalLight(0xf1f5f9, 0.65);
+  fillLight.position.set(-3.5, 1.0, 3.5);
+  scene.add(fillLight);
 
   const toothGroup = new THREE.Group();
+  // Scaled down to 78% so top cusps and root tips never clip the edges
+  toothGroup.scale.set(0.78, 0.78, 0.78);
   scene.add(toothGroup);
 
   const molarGeo = buildSeamlessPorcelainMolarGeometry();
   const porcelainMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    emissive: 0xdbeafe,
-    emissiveIntensity: 0.14,
-    roughness: 0.14,
+    emissive: 0xffffff,
+    emissiveIntensity: 0.12,
+    roughness: 0.12,
     metalness: 0.02,
     clearcoat: 1.0,
-    clearcoatRoughness: 0.06,
+    clearcoatRoughness: 0.05,
     reflectivity: 1.0,
   });
 
   const molarMesh = new THREE.Mesh(molarGeo, porcelainMat);
-  molarMesh.position.y = 0.08;
+  molarMesh.position.y = 0.02;
   toothGroup.add(molarMesh);
 
-  // Angle to showcase the 4 rounded cusps and the 4 arched roots like the reference photo
-  toothGroup.rotation.x = 0.18;
-  toothGroup.rotation.y = 0.65;
+  // Slight 3/4 view angle matching your reference image
+  toothGroup.rotation.x = 0.12;
+  toothGroup.rotation.y = 0.62;
 
   let isDragging = false;
   let prevPos = { x: 0, y: 0 };
@@ -736,8 +745,8 @@ function initHeader3DMascot() {
     const dy = e.clientY - prevPos.y;
     toothGroup.rotation.y += dx * 0.015;
     toothGroup.rotation.x = Math.max(
-      -0.65,
-      Math.min(0.85, toothGroup.rotation.x + dy * 0.015),
+      -0.6,
+      Math.min(0.75, toothGroup.rotation.x + dy * 0.015),
     );
     prevPos = { x: e.clientX, y: e.clientY };
   });
@@ -748,11 +757,11 @@ function initHeader3DMascot() {
 
   function animateMascot() {
     requestAnimationFrame(animateMascot);
-    floatClock += 0.035;
+    floatClock += 0.032;
     if (!isDragging) {
-      toothGroup.rotation.y += 0.011;
+      toothGroup.rotation.y += 0.01;
     }
-    toothGroup.position.y = Math.sin(floatClock) * 0.05;
+    toothGroup.position.y = Math.sin(floatClock) * 0.04;
     renderer.render(scene, camera);
   }
   animateMascot();
