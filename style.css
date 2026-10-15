@@ -915,7 +915,7 @@ header p,
 }
 
 /* ==========================================
-   7. DUAL-MODE 3D ARCADE & WEBGL HUD
+   7. ARCADE
    ========================================== */
 .arcade-menu-card {
   position: relative;
@@ -947,97 +947,43 @@ header p,
   color: #2ecc71;
 }
 
-.arcade-mode-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.arcade-tab-btn {
-  flex: 1;
-  padding: 10px 8px;
-  border-radius: 10px;
-  border: 1px solid #475569;
-  background: #0f172a;
-  color: #94a3b8;
-  font-weight: 700;
-  font-size: 0.82rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.arcade-tab-btn.active {
-  background: linear-gradient(135deg, #2563eb, #0284c7);
-  color: #ffffff;
-  border-color: #38bdf8;
-  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
-}
-
-.arcade-hint {
-  font-size: 12px;
-  color: #cbd5e1;
-  margin-bottom: 8px;
-}
-
-.car-hitbox {
-  position: absolute;
-  background-color: transparent;
-  border: 2px solid transparent;
-  border-radius: 8px;
-  cursor: pointer;
-  z-index: 10;
-  transition:
-    background-color 0.2s,
-    border 0.2s,
-    transform 0.15s;
-}
-
-.car-hitbox:hover,
-.car-hitbox:active {
-  background-color: rgba(56, 189, 248, 0.22);
-  border: 2px solid #38bdf8;
-  transform: scale(1.02);
-}
-
-.dental-runner-promo {
+.arcade-game-list {
   background: #0f172a;
   border: 1px solid #334155;
   border-radius: 12px;
+  min-height: 120px;
   padding: 18px 14px;
   text-align: center;
-}
-
-.dental-promo-icon {
-  font-size: 40px;
-  margin-bottom: 8px;
-}
-
-.dental-runner-promo h4 {
-  color: #38bdf8;
-  margin-bottom: 6px;
-  font-size: 1rem;
-}
-
-.dental-runner-promo p {
-  font-size: 12.5px;
   color: #94a3b8;
-  line-height: 1.45;
-  margin-bottom: 14px;
+  font-size: 0.85rem;
 }
 
-.dental-launch-btn {
-  width: 100%;
-  padding: 12px !important;
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  font-size: 0.95rem !important;
+.arcade-game-list p {
+  margin: 10px 0 0;
 }
 
-/* 3D WebGL Stage & HUD */
+.hopper-launch-btn,
+.hopper-controls button {
+  border: 1px solid #38bdf8;
+  border-radius: 10px;
+  background: #075985;
+  color: #f8fafc;
+  cursor: pointer;
+  font: 700 0.9rem monospace;
+  padding: 12px 14px;
+  touch-action: manipulation;
+}
+
+.hopper-launch-btn:hover,
+.hopper-controls button:hover {
+  background: #0369a1;
+}
+
 .game-top-bar {
   width: 95%;
-  max-width: 600px;
+  max-width: 900px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   padding: 8px 12px;
   background: rgba(15, 23, 42, 0.85);
@@ -1047,95 +993,82 @@ header p,
   font-family: monospace;
 }
 
-.game-hud-stats {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-.hud-stat-box {
-  display: flex;
-  flex-direction: column;
-}
-
-.hud-label {
-  font-size: 10px;
-  color: #94a3b8;
-  letter-spacing: 0.5px;
-}
-
-.hud-val {
-  font-size: 18px;
-  font-weight: 800;
-  color: #2ecc71;
-}
-
-.webgl-stage-wrapper {
+.arcade-2d-mount {
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
-}
-
-.hud-floating-banner {
-  position: absolute;
-  top: 18%;
-  left: 50%;
-  transform: translateX(-50%);
-  font-family: monospace;
-  font-size: 20px;
-  font-weight: 900;
-  color: #facc15;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  text-align: center;
-  white-space: nowrap;
-}
-
-.hud-floating-banner.show {
-  opacity: 1;
-  transform: translate(-50%, -10px);
-}
-
-.arcade-controls-row {
-  display: flex;
-  gap: 10px;
   width: 95%;
-  max-width: 600px;
+  max-width: 900px;
+  min-height: min(70vh, 720px);
+  padding: 12px;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  background: #0f172a;
+  overflow: auto;
+}
+
+.hopper-mount {
+  min-height: 0;
+  height: min(78vh, 760px);
+  padding: 0;
+  overflow: hidden;
+  background: #7dd3fc;
+  border-color: #0ea5e9;
+}
+
+#hopper-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.hopper-hud {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  display: flex;
   justify-content: space-between;
-  user-select: none;
+  color: #fff;
+  font: 700 0.9rem monospace;
+  text-shadow: 0 2px 3px #0f172a;
+  pointer-events: none;
 }
 
-.arcade-ctrl-btn {
-  flex: 1;
-  padding: 20px 0 !important;
-  font-size: 24px !important;
-  margin: 0 !important;
-  background-color: #1e293b !important;
-  border: 2px solid #475569 !important;
-  border-radius: 12px !important;
+.hopper-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  text-align: center;
+  font: 0.85rem monospace;
+  text-shadow: 0 2px 3px #0f172a;
+  pointer-events: none;
 }
 
-.arcade-ctrl-btn:active {
-  background-color: #334155 !important;
-  border-color: #38bdf8 !important;
+.hopper-message strong {
+  font-size: 1.25rem;
 }
 
-.arcade-gas-btn {
-  flex: 1.5;
-  padding: 20px 0 !important;
-  font-size: 18px !important;
-  margin: 0 !important;
-  background: linear-gradient(135deg, #10b981, #059669) !important;
-  border: 2px solid #34d399 !important;
-  border-radius: 12px !important;
+.hopper-controls {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
 }
 
-.arcade-gas-btn:active {
-  transform: scale(0.97);
+.hopper-controls button {
+  min-width: 88px;
+  padding: 10px 8px;
+  background: rgba(15, 23, 42, 0.82);
 }
 
 .scoreboard-modal {

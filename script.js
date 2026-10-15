@@ -1974,7 +1974,6 @@ if (pomodoroModal && btnOpenPomodoro) {
     saveTimerState();
     updateDisplay();
     if (mascotKeyLight) mascotKeyLight.color.setHex(0x38bdf8);
-    sfx.playDing();
     alert(
       currentMode === "study"
         ? "Study session complete! Take a 5-minute break."
@@ -2179,7 +2178,7 @@ if (btnResetClinicLog) {
 }
 
 // ==========================================
-// 11. ARCADE LEADERBOARD & DUAL-MODE 3D ENGINE
+// 11. ARCADE LEADERBOARD
 // ==========================================
 let arcadePlayerName = "";
 
@@ -2203,26 +2202,6 @@ window.openGameMenu = function () {
 window.closeGameMenu = function () {
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "none";
-  stopArcadeAudio();
-};
-
-window.switchArcadeModeTab = function (mode) {
-  const tabDrift = document.getElementById("tab-mode-drift");
-  const tabDental = document.getElementById("tab-mode-dental");
-  const panelDrift = document.getElementById("arcade-panel-drift");
-  const panelDental = document.getElementById("arcade-panel-dental");
-
-  if (mode === "drift") {
-    if (tabDrift) tabDrift.classList.add("active");
-    if (tabDental) tabDental.classList.remove("active");
-    if (panelDrift) panelDrift.style.display = "block";
-    if (panelDental) panelDental.style.display = "none";
-  } else {
-    if (tabDental) tabDental.classList.add("active");
-    if (tabDrift) tabDrift.classList.remove("active");
-    if (panelDental) panelDental.style.display = "block";
-    if (panelDrift) panelDrift.style.display = "none";
-  }
 };
 
 window.openStandaloneLeaderboard = function () {
@@ -2243,175 +2222,6 @@ window.openStandaloneLeaderboard = function () {
 
   if (scoreboardModal) scoreboardModal.style.display = "flex";
   fetchDriftLeaderboard();
-};
-
-// --- AUDIO & LAZY WEB AUDIO SYNTHESIS ---
-const soundtrack = new Audio("soundtrack.mp3");
-soundtrack.loop = true;
-soundtrack.volume = 0.35;
-
-const engineAudio = new Audio("engine.mp3");
-engineAudio.loop = true;
-engineAudio.volume = 0;
-
-const driftAudio = new Audio("drift.mp3");
-driftAudio.loop = true;
-driftAudio.volume = 0;
-
-let arcadeAudioCtx = null;
-function getArcadeAudioCtx() {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return null;
-  if (!arcadeAudioCtx) {
-    try {
-      arcadeAudioCtx = new AudioContextClass();
-    } catch (e) {
-      return null;
-    }
-  }
-  if (arcadeAudioCtx.state === "suspended") {
-    arcadeAudioCtx.resume().catch(() => {});
-  }
-  return arcadeAudioCtx;
-}
-
-const dentalArcadeSynth = {
-  timer: null,
-  step: 0,
-  drillOsc: null,
-  drillGain: null,
-  notes: [
-    329.63, 392.0, 493.88, 659.25, 493.88, 392.0,
-    293.66, 369.99, 440.0, 587.33, 440.0, 369.99,
-    261.63, 329.63, 392.0, 523.25, 392.0, 329.63,
-    293.66, 369.99, 440.0, 587.33, 659.25, 587.33,
-  ],
-  startMusic() {
-    this.stopMusic();
-    const ctx = getArcadeAudioCtx();
-    if (!ctx) return;
-
-    this.step = 0;
-    this.timer = setInterval(() => {
-      try {
-        const now = ctx.currentTime;
-        const freq = this.notes[this.step % this.notes.length];
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = this.step % 4 === 0 ? "triangle" : "sine";
-        osc.frequency.setValueAtTime(freq, now);
-        g.gain.setValueAtTime(0.035, now);
-        g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-        osc.connect(g);
-        g.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.15);
-
-        if (this.step % 2 === 0) {
-          const bass = ctx.createOscillator();
-          const bg = ctx.createGain();
-          bass.type = "triangle";
-          bass.frequency.setValueAtTime(freq * 0.25, now);
-          bg.gain.setValueAtTime(0.04, now);
-          bg.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-          bass.connect(bg);
-          bg.connect(ctx.destination);
-          bass.start(now);
-          bass.stop(now + 0.17);
-        }
-        this.step++;
-      } catch (e) {}
-    }, 150);
-
-    try {
-      this.drillOsc = ctx.createOscillator();
-      this.drillGain = ctx.createGain();
-      this.drillOsc.type = "sine";
-      this.drillOsc.frequency.setValueAtTime(3100, ctx.currentTime);
-      this.drillGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      this.drillOsc.connect(this.drillGain);
-      this.drillGain.connect(ctx.destination);
-      this.drillOsc.start();
-    } catch (e) {}
-  },
-  setDrillActive(isActive) {
-    const ctx = getArcadeAudioCtx();
-    if (!ctx || !this.drillGain || !this.drillOsc) return;
-    try {
-      const now = ctx.currentTime;
-      this.drillGain.gain.setTargetAtTime(isActive ? 0.038 : 0.0001, now, 0.03);
-      this.drillOsc.frequency.setTargetAtTime(
-        isActive ? 3500 + Math.random() * 250 : 2800,
-        now,
-        0.03,
-      );
-    } catch (e) {}
-  },
-  stopMusic() {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    if (this.drillOsc) {
-      try {
-        this.drillOsc.stop();
-        this.drillOsc.disconnect();
-      } catch (e) {}
-      this.drillOsc = null;
-      this.drillGain = null;
-    }
-  },
-};
-
-function stopArcadeAudio() {
-  try {
-    engineAudio.pause();
-    driftAudio.pause();
-    soundtrack.pause();
-    soundtrack.currentTime = 0;
-  } catch (e) {}
-  dentalArcadeSynth.stopMusic();
-}
-
-const sfx = {
-  init() {
-    getArcadeAudioCtx();
-  },
-  playTone(freq, endFreq, duration = 0.18, type = "sine", vol = 0.15) {
-    const ctx = getArcadeAudioCtx();
-    if (!ctx) return;
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(
-        endFreq,
-        ctx.currentTime + duration,
-      );
-      gain.gain.setValueAtTime(vol, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + duration + 0.01);
-    } catch (e) {}
-  },
-  playDing(pitch = 880) {
-    this.playTone(pitch, pitch * 1.45, 0.18, "sine", 0.15);
-  },
-  playCountdownBeep(isGo = false) {
-    this.playTone(
-      isGo ? 1046.5 : 523.25,
-      isGo ? 1318.5 : 523.25,
-      isGo ? 0.35 : 0.15,
-      "triangle",
-      0.18,
-    );
-  },
-  playCrash() {
-    this.playTone(150, 32, 0.32, "sawtooth", 0.26);
-  },
 };
 
 // --- FIREBASE SCOREBOARD SYNC ---
@@ -2480,18 +2290,24 @@ async function fetchDriftLeaderboard() {
 
 function renderDriftLeaderboardUI(dataArray) {
   const leaderboardList = document.getElementById("leaderboard-list");
+  const resetLeaderboardButton = document.getElementById(
+    "reset-leaderboard-btn",
+  );
   if (!leaderboardList) return;
   leaderboardList.innerHTML = "";
-
-  if (dataArray.length === 0) {
-    leaderboardList.innerHTML = `<div style="text-align: center; color: #94a3b8; font-family: monospace;">No scores yet. Set the record!</div>`;
-    return;
-  }
 
   const isAdmin =
     window.auth &&
     window.auth.currentUser &&
     window.auth.currentUser.email === adminEmail;
+  if (resetLeaderboardButton) {
+    resetLeaderboardButton.style.display = isAdmin ? "block" : "none";
+  }
+
+  if (dataArray.length === 0) {
+    leaderboardList.innerHTML = `<div style="text-align: center; color: #94a3b8; font-family: monospace;">No scores yet. Set the record!</div>`;
+    return;
+  }
 
   dataArray.forEach((player, index) => {
     const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
@@ -2536,1756 +2352,292 @@ function renderDriftLeaderboardUI(dataArray) {
   });
 }
 
-// ==========================================
-// 12. CACHED TEXTURES & ZERO-LAG GEOMETRY POOL
-// ==========================================
-window.input = { gas: false, left: false, right: false };
-
-window.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") window.input.left = true;
-  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") window.input.right = true;
-  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === " ") window.input.gas = true;
-});
-window.addEventListener("keyup", (e) => {
-  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") window.input.left = false;
-  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") window.input.right = false;
-  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === " ") window.input.gas = false;
-});
-
-function createTextBannerTexture(title, subtitle, bgHex, borderHex) {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 128;
-  const ctx = c.getContext("2d");
-
-  ctx.fillStyle = bgHex;
-  ctx.fillRect(0, 0, 512, 128);
-
-  for (let y = 0; y < 128; y += 16) {
-    for (let x = 0; x < 32; x += 16) {
-      ctx.fillStyle = (x + y) % 32 === 0 ? "#ffffff" : "#000000";
-      ctx.fillRect(x, y, 16, 16);
-      ctx.fillRect(512 - 32 + x, y, 16, 16);
-    }
+async function resetDriftLeaderboard() {
+  const currentUser = window.auth?.currentUser;
+  if (currentUser?.email !== adminEmail) {
+    alert("Only the administrator can reset leaderboard scores.");
+    return;
   }
 
-  ctx.strokeStyle = borderHex;
-  ctx.lineWidth = 6;
-  ctx.strokeRect(3, 3, 506, 122);
+  if (
+    !confirm(
+      "Reset all leaderboard scores? This permanently deletes every saved score.",
+    )
+  ) {
+    return;
+  }
 
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 36px monospace";
-  ctx.textAlign = "center";
-  ctx.fillText(title, 256, 56);
-
-  ctx.fillStyle = borderHex;
-  ctx.font = "700 22px monospace";
-  ctx.fillText(subtitle, 256, 96);
-
-  const tex = new THREE.CanvasTexture(c);
-  tex.needsUpdate = true;
-  return tex;
+  try {
+    const snapshot = await window.getDocs(
+      window.collection(window.db, "DriftScores"),
+    );
+    await Promise.all(
+      snapshot.docs.map((scoreDoc) =>
+        window.deleteDoc(window.doc(window.db, "DriftScores", scoreDoc.id)),
+      ),
+    );
+    await fetchDriftLeaderboard();
+  } catch (error) {
+    console.error("Leaderboard reset error:", error);
+    alert("Unable to reset leaderboard scores. Please try again.");
+  }
 }
 
-function build3DGantryArch(title, subtitle, accentColor, borderHex) {
-  const archGroup = new THREE.Group();
-  const pillarMat = new THREE.MeshStandardMaterial({
-    color: 0x334155,
-    roughness: 0.3,
-  });
-  const neonMat = new THREE.MeshBasicMaterial({ color: accentColor });
+document
+  .getElementById("reset-leaderboard-btn")
+  ?.addEventListener("click", resetDriftLeaderboard);
 
-  [-9.5, 9.5].forEach((px) => {
-    const pillar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.3, 0.36, 6.5, 12),
-      pillarMat,
-    );
-    pillar.position.set(px, 3.25, 0);
-    archGroup.add(pillar);
-
-    const strip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.15, 6.0, 0.15),
-      neonMat,
-    );
-    strip.position.set(px > 0 ? px - 0.3 : px + 0.3, 3.25, 0);
-    archGroup.add(strip);
-  });
-
-  const bannerTex = createTextBannerTexture(title, subtitle, "#090d16", borderHex);
-  const board = new THREE.Mesh(
-    new THREE.BoxGeometry(19.6, 2.3, 0.45),
-    new THREE.MeshBasicMaterial({ map: bannerTex }),
-  );
-  board.position.set(0, 5.6, 0);
-  archGroup.add(board);
-
-  return archGroup;
-}
-
-// ==========================================
-// 13. TRUE EXTRUDED 3D CARS, CHROME HANDPIECE & SDF MOLAR
-// ==========================================
-
-// 1. REAL CAR SILHOUETTE BUILDER (Black G37x, Blue R34 Skyline, White Accent)
-function build3DCarMesh(carType, isTraffic = false) {
-  const carGroup = new THREE.Group();
-  const bodyPivot = new THREE.Group();
-  carGroup.add(bodyPivot);
-
-  // Authentic Colors Requested by User:
-  // G37x = Obsidian Black, Skyline = Bayside Blue, Accent = Pearl White
-  let bodyColor = 0x111827; // Black G37x
-  let emissiveTint = 0x1e293b; // Subtle slate reflection so Black G37 pops against dark road
-  let rimColor = 0xe2e8f0;
-  let underglowColor = 0xef4444;
-
-  if (carType === "skyline") {
-    bodyColor = 0x0284c7; // Bayside Blue GT-R R34
-    emissiveTint = 0x0369a1;
-    rimColor = 0xd97706; // Bronze R34 TE37 Rims
-    underglowColor = 0x38bdf8;
-  } else if (carType === "accent") {
-    bodyColor = 0xf8fafc; // Pearl White Hyundai Accent
-    emissiveTint = 0x94a3b8;
-    rimColor = 0x334155; // Gunmetal Sport Rims
-    underglowColor = 0xfacc15;
-  } else if (isTraffic) {
-    const trafficColors = [0x475569, 0x991b1b, 0x065f46, 0x3730a3, 0xd97706];
-    bodyColor = trafficColors[Math.floor(Math.random() * trafficColors.length)];
-    emissiveTint = 0x0f172a;
-  }
-
-  // Low metalness + High Clearcoat prevents Three.js from rendering cars pitch-black!
-  const paintMat = new THREE.MeshPhysicalMaterial({
-    color: bodyColor,
-    emissive: emissiveTint,
-    emissiveIntensity: 0.22,
-    metalness: 0.18,
-    roughness: 0.2,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.06,
-  });
-
-  const trimMat = new THREE.MeshStandardMaterial({
-    color: 0x090d16,
-    roughness: 0.4,
-  });
-
-  const chromeMat = new THREE.MeshPhysicalMaterial({
-    color: 0xf1f5f9,
-    emissive: 0x64748b,
-    emissiveIntensity: 0.2,
-    roughness: 0.15,
-    clearcoat: 1.0,
-  });
-
-  const glassMat = new THREE.MeshPhysicalMaterial({
-    color: 0x020617,
-    emissive: 0x0f172a,
-    emissiveIntensity: 0.25,
-    roughness: 0.08,
-    clearcoat: 1.0,
-  });
-
-  // Extrude a True 2D Side-Profile Silhouette (z = -2.2 Front to z = +2.2 Rear)
-  const profile = new THREE.Shape();
-  if (carType === "skyline") {
-    // R34 GT-R Boxy Muscular Coupe Profile
-    profile.moveTo(-2.15, 0.22);
-    profile.lineTo(-2.1, 0.68); // Aggressive flat front bumper
-    profile.lineTo(-0.85, 0.78); // Long flat R34 hood
-    profile.lineTo(-0.25, 1.24); // Steep windshield
-    profile.lineTo(0.85, 1.22); // Coupe roofline
-    profile.lineTo(1.45, 0.84); // Rear window slope
-    profile.lineTo(2.15, 0.82); // Boxy R34 trunk deck
-    profile.lineTo(2.15, 0.24); // Rear diffuser
-    profile.closePath();
-  } else if (carType === "accent") {
-    // Hyundai Accent Compact Fastback/Hatch Sedan Profile
-    profile.moveTo(-1.95, 0.22);
-    profile.lineTo(-1.88, 0.62); // Nose
-    profile.lineTo(-0.85, 0.76); // Short sloped hood
-    profile.lineTo(-0.15, 1.26); // Swept windshield
-    profile.lineTo(0.95, 1.24); // High compact roof
-    profile.lineTo(1.75, 0.82); // Fastback hatch rear
-    profile.lineTo(1.9, 0.25);
-    profile.closePath();
-  } else {
-    // Infiniti G37x Sleek Sport Sedan Profile (Curved VQ Hood + Flowing Roof + High Deck)
-    profile.moveTo(-2.15, 0.22);
-    profile.lineTo(-2.05, 0.64); // Front fascia
-    profile.lineTo(-0.8, 0.8); // Bulging G37 hood
-    profile.lineTo(-0.15, 1.25); // Raked sedan windshield
-    profile.lineTo(0.85, 1.23); // Arched sedan roof
-    profile.lineTo(1.55, 0.85); // C-pillar slope
-    profile.lineTo(2.12, 0.82); // High G37 trunk deck
-    profile.lineTo(2.12, 0.24);
-    profile.closePath();
-  }
-
-  const extrudeSettings = {
-    depth: 1.62,
-    bevelEnabled: true,
-    bevelSegments: 3,
-    steps: 1,
-    bevelSize: 0.12,
-    bevelThickness: 0.12,
-  };
-  const bodyGeo = new THREE.ExtrudeGeometry(profile, extrudeSettings);
-  // Rotate so profile runs along Z axis (front = -Z, rear = +Z) and center X
-  bodyGeo.rotateY(Math.PI / 2);
-  bodyGeo.translate(-0.81, 0, 0);
-
-  const mainBody = new THREE.Mesh(bodyGeo, paintMat);
-  bodyPivot.add(mainBody);
-
-  // Flared Wheel Arches / Widebody Fenders
-  const fenderRadius = carType === "skyline" ? 0.18 : 0.11;
-  const fenderGeo = new THREE.BoxGeometry(1.96 + fenderRadius, 0.42, 0.95);
-  [-1.32, 1.32].forEach((fz) => {
-    const fender = new THREE.Mesh(fenderGeo, paintMat);
-    fender.position.set(0, 0.44, fz);
-    bodyPivot.add(fender);
-  });
-
-  // Dark Tinted Windshield, Rear Glass & Side Windows
-  const windshield = new THREE.Mesh(
-    new THREE.BoxGeometry(1.48, 0.44, 1.85),
-    glassMat,
-  );
-  windshield.position.set(0, 1.03, 0.35);
-  bodyPivot.add(windshield);
-
-  // G37 Silver Window Trim or Accent Black Roof Contrast
-  if (carType === "g37" && !isTraffic) {
-    [-0.78, 0.78].forEach((sx) => {
-      const chromeStrip = new THREE.Mesh(
-        new THREE.BoxGeometry(0.04, 0.05, 1.75),
-        chromeMat,
-      );
-      chromeStrip.position.set(sx, 0.84, 0.35);
-      bodyPivot.add(chromeStrip);
-    });
-  } else if (carType === "accent" && !isTraffic) {
-    const blackRoof = new THREE.Mesh(
-      new THREE.BoxGeometry(1.42, 0.04, 1.35),
-      trimMat,
-    );
-    blackRoof.position.set(0, 1.37, 0.38);
-    bodyPivot.add(blackRoof);
-  }
-
-  // Front Grille & Headlights (at Front -Z)
-  const frontZ = carType === "accent" ? -2.02 : -2.22;
-  const grille = new THREE.Mesh(
-    new THREE.BoxGeometry(0.95, 0.24, 0.08),
-    carType === "g37" ? chromeMat : trimMat,
-  );
-  grille.position.set(0, 0.48, frontZ);
-  bodyPivot.add(grille);
-
-  if (carType === "skyline" && !isTraffic) {
-    // Silver Front-Mount Intercooler in lower bumper
-    const intercooler = new THREE.Mesh(
-      new THREE.BoxGeometry(1.05, 0.18, 0.08),
-      chromeMat,
-    );
-    intercooler.position.set(0, 0.28, frontZ);
-    bodyPivot.add(intercooler);
-  }
-
-  const headLightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
-  [-0.68, 0.68].forEach((hx) => {
-    const hl = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.15, 0.1),
-      headLightMat,
-    );
-    hl.position.set(hx, 0.58, frontZ);
-    bodyPivot.add(hl);
-  });
-
-  // Signature Rear Taillights, Spoilers & Exhausts (at Rear +Z)
-  const rearZ = carType === "accent" ? 1.98 : 2.22;
-  const tailMat = new THREE.MeshBasicMaterial({ color: 0xff1e27 });
-
-  if (carType === "g37" && !isTraffic) {
-    // G37x: Quad Red Halo Rings + Chrome Trunk Garnish + Ducktail + Dual Chrome Exhausts
-    const redHousing = new THREE.Mesh(
-      new THREE.BoxGeometry(0.52, 0.2, 0.06),
-      new THREE.MeshBasicMaterial({ color: 0x7f1d1d }),
-    );
-    [-0.58, 0.58].forEach((hx) => {
-      const hClone = redHousing.clone();
-      hClone.position.set(hx, 0.64, rearZ);
-      bodyPivot.add(hClone);
-    });
-    [-0.68, -0.46, 0.46, 0.68].forEach((tx, idx) => {
-      const r = idx === 0 || idx === 3 ? 0.09 : 0.07;
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(r, 0.025, 10, 20),
-        tailMat,
-      );
-      ring.position.set(tx, 0.64, rearZ + 0.03);
-      bodyPivot.add(ring);
-    });
-    const chromeTrunkBar = new THREE.Mesh(
-      new THREE.BoxGeometry(0.75, 0.05, 0.06),
-      chromeMat,
-    );
-    chromeTrunkBar.position.set(0, 0.68, rearZ + 0.02);
-    bodyPivot.add(chromeTrunkBar);
-
-    [-0.56, 0.56].forEach((ex) => {
-      const pipe = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, 0.3, 12),
-        chromeMat,
-      );
-      pipe.rotation.x = Math.PI / 2;
-      pipe.position.set(ex, 0.24, rearZ + 0.08);
-      bodyPivot.add(pipe);
-    });
-  } else if (carType === "skyline" && !isTraffic) {
-    // R34 GT-R: Iconic Dual-Size Round Taillights + Tall R34 Wing + Left Exhaust Cannon
-    [-0.68, -0.44, 0.44, 0.68].forEach((tx, idx) => {
-      const r = idx === 0 || idx === 3 ? 0.11 : 0.08;
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(r, 0.032, 10, 20),
-        tailMat,
-      );
-      ring.position.set(tx, 0.62, rearZ + 0.03);
-      bodyPivot.add(ring);
-    });
-    // Raised R34 Wing painted Bayside Blue with black center blade
-    const wingBlade = new THREE.Mesh(
-      new THREE.BoxGeometry(1.88, 0.07, 0.32),
-      paintMat,
-    );
-    wingBlade.position.set(0, 1.16, rearZ - 0.18);
-    bodyPivot.add(wingBlade);
-    [-0.68, 0.68].forEach((sx) => {
-      const stand = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, 0.32, 0.24),
-        paintMat,
-      );
-      stand.position.set(sx, 0.98, rearZ - 0.18);
-      bodyPivot.add(stand);
-    });
-  } else {
-    // Accent & Traffic: Sleek Wrap-Around Red LED Taillight Clusters
-    [-0.6, 0.6].forEach((tx) => {
-      const tl = new THREE.Mesh(
-        new THREE.BoxGeometry(0.48, 0.18, 0.08),
-        tailMat,
-      );
-      tl.position.set(tx, 0.62, rearZ + 0.02);
-      bodyPivot.add(tl);
-    });
-  }
-
-  // 4 Detailed Wheels + Multi-Spoke Rims
-  const wheelGeo = new THREE.CylinderGeometry(0.37, 0.37, 0.28, 20);
-  wheelGeo.rotateZ(Math.PI / 2);
-  const tireMat = new THREE.MeshStandardMaterial({
-    color: 0x090d16,
-    roughness: 0.85,
-  });
-  const rimGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.3, 10);
-  rimGeo.rotateZ(Math.PI / 2);
-  const rimMat = new THREE.MeshStandardMaterial({
-    color: rimColor,
-    roughness: 0.25,
-  });
-
-  const zWheel = carType === "accent" ? 1.22 : 1.34;
-  [
-    [-0.96, 0.37, -zWheel],
-    [0.96, 0.37, -zWheel],
-    [-0.96, 0.37, zWheel],
-    [0.96, 0.37, zWheel],
-  ].forEach(([wx, wy, wz]) => {
-    const w = new THREE.Mesh(wheelGeo, tireMat);
-    w.position.set(wx, wy, wz);
-    carGroup.add(w);
-    const r = new THREE.Mesh(rimGeo, rimMat);
-    r.position.set(wx, wy, wz);
-    carGroup.add(r);
-  });
-
-  let exhaustFlames = null;
-  if (!isTraffic) {
-    const neonGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.3, 4.4),
-      new THREE.MeshBasicMaterial({
-        color: underglowColor,
-        transparent: true,
-        opacity: 0.25,
-      }),
-    );
-    neonGlow.rotation.x = -Math.PI / 2;
-    neonGlow.position.y = 0.03;
-    carGroup.add(neonGlow);
-
-    exhaustFlames = new THREE.Group();
-    const flameMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.85,
-    });
-    [-0.55, 0.55].forEach((fx) => {
-      const cone = new THREE.Mesh(
-        new THREE.ConeGeometry(0.14, 0.9, 10),
-        flameMat,
-      );
-      cone.rotation.x = Math.PI / 2;
-      cone.position.set(fx, 0.25, rearZ + 0.5);
-      exhaustFlames.add(cone);
-    });
-    exhaustFlames.visible = false;
-    bodyPivot.add(exhaustFlames);
-  }
-
-  carGroup.userData = { bodyPivot, exhaustFlames };
-  return carGroup;
-}
-
-// 2. ONE-PIECE CONNECTED SURGICAL SILVER CONTRA-ANGLE HANDPIECE (No Floating Black Pipes!)
-function build3DDentalHandpiece() {
-  const rootGroup = new THREE.Group();
-
-  // Tilted slightly so you see the connected body, contra-angle neck, chuck head & bur
-  const instrumentGroup = new THREE.Group();
-  instrumentGroup.position.set(0, 0.82, -0.85);
-  rootGroup.add(instrumentGroup);
-
-  // Surgical Silver-Chrome Material (Low metalness + High Clearcoat so it gleams white-silver, NEVER black!)
-  const silverMat = new THREE.MeshPhysicalMaterial({
-    color: 0xe2e8f0,
-    emissive: 0x38bdf8,
-    emissiveIntensity: 0.12,
-    metalness: 0.15,
-    roughness: 0.16,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.05,
-  });
-
-  const blueRingMat = new THREE.MeshPhysicalMaterial({
-    color: 0x0284c7,
-    emissive: 0x0369a1,
-    emissiveIntensity: 0.2,
-    roughness: 0.2,
-    clearcoat: 1.0,
-  });
-
-  // Vertical Turbine Chuck Head directly over the tooth
-  const chuckHead = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.24, 0.21, 0.58, 24),
-    silverMat,
-  );
-  chuckHead.position.set(0, 0.25, 0);
-  instrumentGroup.add(chuckHead);
-
-  // Push-Button Cap on top of the Chuck Head
-  const pushCap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.23, 20, 12),
-    blueRingMat,
-  );
-  pushCap.scale.set(1, 0.42, 1);
-  pushCap.position.set(0, 0.55, 0);
-  instrumentGroup.add(pushCap);
-
-  // Connected Elbow Sphere Joint at the back of the Chuck Head
-  const elbowJoint = new THREE.Mesh(
-    new THREE.SphereGeometry(0.2, 16, 16),
-    silverMat,
-  );
-  elbowJoint.position.set(0, 0.28, 0.18);
-  instrumentGroup.add(elbowJoint);
-
-  // Connected Contra-Angle Neck & Handle Extending Smoothly to the Rear-Right
-  const armPivot = new THREE.Group();
-  armPivot.position.set(0, 0.28, 0.18);
-  armPivot.rotation.y = -0.38; // Angled ergonomically to the right side of the screen
-  armPivot.rotation.x = 0.22;  // Angled slightly upward toward the clinician's hand
-  instrumentGroup.add(armPivot);
-
-  // Tapered Neck (Starts at z = 0 inside the elbow joint and extends to z = 1.2)
-  const neckMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.24, 0.17, 1.25, 24),
-    silverMat,
-  );
-  neckMesh.rotation.x = Math.PI / 2;
-  neckMesh.position.set(0, 0, 0.62);
-  armPivot.add(neckMesh);
-
-  // Blue Anodized Collar Ring at Neck-Handle Junction (z = 1.25)
-  const collarRing = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.255, 0.255, 0.18, 24),
-    blueRingMat,
-  );
-  collarRing.rotation.x = Math.PI / 2;
-  collarRing.position.set(0, 0, 1.25);
-  armPivot.add(collarRing);
-
-  // Main Ergonomic Grip Barrel (Connected flush at z = 1.25 extending to z = 3.4)
-  const barrelMesh = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.25, 0.25, 2.2, 24),
-    silverMat,
-  );
-  barrelMesh.rotation.x = Math.PI / 2;
-  barrelMesh.position.set(0, 0, 2.35);
-  armPivot.add(barrelMesh);
-
-  // Spinning High-Speed Diamond Bur protruding from bottom of Chuck Head
-  const burPivot = new THREE.Group();
-  burPivot.position.set(0, -0.04, 0);
-  instrumentGroup.add(burPivot);
-
-  const burShank = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.042, 0.042, 0.45, 12),
-    silverMat,
-  );
-  burShank.position.y = -0.2;
-  burPivot.add(burShank);
-
-  const diamondBurTip = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
-  );
-  diamondBurTip.position.y = -0.44;
-  burPivot.add(diamondBurTip);
-
-  // Focused Ultrasonic Water-Laser Beam (Shoots downward + forward onto the molar!)
-  const laserBeam = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.32, 8.5, 16),
-    new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      transparent: true,
-      opacity: 0.0,
-    }),
-  );
-  laserBeam.rotation.x = Math.PI / 2;
-  laserBeam.position.set(0, -0.35, -4.2);
-  instrumentGroup.add(laserBeam);
-
-  // Target Reticle on the Molar Surface
-  const aimRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.38, 0.52, 24),
-    new THREE.MeshBasicMaterial({
-      color: 0x38bdf8,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.85,
-    }),
-  );
-  aimRing.rotation.x = -Math.PI / 2;
-  aimRing.position.set(0, -0.64, 0);
-  instrumentGroup.add(aimRing);
-
-  rootGroup.userData = { burPivot, laserBeam, aimRing, instrumentGroup };
-  return rootGroup;
-}
-
-// 3. REUSE THE EXACT HOME-SCREEN 3D SDF PORCELAIN MOLAR FOR THE ARCH!
-let cachedHomeMolarGeo = null;
-let cachedHomeMolarMat = null;
-
-function buildHomeScreenMolarClone() {
-  if (!cachedHomeMolarGeo) {
-    if (typeof buildSeamlessPorcelainMolarGeometry === "function") {
-      cachedHomeMolarGeo = buildSeamlessPorcelainMolarGeometry();
-      const pos = cachedHomeMolarGeo.attributes.position;
-      const norm = cachedHomeMolarGeo.attributes.normal;
-      const colors = [];
-      for (let i = 0; i < pos.count; i++) {
-        const vx = pos.getX(i);
-        const vy = pos.getY(i);
-        const vz = pos.getZ(i);
-        const ny = norm.getY(i);
-        const rXZ = Math.sqrt(vx * vx + vz * vz);
-        const fossaShadow =
-          vy > 0.35 ? Math.exp(-rXZ * rXZ * 9.0) * 0.26 : 0.0;
-        const furcationShadow =
-          vy < 0.08 && vy > -0.55 ? Math.exp(-rXZ * rXZ * 11.0) * 0.3 : 0.0;
-        const undercutShadow = ny < -0.15 ? Math.abs(ny) * 0.16 : 0.0;
-        const shade = Math.max(
-          0.52,
-          1.0 - fossaShadow - furcationShadow - undercutShadow,
-        );
-        colors.push(shade * 0.96, shade * 0.98, Math.min(1.0, shade * 1.02));
-      }
-      cachedHomeMolarGeo.setAttribute(
-        "color",
-        new THREE.Float32BufferAttribute(colors, 3),
-      );
-    } else {
-      cachedHomeMolarGeo = new THREE.SphereGeometry(0.8, 24, 24);
-    }
-
-    cachedHomeMolarMat = new THREE.MeshPhysicalMaterial({
-      vertexColors: true,
-      color: 0xffffff,
-      roughness: 0.18,
-      metalness: 0.04,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.06,
-      reflectivity: 1.0,
-    });
-  }
-
-  const molarMesh = new THREE.Mesh(cachedHomeMolarGeo, cachedHomeMolarMat);
-  molarMesh.scale.set(1.65, 1.35, 1.65);
-  molarMesh.position.y = -0.78;
-  return molarMesh;
-}
-
-// ==========================================
-// 14. SHARED ARCADE STATE & DELTA-TIME ENGINE
-// ==========================================
-let gameLoopId = null;
-let lastFrameTimestamp = 0;
-let activeGameMode = "drift";
-let activeCarSelection = "g37";
-
-let webglRenderer = null;
-let webglScene = null;
-let webglCamera = null;
-let playerMesh = null;
-
-let score = 0;
-let comboMultiplier = 1;
-let distanceTraveled = 0;
-let totalRunDistance = 1600; // ~65 seconds at smooth delta-time speed
-let currentStageNumber = 1;
-let countdownSeconds = 3.0;
-let countdownLastInt = 4;
-let victorySeconds = 0;
-let raceFinished = false;
-let startTime = 0;
-let crashShake = 0;
-let bannerTimeout = null;
-
-// Drift Mode Specific State
-let playerLaneOffset = 0;
-let playerSpeed = 0; // Units per second
-let driftSlipAngle = 0;
-let activeDriftBank = 0;
-let roadSegments = [];
-let trafficCars = [];
-let nitroPads = [];
-let smokeParticles = [];
-let startGantry = null;
-let finishGantry = null;
-
-// Dental Runner Specific State
-let dentalTargetLane = 0;
-let dentalCurrentX = 0;
-let laneSwitchLocked = false;
-let molarRows = [];
-let dentalTargets = [];
-let shatterParticles = [];
-
-function showHudBanner(text, color = "#facc15", duration = 1100) {
-  const banner = document.getElementById("hud-floating-banner");
-  if (!banner) return;
-  banner.textContent = text;
-  banner.style.color = color;
-  banner.classList.add("show");
-  if (bannerTimeout) clearTimeout(bannerTimeout);
-  bannerTimeout = setTimeout(() => banner.classList.remove("show"), duration);
-}
-
-// Gentle, Enjoyable Sweeping Highway Curve (Never throws the player off-road)
-function getTougeCurveX(worldDistance) {
-  if (worldDistance < 60) return 0;
-  const d = worldDistance - 60;
-  const ramp = Math.min(1.0, d / 120);
-  return ramp * (Math.sin(d * 0.014) * 5.5 + Math.cos(d * 0.007) * 3.5);
-}
-
-window.startGame = function (modeOrCar) {
-  closeGameMenu();
-  const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
+window.finishArcadeRun = async function (finalScore, gameTitle = "ARCADE") {
   const scoreboardModal = document.getElementById("scoreboard-modal");
-  const actionBtn = document.getElementById("btn-game-action");
-  const secLabel = document.getElementById("hud-secondary-label");
+  const heading = document.getElementById("scoreboard-heading");
+  const finalScoreDisplay = document.getElementById("final-score-display");
+  const finalSubtitle = document.getElementById("final-run-subtitle");
 
-  if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
-  if (scoreboardModal) scoreboardModal.style.display = "none";
+  if (heading) heading.textContent = `🏁 ${gameTitle} FINISHED`;
+  if (finalScoreDisplay) finalScoreDisplay.textContent = String(finalScore);
+  if (finalSubtitle) finalSubtitle.textContent = "Score submitted to the Hall of Fame";
+  if (scoreboardModal) scoreboardModal.style.display = "flex";
 
-  window.input = { gas: false, left: false, right: false };
-  score = 0;
-  comboMultiplier = 1;
-  distanceTraveled = 0;
-  currentStageNumber = 1;
-  countdownSeconds = 2.8;
-  countdownLastInt = 4;
-  victorySeconds = 0;
-  raceFinished = false;
-  crashShake = 0;
+  await submitDriftScore(arcadePlayerName, finalScore);
+  await fetchDriftLeaderboard();
+};
 
-  sfx.init();
-  stopArcadeAudio();
+// ==========================================
+// 12. CROSSY ROADS (LIGHTWEIGHT THREE.JS)
+// ==========================================
+const hopper = {
+  renderer: null,
+  scene: null,
+  camera: null,
+  player: null,
+  rows: [],
+  rowMeshes: new Map(),
+  running: false,
+  gameOver: false,
+  x: 0,
+  z: 0,
+  score: 0,
+  furthestRow: 0,
+  animationFrame: 0,
+  lastTime: 0,
+  hop: null,
+};
 
-  if (modeOrCar === "dental_runner") {
-    activeGameMode = "dental_runner";
-    totalRunDistance = 1250; // Smooth ~60s 3-Stage Clinical Shift
-    if (actionBtn) actionBtn.textContent = "⚡ Hold Drill / Laser";
-    if (secLabel) secLabel.textContent = "STREAK";
-    initDentalRunnerScene();
-    dentalArcadeSynth.startMusic();
+const HOPPER_COLORS = {
+  grass: 0x65a30d,
+  grassDark: 0x4d7c0f,
+  road: 0x334155,
+  roadLine: 0xf8fafc,
+  water: 0x0284c7,
+  log: 0x92400e,
+  tree: 0x166534,
+  player: 0xfacc15,
+  car: 0xef4444,
+  truck: 0xf97316,
+};
+
+function hopperBox(width, height, depth, color) {
+  return new THREE.Mesh(
+    new THREE.BoxGeometry(width, height, depth),
+    new THREE.MeshLambertMaterial({ color }),
+  );
+}
+
+function hopperCreateRow(z) {
+  const type = z % 5 === 0 ? "river" : z % 3 === 0 ? "road" : "grass";
+  const row = {
+    z,
+    type,
+    speed: type === "road" ? (z % 2 ? 1.9 : -1.5) : z % 2 ? 0.65 : -0.5,
+    objects: [],
+  };
+  const ground = hopperBox(13, 0.2, 1, type === "river" ? HOPPER_COLORS.water : type === "road" ? HOPPER_COLORS.road : HOPPER_COLORS.grass);
+  ground.position.set(0, -0.1, z);
+  hopper.scene.add(ground);
+  row.objects.push(ground);
+
+  if (type === "road") {
+    const line = hopperBox(12.5, 0.02, 0.04, HOPPER_COLORS.roadLine);
+    line.position.set(0, 0.01, z);
+    hopper.scene.add(line);
+    row.objects.push(line);
+    for (let i = 0; i < 2; i += 1) {
+      const vehicle = hopperBox(i ? 1.45 : 1.05, i ? 0.42 : 0.32, 0.62, i ? HOPPER_COLORS.truck : HOPPER_COLORS.car);
+      vehicle.position.set((i ? -1 : 1) * (2.5 + (z % 3)), 0.28, z);
+      hopper.scene.add(vehicle);
+      row.objects.push(vehicle);
+    }
+  } else if (type === "river") {
+    for (let i = 0; i < 2; i += 1) {
+      const log = hopperBox(2.2, 0.25, 0.58, HOPPER_COLORS.log);
+      log.position.set(i ? -2.5 : 2.4, 0.16, z);
+      hopper.scene.add(log);
+      row.objects.push(log);
+    }
   } else {
-    activeGameMode = "drift";
-    activeCarSelection = modeOrCar || "g37";
-    totalRunDistance = 1850; // Smooth ~65s 3-Stage Touge Run
-    if (actionBtn) actionBtn.textContent = "⏫ Drift Gas";
-    if (secLabel) secLabel.textContent = "COMBO";
-    initNightDriftScene();
-    try {
-      soundtrack.play().catch(() => {});
-      engineAudio.volume = 0;
-      engineAudio.play().catch(() => {});
-      driftAudio.volume = 0;
-      driftAudio.play().catch(() => {});
-    } catch (e) {}
+    for (let i = 0; i < 2; i += 1) {
+      const tree = new THREE.Group();
+      const trunk = hopperBox(0.18, 0.5, 0.18, 0x78350f);
+      trunk.position.y = 0.25;
+      const crown = hopperBox(0.62, 0.65, 0.62, HOPPER_COLORS.tree);
+      crown.position.y = 0.72;
+      tree.add(trunk, crown);
+      tree.position.set(i ? -4.4 : 4.2, 0, z);
+      hopper.scene.add(tree);
+      row.objects.push(tree);
+    }
   }
+  hopper.rows.push(row);
+  hopper.rowMeshes.set(z, row);
+}
 
-  if (gameLoopId) cancelAnimationFrame(gameLoopId);
-  lastFrameTimestamp = performance.now();
-  gameLoopId = requestAnimationFrame(masterArcadeLoop);
+function hopperRemoveBehind() {
+  while (hopper.rows.length && hopper.rows[0].z < hopper.z - 4) {
+    const oldRow = hopper.rows.shift();
+    oldRow.objects.forEach((object) => hopper.scene.remove(object));
+    hopper.rowMeshes.delete(oldRow.z);
+  }
+}
+
+function hopperResetWorld() {
+  hopper.rows.forEach((row) => row.objects.forEach((object) => hopper.scene.remove(object)));
+  hopper.rows = [];
+  hopper.rowMeshes.clear();
+  hopper.x = 0;
+  hopper.z = 0;
+  hopper.score = 0;
+  hopper.furthestRow = 0;
+  hopper.gameOver = false;
+  for (let z = -3; z < 18; z += 1) hopperCreateRow(z);
+  hopper.player.position.set(0, 0.35, 0);
+  document.getElementById("hopper-score").textContent = "0";
+  document.getElementById("hopper-message").style.display = "none";
+}
+
+function hopperCollision(row) {
+  const x = hopper.x;
+  return row.objects.some((object) => {
+    if (row.type === "road") return object.position.y > 0.2 && Math.abs(object.position.x - x) < 0.78;
+    if (row.type === "river") return object.position.y > 0 && Math.abs(object.position.x - x) < 1.25;
+    return false;
+  });
+}
+
+function hopperEndRun(reason) {
+  if (hopper.gameOver) return;
+  hopper.gameOver = true;
+  hopper.running = false;
+  cancelAnimationFrame(hopper.animationFrame);
+  const message = document.getElementById("hopper-message");
+  message.innerHTML = `<strong>${reason}</strong><span>Final distance: ${hopper.score} points</span>`;
+  message.style.display = "flex";
+  window.finishArcadeRun(hopper.score, "HOPPER");
+}
+
+function hopperMove(direction) {
+  if (!hopper.running || hopper.gameOver || hopper.hop) return;
+  if (direction === "left") hopper.x = Math.max(-5, hopper.x - 1);
+  if (direction === "right") hopper.x = Math.min(5, hopper.x + 1);
+  if (direction !== "forward") return;
+  hopper.z += 1;
+  hopper.score = Math.max(hopper.score, hopper.z * 10);
+  hopper.furthestRow = Math.max(hopper.furthestRow, hopper.z);
+  document.getElementById("hopper-score").textContent = String(hopper.score);
+  while (hopper.rows[hopper.rows.length - 1].z < hopper.z + 10) {
+    hopperCreateRow(hopper.rows[hopper.rows.length - 1].z + 1);
+  }
+  hopperRemoveBehind();
+  const row = hopper.rowMeshes.get(hopper.z);
+  if (!row || (row.type === "road" && hopperCollision(row)) || (row.type === "river" && !hopperCollision(row))) {
+    hopperEndRun(row?.type === "river" ? "🌊 Splash!" : "💥 Ouch!");
+    return;
+  }
+  hopper.hop = { from: hopper.player.position.clone(), to: new THREE.Vector3(hopper.x, 0.35, hopper.z), started: performance.now() };
+}
+
+function hopperAnimate(now) {
+  if (!hopper.running) return;
+  hopper.animationFrame = requestAnimationFrame(hopperAnimate);
+  const delta = Math.min(0.05, (now - hopper.lastTime) / 1000 || 0);
+  hopper.lastTime = now;
+  hopper.rows.forEach((row) => {
+    if (row.type === "road" || row.type === "river") {
+      row.objects.slice(1).forEach((object) => {
+        object.position.x += row.speed * delta;
+        if (object.position.x > 7) object.position.x = -7;
+        if (object.position.x < -7) object.position.x = 7;
+      });
+    }
+  });
+  if (hopper.hop) {
+    const progress = Math.min(1, (now - hopper.hop.started) / 180);
+    hopper.player.position.lerpVectors(hopper.hop.from, hopper.hop.to, progress);
+    hopper.player.position.y += Math.sin(progress * Math.PI) * 0.65;
+    if (progress === 1) hopper.hop = null;
+  }
+  hopper.camera.position.z += (hopper.z + 6 - hopper.camera.position.z) * 0.08;
+  hopper.camera.lookAt(0, 0, hopper.z + 2);
+  const row = hopper.rowMeshes.get(hopper.z);
+  if (row && ((row.type === "road" && hopperCollision(row)) || (row.type === "river" && hopperCollision(row) === false && !hopper.hop))) {
+    hopperEndRun(row.type === "river" ? "🌊 Splash!" : "💥 Ouch!");
+    return;
+  }
+  hopper.renderer.render(hopper.scene, hopper.camera);
+}
+
+function initHopper() {
+  const canvas = document.getElementById("hopper-canvas");
+  if (!canvas || typeof THREE === "undefined" || hopper.renderer) return;
+  hopper.renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
+  hopper.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  hopper.scene = new THREE.Scene();
+  hopper.scene.background = new THREE.Color(0x7dd3fc);
+  hopper.scene.add(new THREE.HemisphereLight(0xdbeafe, 0x365314, 1.8));
+  hopper.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  hopper.camera.position.set(9, 9, 10);
+  hopper.player = hopperBox(0.55, 0.65, 0.55, HOPPER_COLORS.player);
+  hopper.player.position.y = 0.35;
+  hopper.scene.add(hopper.player);
+  const resize = () => {
+    const mount = document.getElementById("arcade-2d-mount");
+    const width = mount.clientWidth;
+    const height = mount.clientHeight;
+    hopper.renderer.setSize(width, height, false);
+    hopper.camera.aspect = width / height;
+    hopper.camera.updateProjectionMatrix();
+  };
+  window.addEventListener("resize", resize);
+  resize();
+  document.querySelectorAll("[data-hopper-move]").forEach((button) => {
+    button.addEventListener("click", () => hopperMove(button.dataset.hopperMove));
+  });
+  window.addEventListener("keydown", (event) => {
+    const moves = { ArrowUp: "forward", w: "forward", W: "forward", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
+    if (moves[event.key]) {
+      event.preventDefault();
+      hopperMove(moves[event.key]);
+    }
+  });
+}
+
+window.startHopperGame = function () {
+  const menu = document.getElementById("game-selection-overlay");
+  const overlay = document.getElementById("game-canvas-overlay");
+  if (menu) menu.style.display = "none";
+  if (overlay) overlay.style.display = "flex";
+  initHopper();
+  hopperResetWorld();
+  hopper.running = true;
+  hopper.lastTime = performance.now();
+  hopper.animationFrame = requestAnimationFrame(hopperAnimate);
 };
 
 window.quitGame = function () {
-  if (gameLoopId) {
-    cancelAnimationFrame(gameLoopId);
-    gameLoopId = null;
-  }
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
+  const scoreboardModal = document.getElementById("scoreboard-modal");
+  hopper.running = false;
+  hopper.gameOver = true;
+  cancelAnimationFrame(hopper.animationFrame);
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
-  stopArcadeAudio();
+  if (scoreboardModal) scoreboardModal.style.display = "none";
 };
-
-function ensureWebGLRenderer() {
-  const canvas = document.getElementById("drift-canvas");
-  if (!canvas || typeof THREE === "undefined") return false;
-  if (!webglRenderer) {
-    webglRenderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      powerPreference: "high-performance",
-    });
-    // Capped pixelRatio at 1.25 for butter-smooth 60 FPS on mobile GPUs
-    webglRenderer.setSize(540, 720, false);
-    webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
-    webglRenderer.toneMapping = THREE.ACESFilmicToneMapping;
-    webglRenderer.toneMappingExposure = 1.08;
-  }
-  return true;
-}
-
-// ==========================================
-// 15. MODE A: 3D MIDNIGHT TOUGE DRIFT (WIDE 4-LANE HIGHWAY)
-// ==========================================
-function initNightDriftScene() {
-  if (!ensureWebGLRenderer()) return;
-
-  webglScene = new THREE.Scene();
-  webglScene.background = new THREE.Color(0x070b16);
-  webglScene.fog = new THREE.FogExp2(0x070b16, 0.009);
-
-  webglCamera = new THREE.PerspectiveCamera(58, 540 / 720, 0.1, 240);
-
-  // Strong overhead & side studio lighting so Black G37, Blue Skyline, and White Accent pop!
-  const hemi = new THREE.HemisphereLight(0xe0f2fe, 0x1e293b, 1.1);
-  webglScene.add(hemi);
-
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1.6);
-  dirLight.position.set(12, 28, 16);
-  webglScene.add(dirLight);
-
-  // 32 Wide 4-Lane Highway Slices (Width = 19.6 units so drifting is wide & forgiving!)
-  roadSegments = [];
-  const asphaltMat = new THREE.MeshStandardMaterial({
-    color: 0x161f30,
-    roughness: 0.45,
-  });
-  const redCurbMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
-  const whiteCurbMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
-  const railMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-  const dashMat = new THREE.MeshBasicMaterial({ color: 0xfacc15 });
-  const poleMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
-  const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
-  const bldgMat = new THREE.MeshStandardMaterial({
-    color: 0x0f172a,
-    emissive: 0x1e3a8a,
-    emissiveIntensity: 0.35,
-  });
-
-  for (let i = 0; i < 32; i++) {
-    const segGroup = new THREE.Group();
-    segGroup.userData = { zLocal: -i * 6.5 };
-
-    const slab = new THREE.Mesh(
-      new THREE.BoxGeometry(19.6, 0.2, 6.7),
-      asphaltMat,
-    );
-    slab.position.y = -0.1;
-    segGroup.add(slab);
-
-    const cMat = i % 2 === 0 ? redCurbMat : whiteCurbMat;
-    [-9.9, 9.9].forEach((cx) => {
-      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.18, 6.6), cMat);
-      curb.position.set(cx, 0.08, 0);
-      segGroup.add(curb);
-
-      const rail = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.6, 6.6),
-        railMat,
-      );
-      rail.position.set(cx > 0 ? cx + 0.38 : cx - 0.38, 0.35, 0);
-      segGroup.add(rail);
-    });
-
-    if (i % 2 === 0) {
-      [-4.8, 0, 4.8].forEach((lx) => {
-        const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 3.2), dashMat);
-        dash.rotation.x = -Math.PI / 2;
-        dash.position.set(lx, 0.02, 0);
-        segGroup.add(dash);
-      });
-    }
-
-    if (i % 4 === 0) {
-      [-11.0, 11.0].forEach((px) => {
-        const pole = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.12, 0.14, 6.5, 8),
-          poleMat,
-        );
-        pole.position.set(px, 3.25, 0);
-        segGroup.add(pole);
-
-        const bulb = new THREE.Mesh(
-          new THREE.BoxGeometry(1.4, 0.16, 0.35),
-          lampGlowMat,
-        );
-        bulb.position.set(px > 0 ? px - 0.7 : px + 0.7, 6.45, 0);
-        segGroup.add(bulb);
-      });
-
-      [-22, 22].forEach((bx) => {
-        const h = 16 + ((i * 7) % 22);
-        const bldg = new THREE.Mesh(new THREE.BoxGeometry(7.5, h, 6.2), bldgMat);
-        bldg.position.set(bx, h / 2, 0);
-        segGroup.add(bldg);
-      });
-    }
-
-    webglScene.add(segGroup);
-    roadSegments.push(segGroup);
-  }
-
-  startGantry = build3DGantryArch(
-    "BAGHDAD MIDNIGHT TOUGE",
-    "STEER + HOLD DRIFT GAS TO SLIDE",
-    0x38bdf8,
-    "#38bdf8",
-  );
-  startGantry.position.set(0, 0, -14);
-  webglScene.add(startGantry);
-
-  finishGantry = build3DGantryArch(
-    "🏁 FINISH LINE 🏁",
-    "TOUGE STAGE COMPLETE",
-    0x10b981,
-    "#10b981",
-  );
-  finishGantry.visible = false;
-  webglScene.add(finishGantry);
-
-  playerLaneOffset = 0;
-  playerSpeed = 12;
-  driftSlipAngle = 0;
-  activeDriftBank = 0;
-  playerMesh = build3DCarMesh(activeCarSelection, false);
-  webglScene.add(playerMesh);
-
-  // Only 3 Traffic Cars spaced far apart across 4 wide lanes (Easy & fun to weave around!)
-  trafficCars = [];
-  const wideLanes = [-6.8, -2.3, 2.3, 6.8];
-  for (let i = 0; i < 3; i++) {
-    const tCar = build3DCarMesh("traffic", true);
-    tCar.userData = {
-      laneOffset: wideLanes[i % 4],
-      zDist: -65 - i * 65,
-      speed: 14 + i * 2,
-      nearMissed: false,
-    };
-    webglScene.add(tCar);
-    trafficCars.push(tCar);
-  }
-
-  // Glowing Nitro Pads
-  nitroPads = [];
-  const nitroMat = new THREE.MeshBasicMaterial({
-    color: 0x10b981,
-    transparent: true,
-    opacity: 0.85,
-  });
-  for (let i = 0; i < 2; i++) {
-    const pad = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 5.2), nitroMat);
-    pad.rotation.x = -Math.PI / 2;
-    pad.userData = {
-      laneOffset: wideLanes[(i + 2) % 4],
-      zDist: -80 - i * 95,
-    };
-    webglScene.add(pad);
-    nitroPads.push(pad);
-  }
-
-  // Orange/White Drift Tire Smoke Pool
-  smokeParticles = [];
-  const smokeGeo = new THREE.SphereGeometry(0.34, 8, 8);
-  for (let i = 0; i < 22; i++) {
-    const sMat = new THREE.MeshBasicMaterial({
-      color: 0xf8fafc,
-      transparent: true,
-      opacity: 0,
-    });
-    const puff = new THREE.Mesh(smokeGeo, sMat);
-    puff.visible = false;
-    puff.userData = { life: 0, vx: 0, vy: 0, vz: 0 };
-    webglScene.add(puff);
-    smokeParticles.push(puff);
-  }
-
-  positionWindingDriftWorld();
-}
-
-function positionWindingDriftWorld() {
-  const playerCurveX = getTougeCurveX(distanceTraveled);
-  const playerNextCurveX = getTougeCurveX(distanceTraveled + 6);
-  const roadHeading = Math.atan2(playerNextCurveX - playerCurveX, 6);
-
-  roadSegments.forEach((seg) => {
-    const zRel = seg.userData.zLocal;
-    const segWorldDist = distanceTraveled - zRel;
-    const segCurveX = getTougeCurveX(segWorldDist);
-    const nextCurveX = getTougeCurveX(segWorldDist + 6);
-    const segAngle = Math.atan2(nextCurveX - segCurveX, 6);
-
-    seg.position.set(segCurveX, 0, zRel);
-    seg.rotation.y = -segAngle;
-  });
-
-  if (startGantry) {
-    const startZ = -14 + distanceTraveled;
-    startGantry.visible = startZ < 14;
-    if (startGantry.visible) {
-      startGantry.position.set(getTougeCurveX(14), 0, startZ);
-    }
-  }
-
-  if (finishGantry) {
-    const remDist = totalRunDistance - distanceTraveled;
-    finishGantry.visible = remDist < 190;
-    if (finishGantry.visible) {
-      finishGantry.position.set(getTougeCurveX(totalRunDistance), 0, -remDist);
-    }
-  }
-
-  const worldPlayerX = playerCurveX + playerLaneOffset;
-  if (playerMesh) {
-    playerMesh.position.set(worldPlayerX, 0, 0);
-    playerMesh.rotation.y = -roadHeading + driftSlipAngle;
-    if (playerMesh.userData.bodyPivot) {
-      playerMesh.userData.bodyPivot.rotation.z = -driftSlipAngle * 0.25;
-    }
-    if (playerMesh.userData.exhaustFlames) {
-      playerMesh.userData.exhaustFlames.visible =
-        window.input.gas && playerSpeed > 22;
-      playerMesh.userData.exhaustFlames.scale.z = 0.8 + Math.random() * 0.5;
-    }
-  }
-
-  const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.35 : 0;
-  if (crashShake > 0) crashShake--;
-
-  if (victorySeconds > 0) {
-    const angle = (1.8 - victorySeconds) * 2.2;
-    webglCamera.position.set(
-      worldPlayerX + Math.sin(angle) * 7.2,
-      3.3,
-      Math.cos(angle) * 7.2,
-    );
-    webglCamera.lookAt(worldPlayerX, 0.8, 0);
-  } else if (countdownSeconds > 0) {
-    const t = countdownSeconds / 2.8;
-    webglCamera.position.set(
-      worldPlayerX + Math.sin(t * 1.5) * 3.0,
-      2.6 + (1 - t) * 1.0,
-      6.2 + t * 2.0,
-    );
-    webglCamera.lookAt(worldPlayerX, 0.85, -10);
-  } else {
-    const lookAheadCurveX = getTougeCurveX(distanceTraveled + 16);
-    webglCamera.position.set(
-      playerCurveX + playerLaneOffset * 0.72 + shakeX,
-      3.55,
-      7.2,
-    );
-    webglCamera.lookAt(
-      lookAheadCurveX + playerLaneOffset * 0.55,
-      0.85,
-      -15,
-    );
-  }
-}
-
-function updateNightDriftLoop(dt) {
-  // Controllable Real-Time Speeds (Units per second)
-  const topSpeed =
-    activeCarSelection === "skyline"
-      ? 35
-      : activeCarSelection === "g37"
-        ? 33
-        : 31;
-  const cruiseSpeed = 16;
-
-  if (window.input.gas) {
-    playerSpeed = Math.min(topSpeed, playerSpeed + 22 * dt);
-  } else {
-    playerSpeed = Math.max(cruiseSpeed, playerSpeed - 14 * dt);
-  }
-
-  // Smooth, Direct Arcade Steering & Satisfying Controlled Drift Slide
-  let steerInput = 0;
-  if (window.input.left) steerInput = -1;
-  if (window.input.right) steerInput = 1;
-
-  const steerSpeed = activeCarSelection === "accent" ? 13.5 : 12.0;
-  playerLaneOffset += steerInput * steerSpeed * dt;
-
-  // When holding Gas + Steering, kick the tail out into a wide, easy-to-hold 35-deg drift!
-  const targetSlip =
-    steerInput !== 0 && window.input.gas ? -steerInput * 0.58 : 0;
-  driftSlipAngle += (targetSlip - driftSlipAngle) * Math.min(1, 8.5 * dt);
-
-  const isDrifting = Math.abs(driftSlipAngle) > 0.18 && window.input.gas;
-  if (isDrifting) {
-    const ptsGain = Math.ceil(280 * dt * comboMultiplier);
-    activeDriftBank += ptsGain;
-    score += ptsGain;
-
-    if (Math.random() < 0.45) {
-      showHudBanner(
-        `🔥 DRIFT SLIDE! +${activeDriftBank} (x${comboMultiplier})`,
-        "#38bdf8",
-        400,
-      );
-    }
-
-    const freeSmoke = smokeParticles.find((p) => p.userData.life <= 0);
-    if (freeSmoke && playerMesh) {
-      freeSmoke.visible = true;
-      freeSmoke.position.set(
-        playerMesh.position.x + (Math.random() - 0.5) * 1.5,
-        0.22,
-        2.1,
-      );
-      freeSmoke.scale.set(0.65, 0.65, 0.65);
-      freeSmoke.material.opacity = 0.6;
-      freeSmoke.userData = {
-        life: 1.0,
-        vx: (Math.random() - 0.5) * 2.5,
-        vy: 1.4,
-        vz: playerSpeed * 0.45,
-      };
-    }
-  } else {
-    if (activeDriftBank >= 150) {
-      comboMultiplier = Math.min(10, comboMultiplier + 1);
-      sfx.playDing(820 + comboMultiplier * 60);
-      showHudBanner(
-        `✅ DRIFT LOCKED! +${activeDriftBank} (Combo x${comboMultiplier})`,
-        "#34d399",
-      );
-    }
-    activeDriftBank = 0;
-    score += Math.ceil(35 * dt);
-  }
-
-  // Forgiving Soft Guardrail Bounce at +/- 8.6 units
-  if (Math.abs(playerLaneOffset) > 8.6) {
-    playerLaneOffset = Math.sign(playerLaneOffset) * 8.3;
-    playerSpeed *= 0.8;
-    driftSlipAngle *= 0.5;
-    crashShake = 8;
-    sfx.playCrash();
-    showHudBanner("⚠️ WALL SCRAPE!", "#fb923c");
-  }
-
-  const stepDist = playerSpeed * dt;
-  distanceTraveled += stepDist;
-
-  // Stage Announcements
-  const progRatio = distanceTraveled / totalRunDistance;
-  if (progRatio >= 0.33 && currentStageNumber === 1) {
-    currentStageNumber = 2;
-    score += 1000;
-    sfx.playCountdownBeep(true);
-    showHudBanner("🌆 SECTOR 2: NEON BRIDGE! +1000", "#38bdf8", 1600);
-    webglScene.background.setHex(0x0b071e);
-    webglScene.fog.color.setHex(0x0b071e);
-  } else if (progRatio >= 0.66 && currentStageNumber === 2) {
-    currentStageNumber = 3;
-    score += 1500;
-    sfx.playCountdownBeep(true);
-    showHudBanner("🔥 FINAL SECTOR: TOUGE SPRINT! +1500", "#facc15", 1600);
-    webglScene.background.setHex(0x160714);
-    webglScene.fog.color.setHex(0x160714);
-  }
-
-  roadSegments.forEach((seg) => {
-    seg.userData.zLocal += stepDist;
-    if (seg.userData.zLocal > 13) {
-      seg.userData.zLocal -= 32 * 6.5;
-    }
-  });
-
-  const wideLanes = [-6.8, -2.3, 2.3, 6.8];
-  nitroPads.forEach((pad) => {
-    pad.userData.zDist += stepDist;
-    const padWorldDist = distanceTraveled - pad.userData.zDist;
-    pad.position.set(
-      getTougeCurveX(padWorldDist) + pad.userData.laneOffset,
-      0.04,
-      pad.userData.zDist,
-    );
-
-    if (
-      Math.abs(pad.userData.zDist) < 2.8 &&
-      Math.abs(playerLaneOffset - pad.userData.laneOffset) < 1.85
-    ) {
-      playerSpeed = Math.min(topSpeed + 8, playerSpeed + 8);
-      const pts = 400 * comboMultiplier;
-      score += pts;
-      sfx.playDing(1150);
-      showHudBanner(`🚀 NITRO BOOST! +${pts}`, "#34d399");
-      pad.userData.zDist = -190 - Math.random() * 40;
-      pad.userData.laneOffset = wideLanes[Math.floor(Math.random() * 4)];
-    } else if (pad.userData.zDist > 14) {
-      pad.userData.zDist = -190 - Math.random() * 40;
-      pad.userData.laneOffset = wideLanes[Math.floor(Math.random() * 4)];
-    }
-  });
-
-  trafficCars.forEach((tCar) => {
-    tCar.userData.zDist += (playerSpeed - tCar.userData.speed) * dt;
-    const carWorldDist = distanceTraveled - tCar.userData.zDist;
-    const curveX = getTougeCurveX(carWorldDist);
-    const nextCurveX = getTougeCurveX(carWorldDist + 5);
-    tCar.position.set(
-      curveX + tCar.userData.laneOffset,
-      0,
-      tCar.userData.zDist,
-    );
-    tCar.rotation.y = -Math.atan2(nextCurveX - curveX, 5);
-
-    const dz = Math.abs(tCar.userData.zDist);
-    const dx = Math.abs(playerLaneOffset - tCar.userData.laneOffset);
-
-    if (dz < 3.2 && dx < 1.55) {
-      playerSpeed = 14;
-      activeDriftBank = 0;
-      comboMultiplier = 1;
-      score = Math.max(0, score - 200);
-      crashShake = 14;
-      sfx.playCrash();
-      showHudBanner("💥 BUMPED TRAFFIC! -200", "#ef4444");
-      tCar.userData.zDist = -180 - Math.random() * 50;
-      tCar.userData.laneOffset = wideLanes[Math.floor(Math.random() * 4)];
-      tCar.userData.nearMissed = false;
-    } else if (
-      tCar.userData.zDist > 0.5 &&
-      tCar.userData.zDist < 5.5 &&
-      dx < 3.4 &&
-      !tCar.userData.nearMissed
-    ) {
-      tCar.userData.nearMissed = true;
-      comboMultiplier = Math.min(10, comboMultiplier + 1);
-      const pts = 400 * comboMultiplier;
-      score += pts;
-      sfx.playDing(920 + comboMultiplier * 65);
-      showHudBanner(`⚡ NEAR MISS! +${pts} (x${comboMultiplier})`, "#facc15");
-    }
-
-    if (tCar.userData.zDist > 15) {
-      tCar.userData.zDist = -180 - Math.random() * 50;
-      tCar.userData.laneOffset = wideLanes[Math.floor(Math.random() * 4)];
-      tCar.userData.nearMissed = false;
-    }
-  });
-
-  smokeParticles.forEach((p) => {
-    if (p.userData.life > 0) {
-      p.position.x += p.userData.vx * dt;
-      p.position.y += p.userData.vy * dt;
-      p.position.z += p.userData.vz * dt;
-      p.scale.multiplyScalar(1 + 1.8 * dt);
-      p.userData.life -= 2.2 * dt;
-      p.material.opacity = Math.max(0, p.userData.life * 0.55);
-      if (p.userData.life <= 0) p.visible = false;
-    }
-  });
-
-  positionWindingDriftWorld();
-
-  engineAudio.volume = Math.min(0.2, 0.03 + (playerSpeed / 35) * 0.14);
-  engineAudio.playbackRate = 0.8 + (playerSpeed / 35) * 0.5;
-  driftAudio.volume = isDrifting ? 0.09 : 0;
-}
-
-// ==========================================
-// 16. MODE B: 3D DENTAL CLINIC RUSH (HOME-SCREEN 3D MOLARS!)
-// ==========================================
-function initDentalRunnerScene() {
-  if (!ensureWebGLRenderer()) return;
-
-  webglScene = new THREE.Scene();
-  webglScene.background = new THREE.Color(0x0b132b);
-  webglScene.fog = new THREE.FogExp2(0x0b132b, 0.011);
-
-  webglCamera = new THREE.PerspectiveCamera(50, 540 / 720, 0.1, 200);
-
-  // Exact High-Contrast Studio Lighting from Home Screen 3D Tooth!
-  const hemi = new THREE.HemisphereLight(0xffffff, 0x1e293b, 0.38);
-  hemi.position.set(0, 10, 0);
-  webglScene.add(hemi);
-
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.55);
-  keyLight.position.set(12, 22, 14);
-  webglScene.add(keyLight);
-
-  const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.7);
-  rimLight.position.set(-12, -4, -10);
-  webglScene.add(rimLight);
-
-  // Scalloped Pink Gingiva (Gum) Ridges on Left & Right
-  const gumMat = new THREE.MeshPhysicalMaterial({
-    color: 0xe11d48,
-    roughness: 0.35,
-    clearcoat: 0.8,
-  });
-  [-4.6, 4.6].forEach((gx) => {
-    const gum = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.3, 1.6, 240, 16),
-      gumMat,
-    );
-    gum.rotation.x = Math.PI / 2;
-    gum.position.set(gx, -0.75, -100);
-    webglScene.add(gum);
-  });
-
-  // 3 Lanes of Your Exact Home-Screen 3D Porcelain Molars!
-  molarRows = [];
-  const laneX = [-2.4, 0, 2.4];
-  for (let r = 0; r < 22; r++) {
-    const rowGroup = new THREE.Group();
-    rowGroup.position.z = -r * 3.8;
-    laneX.forEach((lx) => {
-      const molar = buildHomeScreenMolarClone();
-      molar.position.x = lx;
-      rowGroup.add(molar);
-    });
-    webglScene.add(rowGroup);
-    molarRows.push(rowGroup);
-  }
-
-  startGantry = build3DGantryArch(
-    "🦷 AL-AMEEN CLINIC RUSH",
-    "HOLD DRILL OVER BROWN CARIES",
-    0x10b981,
-    "#10b981",
-  );
-  startGantry.position.set(0, 0, -12);
-  webglScene.add(startGantry);
-
-  finishGantry = build3DGantryArch(
-    "✨ CLINICAL SHIFT COMPLETE ✨",
-    "FULL ARCH RESTORED",
-    0xfacc15,
-    "#facc15",
-  );
-  finishGantry.visible = false;
-  webglScene.add(finishGantry);
-
-  dentalTargetLane = 0;
-  dentalCurrentX = 0;
-  laneSwitchLocked = false;
-  playerMesh = build3DDentalHandpiece();
-  playerMesh.position.set(0, 0.55, 0);
-  webglScene.add(playerMesh);
-
-  // Pre-build Pooled Target Meshes (ZERO mid-game allocations = ZERO lag!)
-  dentalTargets = [];
-  const cariesMat = new THREE.MeshStandardMaterial({
-    color: 0x3f1d0b,
-    roughness: 0.75,
-  });
-  const goldCrownMat = new THREE.MeshPhysicalMaterial({
-    color: 0xfacc15,
-    emissive: 0xa16207,
-    emissiveIntensity: 0.25,
-    roughness: 0.15,
-    clearcoat: 1.0,
-  });
-  const hazardMat = new THREE.MeshBasicMaterial({ color: 0xff1e42 });
-  const fluorideMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-
-  for (let i = 0; i < 10; i++) {
-    const tGroup = new THREE.Group();
-
-    // Sub-mesh A: Caries / Cavity Cluster
-    const cariesMesh = new THREE.Group();
-    for (let k = 0; k < 4; k++) {
-      const blob = new THREE.Mesh(
-        new THREE.DodecahedronGeometry(0.4, 1),
-        cariesMat,
-      );
-      blob.position.set(
-        (k % 2 === 0 ? -1 : 1) * 0.22,
-        0.15 + (k % 2) * 0.14,
-        (k < 2 ? -1 : 1) * 0.2,
-      );
-      cariesMesh.add(blob);
-    }
-    tGroup.add(cariesMesh);
-
-    // Sub-mesh B: Restored Gold Crown
-    const goldCrown = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.65, 0.55, 0.48, 16),
-      goldCrownMat,
-    );
-    goldCrown.position.y = 0.22;
-    tGroup.add(goldCrown);
-
-    // Sub-mesh C: Exposed Red Pulp Bio-Hazard Ring (Dodge!)
-    const hazardMesh = new THREE.Group();
-    const spike = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.58, 0),
-      hazardMat,
-    );
-    spike.position.y = 0.55;
-    hazardMesh.add(spike);
-    const warnRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.72, 0.08, 10, 24),
-      hazardMat,
-    );
-    warnRing.rotation.x = Math.PI / 2;
-    warnRing.position.y = 0.15;
-    hazardMesh.add(warnRing);
-    tGroup.add(hazardMesh);
-
-    // Sub-mesh D: Cyan Fluoride Orb (Collect!)
-    const fluorideMesh = new THREE.Mesh(
-      new THREE.TorusGeometry(0.56, 0.12, 12, 24),
-      fluorideMat,
-    );
-    fluorideMesh.position.y = 0.65;
-    tGroup.add(fluorideMesh);
-
-    tGroup.userData = {
-      cariesMesh,
-      goldCrown,
-      hazardMesh,
-      fluorideMesh,
-      type: "caries",
-      resolved: false,
-      hp: 100,
-    };
-
-    configurePooledDentalTarget(tGroup, -24 - i * 18, i);
-    webglScene.add(tGroup);
-    dentalTargets.push(tGroup);
-  }
-
-  shatterParticles = [];
-  const pGeo = new THREE.OctahedronGeometry(0.16, 0);
-  for (let i = 0; i < 24; i++) {
-    const pMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-    const part = new THREE.Mesh(pGeo, pMat);
-    part.visible = false;
-    part.userData = { life: 0, vx: 0, vy: 0, vz: 0 };
-    webglScene.add(part);
-    shatterParticles.push(part);
-  }
-}
-
-function configurePooledDentalTarget(tGroup, zPos, indexHint = 0) {
-  const laneX = [-2.4, 0, 2.4];
-  const laneIdx = (indexHint + Math.floor(Math.random() * 3)) % 3;
-  tGroup.position.set(laneX[laneIdx], 0.05, zPos);
-  tGroup.visible = true;
-
-  const ud = tGroup.userData;
-  ud.resolved = false;
-  ud.hp = 100;
-  ud.cariesMesh.visible = false;
-  ud.cariesMesh.scale.setScalar(1);
-  ud.goldCrown.visible = false;
-  ud.hazardMesh.visible = false;
-  ud.fluorideMesh.visible = false;
-
-  const roll = Math.random();
-  if (roll < 0.58) {
-    ud.type = "caries";
-    ud.cariesMesh.visible = true;
-  } else if (roll < 0.82) {
-    ud.type = "nerve_hazard";
-    ud.hazardMesh.visible = true;
-  } else {
-    ud.type = "fluoride";
-    ud.fluorideMesh.visible = true;
-  }
-}
-
-function spawnShatterBurst(x, z, hexColor) {
-  let spawned = 0;
-  for (let i = 0; i < shatterParticles.length && spawned < 8; i++) {
-    const p = shatterParticles[i];
-    if (p.userData.life <= 0) {
-      p.visible = true;
-      p.material.color.setHex(hexColor);
-      p.position.set(x, 0.4, z);
-      p.userData = {
-        life: 1.0,
-        vx: (Math.random() - 0.5) * 6.5,
-        vy: 3.5 + Math.random() * 3.5,
-        vz: (Math.random() - 0.5) * 6.5,
-      };
-      spawned++;
-    }
-  }
-}
-
-function updateDentalRunnerLoop(dt) {
-  // Smooth, Controllable Clinical Scroll Speed (Units per second)
-  const forwardSpeed = 17.5 + (currentStageNumber - 1) * 2.0;
-  const stepDist = forwardSpeed * dt;
-  distanceTraveled += stepDist;
-  score += Math.ceil(30 * dt);
-
-  const progRatio = distanceTraveled / totalRunDistance;
-  if (progRatio >= 0.33 && currentStageNumber === 1) {
-    currentStageNumber = 2;
-    score += 1000;
-    sfx.playCountdownBeep(true);
-    showHudBanner("🦷 STAGE 2: CROWN PREP! +1000", "#38bdf8", 1600);
-  } else if (progRatio >= 0.66 && currentStageNumber === 2) {
-    currentStageNumber = 3;
-    score += 1500;
-    sfx.playCountdownBeep(true);
-    showHudBanner("👑 FINAL STAGE: SMILE DESIGN! +1500", "#facc15", 1600);
-  }
-
-  if (!window.input.left && !window.input.right) {
-    laneSwitchLocked = false;
-  } else if (!laneSwitchLocked) {
-    if (window.input.left && dentalTargetLane > -1) {
-      dentalTargetLane--;
-      laneSwitchLocked = true;
-    } else if (window.input.right && dentalTargetLane < 1) {
-      dentalTargetLane++;
-      laneSwitchLocked = true;
-    }
-  }
-
-  const targetX = dentalTargetLane * 2.4;
-  dentalCurrentX += (targetX - dentalCurrentX) * Math.min(1, 12 * dt);
-
-  const isDrilling = Boolean(window.input.gas);
-  dentalArcadeSynth.setDrillActive(isDrilling);
-
-  if (playerMesh) {
-    const targetY = isDrilling ? 0.42 : 0.62;
-    playerMesh.position.x = dentalCurrentX;
-    playerMesh.position.y += (targetY - playerMesh.position.y) * Math.min(1, 14 * dt);
-    playerMesh.rotation.z = (dentalCurrentX - targetX) * 0.12;
-
-    if (playerMesh.userData.burPivot) {
-      playerMesh.userData.burPivot.rotation.y += (isDrilling ? 32 : 8) * dt;
-    }
-    if (playerMesh.userData.laserBeam) {
-      playerMesh.userData.laserBeam.material.opacity = isDrilling ? 0.65 : 0.0;
-    }
-    if (playerMesh.userData.aimRing) {
-      playerMesh.userData.aimRing.rotation.z += 3.5 * dt;
-      playerMesh.userData.aimRing.scale.setScalar(isDrilling ? 1.25 : 0.95);
-    }
-  }
-
-  if (startGantry) {
-    startGantry.position.z = -12 + distanceTraveled;
-    startGantry.visible = startGantry.position.z < 12;
-  }
-  if (finishGantry) {
-    const remDist = totalRunDistance - distanceTraveled;
-    finishGantry.visible = remDist < 160;
-    if (finishGantry.visible) {
-      finishGantry.position.set(0, 0, -remDist);
-    }
-  }
-
-  molarRows.forEach((row) => {
-    row.position.z += stepDist;
-    if (row.position.z > 7.6) {
-      row.position.z -= 22 * 3.8;
-    }
-  });
-
-  dentalTargets.forEach((tGroup, idx) => {
-    tGroup.position.z += stepDist;
-    const ud = tGroup.userData;
-    const inSameLane = Math.abs(dentalCurrentX - tGroup.position.x) < 1.1;
-
-    if (ud.hazardMesh.visible) ud.hazardMesh.rotation.y += 2.5 * dt;
-    if (ud.fluorideMesh.visible) ud.fluorideMesh.rotation.y += 3.0 * dt;
-
-    // Long-Range Hydro-Laser Excavates Caries Ahead!
-    if (
-      !ud.resolved &&
-      ud.type === "caries" &&
-      isDrilling &&
-      inSameLane &&
-      tGroup.position.z < 0.8 &&
-      tGroup.position.z > -11.5
-    ) {
-      ud.hp -= 260 * dt;
-      ud.cariesMesh.scale.setScalar(Math.max(0.1, ud.hp / 100));
-      ud.cariesMesh.rotation.y += 10 * dt;
-
-      if (ud.hp <= 0) {
-        ud.resolved = true;
-        ud.cariesMesh.visible = false;
-        ud.goldCrown.visible = true;
-
-        comboMultiplier = Math.min(12, comboMultiplier + 1);
-        const pts = 450 * comboMultiplier;
-        score += pts;
-        sfx.playDing(920 + comboMultiplier * 65);
-        spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0xfacc15);
-        showHudBanner(
-          `👑 GOLD CROWN PLACED! +${pts} (x${comboMultiplier})`,
-          "#34d399",
-        );
-      }
-    }
-
-    // Direct Contact Check at Handpiece Head (z = -0.85)
-    if (
-      !ud.resolved &&
-      Math.abs(tGroup.position.z - -0.85) < 1.1 &&
-      inSameLane
-    ) {
-      if (ud.type === "nerve_hazard") {
-        ud.resolved = true;
-        comboMultiplier = 1;
-        score = Math.max(0, score - 250);
-        crashShake = 12;
-        sfx.playCrash();
-        spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0xff1e42);
-        showHudBanner("🩸 PULP HAZARD HIT! -250 (Switch Lanes!)", "#ef4444");
-        ud.hazardMesh.visible = false;
-      } else if (ud.type === "fluoride") {
-        ud.resolved = true;
-        const pts = 500 * comboMultiplier;
-        score += pts;
-        sfx.playDing(1300);
-        spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0x38bdf8);
-        showHudBanner(`💎 FLUORIDE BOOST! +${pts}`, "#38bdf8");
-        ud.fluorideMesh.visible = false;
-      }
-    }
-
-    if (tGroup.position.z > 9) {
-      configurePooledDentalTarget(tGroup, -170 - Math.random() * 15, idx);
-    }
-  });
-
-  shatterParticles.forEach((p) => {
-    if (p.userData.life > 0) {
-      p.position.x += p.userData.vx * dt;
-      p.position.y += p.userData.vy * dt;
-      p.position.z += p.userData.vz * dt;
-      p.userData.vy -= 12 * dt;
-      p.userData.life -= 2.2 * dt;
-      p.scale.setScalar(Math.max(0.01, p.userData.life));
-      if (p.userData.life <= 0) p.visible = false;
-    }
-  });
-
-  const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.3 : 0;
-  if (crashShake > 0) crashShake--;
-
-  if (victorySeconds > 0) {
-    const angle = (1.8 - victorySeconds) * 2.2;
-    webglCamera.position.set(
-      Math.sin(angle) * 6.2,
-      3.4,
-      Math.cos(angle) * 6.2,
-    );
-    webglCamera.lookAt(0, 0.3, 0);
-  } else if (countdownSeconds > 0) {
-    const t = countdownSeconds / 2.8;
-    webglCamera.position.set(0, 3.8 + t * 1.2, 5.2 + t * 1.8);
-    webglCamera.lookAt(0, 0.2, -9);
-  } else {
-    webglCamera.position.set(dentalCurrentX * 0.55 + shakeX, 3.7, 5.1);
-    webglCamera.lookAt(dentalCurrentX * 0.75, 0.15, -9.5);
-  }
-}
-
-// ==========================================
-// 17. MASTER DELTA-TIME (dt) LOOP
-// ==========================================
-function masterArcadeLoop(now) {
-  if (raceFinished) return;
-
-  const dt = Math.min(0.05, Math.max(0.001, (now - lastFrameTimestamp) / 1000));
-  lastFrameTimestamp = now;
-
-  // PHASE 1: STARTING GRID 3-2-1 COUNTDOWN
-  if (countdownSeconds > 0) {
-    const currentInt = Math.ceil(countdownSeconds);
-    if (currentInt !== countdownLastInt) {
-      countdownLastInt = currentInt;
-      sfx.playCountdownBeep(false);
-      if (currentInt === 3) showHudBanner("🔴 READY... 3", "#ef4444", 850);
-      else if (currentInt === 2) showHudBanner("🟠 SET... 2", "#fb923c", 850);
-      else if (currentInt === 1) showHudBanner("🟡 1...", "#facc15", 850);
-    }
-
-    countdownSeconds -= dt;
-    if (countdownSeconds <= 0) {
-      sfx.playCountdownBeep(true);
-      showHudBanner(
-        activeGameMode === "dental_runner"
-          ? "🟢 GO! HOLD DRILL ON CARIES!"
-          : "🟢 GO! STEER + HOLD DRIFT GAS!",
-        "#34d399",
-        1300,
-      );
-      startTime = Date.now();
-    }
-
-    if (activeGameMode === "dental_runner") {
-      const t = Math.max(0, countdownSeconds / 2.8);
-      webglCamera.position.set(0, 3.8 + t * 1.2, 5.2 + t * 1.8);
-      webglCamera.lookAt(0, 0.2, -9);
-    } else {
-      positionWindingDriftWorld();
-    }
-
-    if (webglRenderer && webglScene && webglCamera) {
-      webglRenderer.render(webglScene, webglCamera);
-    }
-    gameLoopId = requestAnimationFrame(masterArcadeLoop);
-    return;
-  }
-
-  // PHASE 2: FINISH LINE VICTORY CAMERA ORBIT
-  if (victorySeconds > 0) {
-    victorySeconds -= dt;
-    if (activeGameMode === "dental_runner") {
-      const angle = (1.8 - victorySeconds) * 2.2;
-      webglCamera.position.set(
-        Math.sin(angle) * 6.2,
-        3.4,
-        Math.cos(angle) * 6.2,
-      );
-      webglCamera.lookAt(0, 0.3, 0);
-    } else {
-      positionWindingDriftWorld();
-    }
-
-    if (webglRenderer && webglScene && webglCamera) {
-      webglRenderer.render(webglScene, webglCamera);
-    }
-
-    if (victorySeconds <= 0) {
-      raceFinished = true;
-      stopArcadeAudio();
-
-      const timeTaken = (Date.now() - startTime) / 1000;
-      const grade =
-        score >= 22000
-          ? "S+ MASTER"
-          : score >= 14000
-            ? "A+ SENIOR"
-            : "B RESIDENT";
-
-      const scoreboardModal = document.getElementById("scoreboard-modal");
-      const finalScoreDisplay = document.getElementById("final-score-display");
-      const finalSub = document.getElementById("final-run-subtitle");
-      const heading = document.getElementById("scoreboard-heading");
-
-      if (heading) {
-        heading.textContent =
-          activeGameMode === "dental_runner"
-            ? `🦷 SHIFT COMPLETE (${grade}) 🦷`
-            : `🏁 TOUGE COMPLETE (${grade}) 🏁`;
-      }
-      if (finalScoreDisplay) finalScoreDisplay.textContent = String(score);
-      if (finalSub) {
-        finalSub.textContent = `Time: ${timeTaken.toFixed(1)}s | Rank: ${grade}`;
-      }
-
-      if (scoreboardModal) scoreboardModal.style.display = "flex";
-      setTimeout(async () => {
-        const saved = await submitDriftScore(arcadePlayerName, score);
-        if (saved) fetchDriftLeaderboard();
-      }, 80);
-      return;
-    }
-
-    gameLoopId = requestAnimationFrame(masterArcadeLoop);
-    return;
-  }
-
-  // PHASE 3: SMOOTH DELTA-TIME GAMEPLAY
-  if (activeGameMode === "dental_runner") {
-    updateDentalRunnerLoop(dt);
-  } else {
-    updateNightDriftLoop(dt);
-  }
-
-  if (webglRenderer && webglScene && webglCamera) {
-    webglRenderer.render(webglScene, webglCamera);
-  }
-
-  const progress = Math.max(
-    0,
-    Math.min(100, (distanceTraveled / totalRunDistance) * 100),
-  );
-  const elScore = document.getElementById("hud-score");
-  const elCombo = document.getElementById("hud-combo");
-  const elProg = document.getElementById("hud-progress");
-
-  if (elScore) elScore.textContent = String(score);
-  if (elCombo) elCombo.textContent = `x${comboMultiplier}`;
-  if (elProg) elProg.textContent = `${progress.toFixed(1)}%`;
-
-  if (distanceTraveled >= totalRunDistance && victorySeconds === 0) {
-    victorySeconds = 1.8;
-    const timeTaken = (Date.now() - startTime) / 1000;
-    const speedBonus = Math.max(0, Math.floor((85 - timeTaken) * 50));
-    score += speedBonus;
-    sfx.playCountdownBeep(true);
-    showHudBanner(
-      `🏆 FINISH LINE! SPEED BONUS +${speedBonus}`,
-      "#facc15",
-      2000,
-    );
-  }
-
-  gameLoopId = requestAnimationFrame(masterArcadeLoop);
-}
