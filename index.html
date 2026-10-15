@@ -45,18 +45,11 @@
         orderBy,
         limit,
       } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-      import {
-        getStorage,
-        ref,
-        uploadBytes,
-        getDownloadURL,
-      } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
       const firebaseConfig = {
         apiKey: "AIzaSyCCzUL2v915_YGQxNocncUtBAHDKNyyNPI",
         authDomain: "dentoschedule.firebaseapp.com",
         projectId: "dentoschedule",
-        storageBucket: "dentoschedule.firebasestorage.app",
         messagingSenderId: "561930604700",
         appId: "1:561930604700:web:0b61415901961a42bc5d59",
         measurementId: "G-MFXGTM0LPH",
@@ -84,10 +77,6 @@
       window.orderBy = orderBy;
       window.limit = limit;
       window.updatePassword = updatePassword;
-      window.storage = getStorage(app);
-      window.storageRef = ref;
-      window.uploadBytes = uploadBytes;
-      window.getDownloadURL = getDownloadURL;
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
   </head>
@@ -202,6 +191,9 @@
             <div class="modal-actions">
               <button id="btn-submit-lofi" class="admin-btn" type="button">
                 Upload Track
+              </button>
+              <button id="btn-delete-lofi" class="admin-btn cancel-btn" type="button">
+                Delete Current Track
               </button>
               <button
                 id="btn-cancel-lofi"
