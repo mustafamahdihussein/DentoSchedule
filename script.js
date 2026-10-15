@@ -900,6 +900,7 @@ const btnUploadLofi = document.getElementById("btn-upload-lofi");
 const btnSubmitLofi = document.getElementById("btn-submit-lofi");
 const btnCancelLofi = document.getElementById("btn-cancel-lofi");
 const lofiFileInput = document.getElementById("lofi-file");
+const lofiUploadStatus = document.getElementById("lofi-upload-status");
 
 if (btnUploadLofi) {
   btnUploadLofi.addEventListener("click", () => {
@@ -911,6 +912,7 @@ if (btnCancelLofi) {
   btnCancelLofi.addEventListener("click", () => {
     if (modalUploadLofi) modalUploadLofi.style.display = "none";
     if (lofiFileInput) lofiFileInput.value = "";
+    if (lofiUploadStatus) lofiUploadStatus.textContent = "";
   });
 }
 
@@ -929,7 +931,15 @@ if (btnSubmitLofi) {
       return;
     }
 
+    btnSubmitLofi.disabled = true;
+    btnSubmitLofi.textContent = "Uploading...";
+    if (lofiUploadStatus) {
+      lofiUploadStatus.style.color = "#2563eb";
+      lofiUploadStatus.textContent = "Connecting to Firebase Storage...";
+    }
+
     try {
+      await window.authPersistenceReady;
       if (!(await requireAdminSession())) return;
       if (
         !window.storage ||
@@ -940,6 +950,9 @@ if (btnSubmitLofi) {
         throw new Error("Firebase Storage is unavailable.");
       }
 
+      if (lofiUploadStatus) {
+        lofiUploadStatus.textContent = "Uploading MP3...";
+      }
       const trackRef = window.storageRef(window.storage, "lofi/current.mp3");
       await window.uploadBytes(trackRef, file, {
         contentType: "audio/mpeg",
@@ -955,10 +968,24 @@ if (btnSubmitLofi) {
       await window.lofiPlayer.loadUploadedTrack(downloadUrl);
       if (modalUploadLofi) modalUploadLofi.style.display = "none";
       if (lofiFileInput) lofiFileInput.value = "";
+      if (lofiUploadStatus) lofiUploadStatus.textContent = "";
       alert("Lo-Fi MP3 uploaded and published for all users.");
     } catch (error) {
       console.error("Unable to upload Lo-Fi MP3.", error);
-      alert("Lo-Fi upload failed: " + error.message);
+      const message =
+        error?.code === "storage/unauthorized"
+          ? "Upload denied. Deploy storage.rules and verify that you are signed in as the admin."
+          : error?.code === "storage/unknown"
+            ? "Firebase Storage is not enabled for this project."
+            : error.message;
+      if (lofiUploadStatus) {
+        lofiUploadStatus.style.color = "#b91c1c";
+        lofiUploadStatus.textContent = "Upload failed: " + message;
+      }
+      alert("Lo-Fi upload failed: " + message);
+    } finally {
+      btnSubmitLofi.disabled = false;
+      btnSubmitLofi.textContent = "Upload Track";
     }
   });
 }
