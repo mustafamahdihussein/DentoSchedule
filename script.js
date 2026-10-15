@@ -1317,7 +1317,7 @@ function filterSchedule(dayName) {
 window.addEventListener("DOMContentLoaded", renderDynamicCalendar);
 
 // ==========================================
-// 6. LIVE BAGHDAD CLOCK & LECTURE PROGRESS
+// 6. LIVE LECTURE PROGRESS
 // ==========================================
 function updateLiveBaghdadStatus() {
   const now = new Date();
@@ -1329,14 +1329,6 @@ function updateLiveBaghdadStatus() {
   const hours = baghdadDate.getHours();
   const minutes = baghdadDate.getMinutes();
   const dayOfWeek = baghdadDate.getDay();
-
-  const timePill = document.getElementById("baghdad-live-clock");
-  if (timePill) {
-    const mm = minutes.toString().padStart(2, "0");
-    const ampm = hours >= 12 ? "PM" : "AM";
-    const displayHour = hours % 12 || 12;
-    timePill.textContent = `🕒 Baghdad Time: ${displayHour}:${mm} ${ampm}`;
-  }
 
   const activeDayMap = {
     6: "schedule-saturday",
@@ -2107,15 +2099,17 @@ function stopArcadeAudio() {
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-// A small self-contained lo-fi loop keeps the focus button usable without
+// A self-contained lo-fi loop keeps the focus button usable without
 // depending on a third-party stream or an additional audio file.
 const lofiPlayer = {
   isPlaying: false,
-  step: 0,
   timer: null,
   master: null,
-  oscillators: [],
+  compressor: null,
   noiseSource: null,
+  noiseGain: null,
+  beat: 0,
+  chordOscillators: [],
   toggle() {
     if (this.isPlaying) {
       this.stop();
@@ -2133,65 +2127,86 @@ const lofiPlayer = {
   start() {
     try {
       if (audioCtx.state === "suspended") {
-        audioCtx.resume();
+        audioCtx.resume().catch(() => {});
       }
 
       this.master = audioCtx.createGain();
-      this.master.gain.value = 0.08;
+      this.master.gain.value = 0.14;
       this.master.connect(audioCtx.destination);
 
-      const filter = audioCtx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 1800;
-      filter.Q.value = 0.4;
-      filter.connect(this.master);
+      this.compressor = audioCtx.createDynamicsCompressor();
+      this.compressor.threshold.value = -24;
+      this.compressor.knee.value = 18;
+      this.compressor.ratio.value = 4;
+      this.compressor.attack.value = 0.02;
+      this.compressor.release.value = 0.3;
+      this.compressor.connect(this.master);
 
-      const notes = [261.63, 329.63, 392.0, 493.88];
-      this.oscillators = notes.map((frequency, index) => {
+      const padFilter = audioCtx.createBiquadFilter();
+      padFilter.type = "lowpass";
+      padFilter.frequency.value = 1250;
+      padFilter.Q.value = 0.7;
+      padFilter.connect(this.compressor);
+
+      const chord = [146.83, 174.61, 220.0, 261.63];
+      this.chordOscillators = chord.map((frequency, index) => {
         const oscillator = audioCtx.createOscillator();
-        oscillator.type = index % 2 ? "triangle" : "sine";
+        oscillator.type = index === 0 ? "sine" : "triangle";
         oscillator.frequency.value = frequency;
-        oscillator.detune.value = index * 2 - 3;
-        oscillator.connect(filter);
+        oscillator.detune.value = index % 2 ? -5 : 4;
+        const gain = audioCtx.createGain();
+        gain.gain.value = index === 0 ? 0.32 : 0.18;
+        oscillator.connect(gain);
+        gain.connect(padFilter);
         oscillator.start();
         return oscillator;
       });
 
       const noiseBuffer = audioCtx.createBuffer(
         1,
-        audioCtx.sampleRate * 2,
+        audioCtx.sampleRate * 3,
         audioCtx.sampleRate,
       );
       const noiseData = noiseBuffer.getChannelData(0);
       for (let index = 0; index < noiseData.length; index++) {
-        noiseData[index] = (Math.random() * 2 - 1) * 0.12;
+        noiseData[index] = (Math.random() * 2 - 1) * 0.035;
       }
       this.noiseSource = audioCtx.createBufferSource();
       this.noiseSource.buffer = noiseBuffer;
       this.noiseSource.loop = true;
       const noiseFilter = audioCtx.createBiquadFilter();
       noiseFilter.type = "lowpass";
-      noiseFilter.frequency.value = 900;
+      noiseFilter.frequency.value = 1800;
       this.noiseSource.connect(noiseFilter);
-      noiseFilter.connect(this.master);
+      this.noiseGain = audioCtx.createGain();
+      this.noiseGain.gain.value = 0.18;
+      noiseFilter.connect(this.noiseGain);
+      this.noiseGain.connect(this.compressor);
       this.noiseSource.start();
 
-      this.step = 0;
+      this.beat = 0;
       this.timer = setInterval(() => {
-        const progression = [
-          [261.63, 329.63, 392.0, 493.88],
-          [220.0, 261.63, 329.63, 440.0],
-          [174.61, 220.0, 261.63, 349.23],
-          [196.0, 246.94, 293.66, 392.0],
-        ][this.step++ % 4];
-        this.oscillators.forEach((oscillator, index) => {
-          oscillator.frequency.setTargetAtTime(
-            progression[index],
-            audioCtx.currentTime,
-            0.25,
-          );
-        });
-      }, 4000);
+        const melody = [293.66, 349.23, 392.0, 440.0, 392.0, 349.23, 329.63, 293.66];
+        const frequency = melody[this.beat % melody.length];
+        const now = audioCtx.currentTime;
+        const note = audioCtx.createOscillator();
+        const noteGain = audioCtx.createGain();
+        const noteFilter = audioCtx.createBiquadFilter();
+        note.type = "triangle";
+        note.frequency.value = frequency;
+        note.detune.value = this.beat % 3 === 0 ? -7 : 0;
+        noteFilter.type = "lowpass";
+        noteFilter.frequency.value = 1050;
+        noteGain.gain.setValueAtTime(0.0001, now);
+        noteGain.gain.exponentialRampToValueAtTime(0.13, now + 0.035);
+        noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+        note.connect(noteFilter);
+        noteFilter.connect(noteGain);
+        noteGain.connect(this.compressor);
+        note.start(now);
+        note.stop(now + 0.65);
+        this.beat++;
+      }, 600);
 
       this.isPlaying = true;
       this.updateButton();
@@ -2206,12 +2221,14 @@ const lofiPlayer = {
       clearInterval(this.timer);
       this.timer = null;
     }
-    this.oscillators.forEach((oscillator) => oscillator.stop());
-    this.oscillators = [];
+    this.chordOscillators.forEach((oscillator) => oscillator.stop());
+    this.chordOscillators = [];
     if (this.noiseSource) {
       this.noiseSource.stop();
       this.noiseSource = null;
     }
+    this.noiseGain = null;
+    this.compressor = null;
     if (this.master) {
       this.master.disconnect();
       this.master = null;
