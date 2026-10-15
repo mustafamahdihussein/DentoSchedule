@@ -1864,12 +1864,95 @@ if (window.onSnapshot && window.db && window.collection) {
 }
 
 // ==========================================
-// 9. POMODORO TIMER + LO-FI LINK
+// 9. POMODORO TIMER + LO-FI PLAYER
 // ==========================================
 const pomodoroModal = document.getElementById("pomodoro-modal");
 const btnOpenPomodoro = document.getElementById("btn-open-pomodoro");
 const btnFocusSound = document.getElementById("btn-focus-sound");
 const btnToolbarLofi = document.getElementById("btn-toolbar-lofi");
+
+const lofiPlayer = {
+  audio: new Audio(),
+  trackId: null,
+  loading: false,
+  playing: false,
+  async loadTrack() {
+    if (this.loading) return;
+    this.loading = true;
+    try {
+      const metadata = await window.getDoc(
+        window.doc(window.db, "Announcements", "lofi_meta"),
+      );
+      if (!metadata.exists()) {
+        throw new Error("No Lo-Fi track has been published yet.");
+      }
+      const { trackId, totalChunks, mimeType = "audio/mpeg" } = metadata.data();
+      const chunks = await Promise.all(
+        Array.from({ length: Number(totalChunks) }, (_, index) =>
+          window.getDoc(
+            window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
+          ),
+        ),
+      );
+      if (chunks.some((chunk) => !chunk.exists() || chunk.data().trackId !== trackId)) {
+        throw new Error("The published Lo-Fi track is incomplete.");
+      }
+      const base64 = chunks.map((chunk) => chunk.data().data).join("");
+      this.trackId = trackId;
+      this.audio.src = `data:${mimeType};base64,${base64}`;
+      this.audio.load();
+    } finally {
+      this.loading = false;
+    }
+  },
+  async toggle() {
+    try {
+      if (!this.audio.src) await this.loadTrack();
+      if (this.playing) {
+        this.audio.pause();
+      } else {
+        await this.audio.play();
+      }
+      this.playing = !this.playing;
+      this.updateButtons();
+    } catch (error) {
+      this.playing = false;
+      this.updateButtons();
+      console.error("Unable to start Lo-Fi playback.", error);
+      alert(error?.message || "Unable to start Lo-Fi playback.");
+    }
+  },
+  updateButtons() {
+    [btnFocusSound, btnToolbarLofi].filter(Boolean).forEach((button) => {
+      button.textContent = this.playing
+        ? "🎧 Lo-Fi Beats: ON"
+        : "🎧 Lo-Fi Beats: OFF";
+      button.classList.toggle("active", this.playing);
+    });
+  },
+  loadUploadedTrack(trackId, base64) {
+    this.trackId = trackId;
+    this.audio.src = `data:audio/mpeg;base64,${base64}`;
+    this.audio.load();
+    this.playing = false;
+    this.updateButtons();
+  },
+  deleteTrack(trackId) {
+    if (this.trackId === trackId) {
+      this.audio.pause();
+      this.audio.removeAttribute("src");
+      this.audio.load();
+      this.trackId = null;
+      this.playing = false;
+      this.updateButtons();
+    }
+  },
+};
+lofiPlayer.audio.addEventListener("ended", () => {
+  lofiPlayer.playing = false;
+  lofiPlayer.updateButtons();
+});
+window.lofiPlayer = lofiPlayer;
 
 [btnFocusSound, btnToolbarLofi]
   .filter(Boolean)
@@ -2444,7 +2527,7 @@ function hopperBox(width, height, depth, color) {
 }
 
 function hopperCreateRow(z) {
-  const type = z % 5 === 0 ? "river" : z % 3 === 0 ? "road" : "grass";
+  const type = z === 0 ? "grass" : z % 5 === 0 ? "river" : z % 3 === 0 ? "road" : "grass";
   const row = {
     z,
     type,
@@ -2578,7 +2661,11 @@ function hopperAnimate(now) {
   hopper.camera.position.z += (hopper.z + 6 - hopper.camera.position.z) * 0.08;
   hopper.camera.lookAt(0, 0, hopper.z + 2);
   const row = hopper.rowMeshes.get(hopper.z);
-  if (row && ((row.type === "road" && hopperCollision(row)) || (row.type === "river" && hopperCollision(row) === false && !hopper.hop))) {
+  if (
+    row &&
+    ((row.type === "road" && hopperCollision(row)) ||
+      (row.type === "river" && !hopperCollision(row) && !hopper.hop))
+  ) {
     hopperEndRun(row.type === "river" ? "🌊 Splash!" : "💥 Ouch!");
     return;
   }
@@ -2612,6 +2699,13 @@ function initHopper() {
     button.addEventListener("click", () => hopperMove(button.dataset.hopperMove));
   });
   window.addEventListener("keydown", (event) => {
+    if (
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLTextAreaElement ||
+      event.target instanceof HTMLSelectElement
+    ) {
+      return;
+    }
     const moves = { ArrowUp: "forward", w: "forward", W: "forward", ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right" };
     if (moves[event.key]) {
       event.preventDefault();
