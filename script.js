@@ -26,6 +26,29 @@ const btnBack = document.getElementById("btn-back");
 const passwordInput = document.getElementById("admin-password");
 const loginError = document.getElementById("login-error");
 const btnLogout = document.getElementById("btn-logout");
+const btnThemeToggle = document.getElementById("btn-theme-toggle");
+
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.body.classList.toggle("dark-mode", isDark);
+  if (btnThemeToggle) {
+    btnThemeToggle.textContent = isDark ? "☀️ Light Mode" : "🌙 Dark Mode";
+    btnThemeToggle.style.backgroundColor = isDark ? "#0ea5e9" : "#1e293b";
+  }
+}
+
+const savedTheme = localStorage.getItem("dento_theme");
+applyTheme(savedTheme === "dark" ? "dark" : "light");
+
+if (btnThemeToggle) {
+  btnThemeToggle.addEventListener("click", () => {
+    const nextTheme = document.body.classList.contains("dark-mode")
+      ? "light"
+      : "dark";
+    localStorage.setItem("dento_theme", nextTheme);
+    applyTheme(nextTheme);
+  });
+}
 
 function clearAuthSessionTimeout() {
   if (authSessionTimeout) {
@@ -1371,17 +1394,17 @@ function renderDynamicCalendar() {
       const isTomorrow =
         loopDate.toDateString() === tomorrowDate.toDateString();
 
-      let badgeHtml = `<div style="height: 18px; margin-top: 4px;"></div>`;
+      let badgeHtml = `<div class="day-badge day-badge-placeholder"></div>`;
       if (isToday) {
-        badgeHtml = `<div style="background: #ffffff; color: #1d4ed8; font-size: 10px; padding: 2px 7px; border-radius: 12px; margin-top: 4px; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">Today</div>`;
+        badgeHtml = `<div class="day-badge">Today</div>`;
       } else if (isTomorrow) {
-        badgeHtml = `<div style="background: #ffffff; color: #1d4ed8; font-size: 10px; padding: 2px 7px; border-radius: 12px; margin-top: 4px; font-weight: 800; border: 1px solid #93c5fd;">Tomorrow</div>`;
+        badgeHtml = `<div class="day-badge">Tomorrow</div>`;
       }
 
       const dayHTML = `
-        <div class="day-selector-btn" data-day="${dayName}" data-date="${loopDate.toDateString()}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 86px; background-color: #ffffff; color: #64748b; border: 1px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);">
-          <span style="font-size: 13px; font-weight: 700; margin-bottom: 2px;">${dayName}</span>
-          <span style="font-size: 22px; font-weight: 850; color: #0f172a;">${dateNum}</span>
+        <div class="day-selector-btn" data-day="${dayName}" data-date="${loopDate.toDateString()}">
+          <span class="day-name">${dayName}</span>
+          <span class="day-number">${dateNum}</span>
           ${badgeHtml}
         </div>
       `;
@@ -1395,20 +1418,10 @@ function renderDynamicCalendar() {
   allDayBtns.forEach((btn) => {
     btn.addEventListener("click", function () {
       allDayBtns.forEach((b) => {
-        b.style.backgroundColor = "#ffffff";
-        b.style.color = "#64748b";
-        b.style.borderColor = "#e2e8f0";
-        b.style.boxShadow = "0 2px 6px rgba(15, 23, 42, 0.03)";
-        const spanNum = b.querySelector("span:nth-child(2)");
-        if (spanNum) spanNum.style.color = "#0f172a";
+        b.classList.remove("is-selected");
       });
 
-      this.style.backgroundColor = "#2563eb";
-      this.style.color = "white";
-      this.style.borderColor = "#1d4ed8";
-      this.style.boxShadow = "0 6px 16px rgba(37, 99, 235, 0.3)";
-      const spanNum = this.querySelector("span:nth-child(2)");
-      if (spanNum) spanNum.style.color = "#ffffff";
+      this.classList.add("is-selected");
 
       this.scrollIntoView({
         behavior: "smooth",
@@ -1621,15 +1634,13 @@ async function loadSubjectResources(subjectKey) {
       if (data.subject === subjectKey) {
         pdfCount++;
         const itemRow = document.createElement("div");
-        itemRow.style.cssText =
-          "display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
+          itemRow.className = "pdf-resource-row";
 
         const linkBtn = document.createElement("a");
         linkBtn.href = data.url;
         linkBtn.target = "_blank";
         linkBtn.rel = "noopener noreferrer";
-        linkBtn.style.cssText =
-          "text-decoration: none; color: #1e293b; font-weight: 600; font-size: 14px; flex-grow: 1;";
+        linkBtn.className = "resource-link";
         linkBtn.textContent = `📄 ${data.name}`;
 
         itemRow.appendChild(linkBtn);
@@ -1672,15 +1683,13 @@ async function loadSubjectResources(subjectKey) {
       if (data.subject === subjectKey) {
         quizCount++;
         const itemRow = document.createElement("div");
-        itemRow.style.cssText =
-          "display: flex; align-items: center; justify-content: space-between; background: #fefce8; border: 1px solid #fde047; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
+          itemRow.className = "quiz-resource-row";
 
         const linkBtn = document.createElement("a");
         linkBtn.href = data.url;
         linkBtn.target = "_blank";
         linkBtn.rel = "noopener noreferrer";
-        linkBtn.style.cssText =
-          "text-decoration: none; color: #854d0e; font-weight: 600; font-size: 14px; flex-grow: 1;";
+        linkBtn.className = "resource-link";
         linkBtn.textContent = `📝 ${data.name}`;
 
         itemRow.appendChild(linkBtn);
@@ -2157,6 +2166,7 @@ if (btnResetClinicLog) {
 let arcadePlayerName = "";
 
 window.openGameMenu = function () {
+  if (window.lofiPlayer) window.lofiPlayer.stop();
   const playerName = prompt(
     "Enter your name for the Al-Ameen Arcade Leaderboard:",
     localStorage.getItem("dento_student") || "",
@@ -2199,6 +2209,7 @@ window.switchArcadeModeTab = function (mode) {
 };
 
 window.openStandaloneLeaderboard = function () {
+  if (window.lofiPlayer) window.lofiPlayer.stop();
   const scoreboardModal = document.getElementById("scoreboard-modal");
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   const menu = document.getElementById("game-selection-overlay");
@@ -2313,6 +2324,7 @@ const lofiPlayer = {
   isPlaying: false,
   isLoading: false,
   loadingPromise: null,
+  playbackRequestId: 0,
   loadError: null,
   currentTrackId: null,
   decodedTrackId: null,
@@ -2332,8 +2344,9 @@ const lofiPlayer = {
     this.isLoading = true;
     this.loadError = null;
     this.updateButton();
+    const requestId = ++this.playbackRequestId;
     this.loadingPromise = Promise.resolve(resumePromise)
-      .then(() => this.startPlayback())
+      .then(() => this.startPlayback(requestId))
       .catch((error) => {
         this.loadError = error;
         console.error("Unable to play uploaded Lo-Fi track.", error);
@@ -2350,8 +2363,9 @@ const lofiPlayer = {
         this.updateButton();
       });
   },
-  async startPlayback() {
+  async startPlayback(requestId) {
     const trackId = await this.getCurrentTrackId();
+    if (requestId !== this.playbackRequestId) return;
     if (!trackId) {
       throw new Error("No uploaded Lo-Fi track is available.");
     }
@@ -2363,6 +2377,7 @@ const lofiPlayer = {
       this.decodedAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
       this.decodedTrackId = trackId;
     }
+    if (requestId !== this.playbackRequestId) return;
     const source = audioCtx.createBufferSource();
     source.buffer = this.decodedAudioBuffer;
     source.loop = true;
@@ -2487,6 +2502,7 @@ const lofiPlayer = {
     });
   },
   stop() {
+    this.playbackRequestId++;
     if (this.source) {
       this.source.stop();
       this.source.disconnect();
@@ -2742,6 +2758,7 @@ trackPath2D.lineTo(
 );
 
 window.startGame = function (modeOrCar) {
+  if (window.lofiPlayer) window.lofiPlayer.stop();
   closeGameMenu();
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   const scoreboardModal = document.getElementById("scoreboard-modal");

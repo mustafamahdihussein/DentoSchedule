@@ -211,8 +211,81 @@ header p,
   overflow-x: auto;
   padding: 15px 20px;
   gap: 10px;
-  background: white;
+  background: #ffffff;
   border-bottom: 1px solid #e9ecef;
+}
+
+.day-selector-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 86px;
+  background: #ffffff;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+}
+
+.day-name {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.day-number {
+  font-size: 22px;
+  font-weight: 850;
+  color: #0f172a;
+}
+
+.day-badge {
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  margin-top: 4px;
+  font-weight: 800;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.day-badge-placeholder {
+  height: 18px;
+}
+
+.live-alert-banner {
+  padding: 12px 15px;
+  margin: 12px 20px;
+  background: #fcf8e3;
+  border-left: 5px solid #f39c12;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  align-items: center;
+  gap: 8px;
+}
+
+.live-alert-icon {
+  font-size: 18px;
+}
+
+.live-alert-label {
+  color: #8a6d3b;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.live-alert-text {
+  color: #333333;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .date-ribbon::-webkit-scrollbar,
@@ -595,6 +668,38 @@ header p,
   margin: 0;
   font-size: 1.2rem;
   text-align: center;
+}
+
+.pdf-resource-row,
+.quiz-resource-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.pdf-resource-row {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.quiz-resource-row {
+  background: #fefce8;
+  border: 1px solid #fde047;
+}
+
+.resource-link {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 14px;
+  flex-grow: 1;
+  color: #1e293b;
+}
+
+.quiz-resource-row .resource-link {
+  color: #854d0e;
 }
 
 .admin-input {
@@ -1078,6 +1183,227 @@ header p,
   padding: 28px 20px;
   margin-top: 20px;
   border-top: 1px solid #e2e8f0;
+}
+
+/* ==========================================
+   10. CLINICAL OBSIDIAN DARK MODE
+   ========================================== */
+body.dark-mode {
+  background: #0b0f17;
+  color: #e2e8f0;
+}
+
+body.dark-mode .quick-toolbar,
+body.dark-mode .date-ribbon {
+  background: #0b0f17;
+}
+
+body.dark-mode .hero-header,
+body.dark-mode header {
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+  border-bottom: 1px solid #1e293b;
+}
+
+body.dark-mode header h1,
+body.dark-mode .hero-text-wrapper h1 {
+  color: #60a5fa;
+}
+
+body.dark-mode header p,
+body.dark-mode .hero-text-wrapper p {
+  color: #94a3b8;
+}
+
+body.dark-mode .live-clock-pill {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: #0284c7;
+  color: #7dd3fc;
+}
+
+body.dark-mode .live-alert-banner {
+  background: #272112;
+  border-left-color: #f59e0b;
+}
+
+body.dark-mode .live-alert-label,
+body.dark-mode .live-alert-text {
+  color: #fde68a;
+}
+
+body.dark-mode .exams-radar-container {
+  background: #261218;
+  border-color: #4c1d24;
+  border-left-color: #e11d48;
+}
+
+body.dark-mode .exams-radar-title,
+body.dark-mode .exam-radar-subj {
+  color: #fda4af;
+}
+
+body.dark-mode .exam-radar-chip {
+  background: #181418;
+  border-color: #3f232c;
+}
+
+body.dark-mode .exam-radar-note {
+  color: #f1f5f9;
+}
+
+body.dark-mode .day-selector-btn {
+  background: #161b22;
+  border-color: #2d3748;
+  color: #94a3b8;
+}
+
+body.dark-mode .day-number {
+  color: #f8fafc;
+}
+
+body.dark-mode .day-badge {
+  background: #1e293b;
+  color: #60a5fa;
+  border: 1px solid #3b82f6;
+  box-shadow: none;
+}
+
+body.dark-mode .day-selector-btn.is-selected {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  border-color: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+}
+
+body.dark-mode .day-selector-btn.is-selected .day-number,
+body.dark-mode .day-selector-btn.is-selected .day-badge {
+  color: #ffffff;
+}
+
+body.dark-mode .day-selector-btn.is-selected .day-badge {
+  background: transparent;
+  border-color: transparent;
+}
+
+body.dark-mode .subject-card {
+  background: #161b22;
+  border-color: #222936;
+  border-left-color: #3b82f6;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .subject-card h2,
+body.dark-mode .group-col p {
+  color: #f8fafc;
+}
+
+body.dark-mode .group-col h3 {
+  color: #60a5fa;
+}
+
+body.dark-mode .divider {
+  background: #2d3748;
+}
+
+body.dark-mode .group-col[data-subject]:hover,
+body.dark-mode .group-col[data-subject]:active {
+  background: #1e293b;
+}
+
+body.dark-mode .res-pill {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+
+body.dark-mode .res-pill.has-items {
+  background: rgba(30, 58, 138, 0.4);
+  border-color: #1d4ed8;
+  color: #93c5fd;
+}
+
+body.dark-mode .res-pill.quiz-pill.has-items {
+  background: rgba(113, 63, 18, 0.35);
+  border-color: #a16207;
+  color: #fde047;
+}
+
+body.dark-mode .gateway-overlay {
+  background: rgba(11, 15, 23, 0.92);
+}
+
+body.dark-mode .gateway-card,
+body.dark-mode .modal-content,
+body.dark-mode .pomodoro-card,
+body.dark-mode .admin-panel {
+  background: #181c23;
+  border: 1px solid #2d3748;
+  color: #f1f5f9;
+}
+
+body.dark-mode .gateway-card h2,
+body.dark-mode .modal-content h3,
+body.dark-mode .resource-section h4,
+body.dark-mode .admin-panel h3 {
+  color: #7dd3fc;
+}
+
+body.dark-mode .resource-section h4 {
+  border-bottom-color: #2d3748;
+}
+
+body.dark-mode .pdf-resource-row {
+  background: #1f242d;
+  border-color: #374151;
+}
+
+body.dark-mode .pdf-resource-row .resource-link {
+  color: #f8fafc;
+}
+
+body.dark-mode .quiz-resource-row {
+  background: #272112;
+  border-color: #713f12;
+}
+
+body.dark-mode .quiz-resource-row .resource-link {
+  color: #fde047;
+}
+
+body.dark-mode .cancel-btn {
+  background: #26354a;
+  color: #f8fafc;
+}
+
+body.dark-mode .admin-input,
+body.dark-mode .gateway-input,
+body.dark-mode .clinic-req-item {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.dark-mode .clinic-req-title,
+body.dark-mode .timer-display {
+  color: #f8fafc;
+}
+
+body.dark-mode .clinic-step-btn,
+body.dark-mode .mode-btn,
+body.dark-mode .focus-sound-btn {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+body.dark-mode .clinic-progress-track {
+  background: #2d3748;
+}
+
+body.dark-mode .time,
+body.dark-mode .lab-tap-hint,
+body.dark-mode .clinic-log-subtitle,
+body.dark-mode .modal-help-text {
+  color: #94a3b8;
 }
 
 .app-footer p {

@@ -514,6 +514,14 @@
         </button>
 
         <button
+          id="btn-theme-toggle"
+          class="admin-btn toolbar-btn theme-toggle-btn"
+          type="button"
+        >
+          🌙 Dark Mode
+        </button>
+
+        <button
           id="btn-open-game"
           class="admin-btn toolbar-btn"
           onclick="openGameMenu()"
@@ -566,33 +574,12 @@
       <!-- Live Alert Banner (Hidden by default) -->
       <div
         id="live-alert-banner"
-        style="
-          display: none;
-          background-color: #fcf8e3;
-          border-left: 5px solid #f39c12;
-          padding: 12px 15px;
-          margin: 12px 20px;
-          border-radius: 10px;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-          align-items: center;
-          gap: 8px;
-        "
+        class="live-alert-banner"
+        style="display: none"
       >
-        <span style="font-size: 18px">🚨</span>
-        <span
-          style="
-            font-weight: 700;
-            color: #8a6d3b;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          "
-          >UPDATE:</span
-        >
-        <span
-          id="live-alert-text"
-          style="color: #333333; font-size: 14px; font-weight: 600"
-        ></span>
+        <span class="live-alert-icon">🚨</span>
+        <span class="live-alert-label">UPDATE:</span>
+        <span id="live-alert-text" class="live-alert-text"></span>
       </div>
 
       <!-- NEW: Global Upcoming Exams & Alerts Radar Strip -->
@@ -607,13 +594,7 @@
       <!-- DYNAMIC 10-DAY CALENDAR CONTAINER -->
       <div
         id="dynamic-calendar-container"
-        style="
-          display: flex;
-          gap: 12px;
-          justify-content: flex-start;
-          overflow-x: auto;
-          padding: 12px 20px;
-        "
+        class="date-ribbon"
       >
         <!-- JavaScript automatically generates the Iraq dates and badges here -->
       </div>
