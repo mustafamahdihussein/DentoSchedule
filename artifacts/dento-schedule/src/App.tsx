@@ -246,6 +246,18 @@ function Home() {
     setIsAnnouncementModalOpen(false);
   }
 
+  function handleRemoveAnnouncement() {
+    if (!liveAnnouncement) {
+      return;
+    }
+
+    if (window.confirm('Remove the currently posted announcement?')) {
+      setLiveAnnouncement('');
+      setAnnouncementInput('');
+      setIsAnnouncementModalOpen(false);
+    }
+  }
+
   function openSubjectViewer(subjectName: string) {
     setSelectedSubjectName(subjectName);
     setIsSubjectViewerOpen(true);
@@ -607,6 +619,13 @@ function Home() {
             <div className="modal-actions">
               <button className="admin-btn" type="submit">
                 Post Alert
+              </button>
+              <button
+                className="admin-btn cancel-btn"
+                onClick={handleRemoveAnnouncement}
+                type="button"
+              >
+                Remove Posted Announcement
               </button>
               <button
                 className="admin-btn cancel-btn"
