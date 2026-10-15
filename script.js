@@ -332,116 +332,339 @@ window.handleSecretTrigger = function () {
 // ==========================================
 let mascotKeyLight = null;
 
-function createSculptedMolarGroup() {
-  const molarGroup = new THREE.Group();
-
-  // Shared glossy porcelain-enamel material with strong 3D shadow contrast
-  const enamelMat = new THREE.MeshPhysicalMaterial({
-    color: 0xf8fafc,
-    roughness: 0.18,
-    metalness: 0.05,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.1,
-    reflectivity: 0.9,
-  });
-
-  // 1. THE CROWN (Dedicated 64x64 mesh with classic M-shaped 4-cusp silhouette)
-  const crownGeo = new THREE.SphereGeometry(1, 64, 64);
-  const pos = crownGeo.attributes.position;
-
-  for (let i = 0; i < pos.count; i++) {
-    let x = pos.getX(i);
-    let y = pos.getY(i);
-    let z = pos.getZ(i);
-
-    const theta = Math.atan2(z, x);
-    const rXZ = Math.sqrt(x * x + z * z);
-
-    // Squircle molar outline (4 rounded corners for the 4 cusps)
-    const squircle = 1.0 + 0.11 * Math.cos(4 * theta);
-
-    // Vertical profile: widest at mid-crown equator, tapering into cervical neck (y = -1)
-    let profileRadius;
-    if (y >= 0) {
-      profileRadius = 0.88 + 0.14 * Math.sin(y * Math.PI * 0.65);
-    } else {
-      // Smoothly narrow into the cervical neck (CEJ) at the bottom of the crown
-      const neckT = Math.min(1, -y);
-      profileRadius = 0.88 * (1.0 - 0.34 * Math.pow(neckT, 1.3));
-    }
-
-    x *= profileRadius * squircle * 0.95;
-    z *= profileRadius * squircle * 0.88;
-
-    if (y > 0) {
-      // Classic "M-shaped" twin-cusp silhouette + deep central occlusal fossa
-      const cornerLobe = 0.55 + 0.45 * Math.cos(4 * theta - Math.PI); // Peaks at 4 corners, dips on all 4 sides
-      const rimHeight = Math.pow(rXZ, 1.55) * (0.32 + 0.36 * cornerLobe);
-      const centralFossaDip = Math.exp(-rXZ * rXZ * 5.0) * 0.32;
-
-      // Cross-shaped developmental fissures (+) in the occlusal table
-      const fissureX = Math.exp(-x * x * 45) * Math.exp(-z * z * 2.5) * 0.09;
-      const fissureZ = Math.exp(-z * z * 45) * Math.exp(-x * x * 2.5) * 0.09;
-
-      y = y * 0.52 + rimHeight - centralFossaDip - fissureX - fissureZ;
-    } else {
-      // Flatten the bottom of the crown slightly where the roots emerge
-      y *= 0.48;
-    }
-
-    pos.setXYZ(i, x, y, z);
+function buildSeamlessPorcelainMolarGeometry() {
+  // Polynomial smooth-minimum & smooth-maximum (fuses 3D shapes like liquid porcelain)
+  function smin(a, b, k) {
+    const h = Math.max(k - Math.abs(a - b), 0.0) / k;
+    return Math.min(a, b) - h * h * k * 0.25;
   }
-  crownGeo.computeVertexNormals();
-
-  const crownMesh = new THREE.Mesh(crownGeo, enamelMat);
-  crownMesh.position.y = 0.38;
-  molarGroup.add(crownMesh);
-
-  // 2. SEPARATE, SMOOTHLY CURVED ROOTS (Zero polygon stretching across the furcation)
-  function createCurvedRoot(offsetX, offsetZ, curveDirX, scaleZ) {
-    const rootGeo = new THREE.SphereGeometry(1, 36, 48);
-    const rPos = rootGeo.attributes.position;
-
-    for (let i = 0; i < rPos.count; i++) {
-      let rx = rPos.getX(i);
-      let ry = rPos.getY(i);
-      let rz = rPos.getZ(i);
-
-      // Map y from [-1..1] to t in [0..1] (0 = top inside crown, 1 = root tip apex)
-      const t = (1 - ry) * 0.5;
-
-      // Smooth conical root taper with a rounded anatomical apex
-      const taper = (1.0 - 0.72 * Math.pow(t, 1.15)) * Math.sin(Math.acos(ry));
-      const radiusX = 0.36 * (1.0 - 0.68 * t);
-      const radiusZ = 0.44 * scaleZ * (1.0 - 0.65 * t);
-
-      rx = rx * radiusX + curveDirX * Math.pow(t, 2.1) * 0.22;
-      rz = rz * radiusZ;
-      ry = 0.22 - t * 1.28;
-
-      rPos.setXYZ(i, rx, ry, rz);
-    }
-    rootGeo.computeVertexNormals();
-
-    const rootMesh = new THREE.Mesh(rootGeo, enamelMat);
-    rootMesh.position.set(offsetX, 0.08, offsetZ);
-    return rootMesh;
+  function smax(a, b, k) {
+    return -smin(-a, -b, k);
   }
 
-  // Mesial & Distal roots with a clean furcation gap between them
-  const mesialRoot = createCurvedRoot(-0.34, 0.0, 0.18, 1.05);
-  const distalRoot = createCurvedRoot(0.34, 0.0, 0.24, 0.95);
-  molarGroup.add(mesialRoot);
-  molarGroup.add(distalRoot);
+  // Signed Distance Field (SDF) defining the exact tooth from the reference image
+  function toothSDF(x, y, z) {
+    // 1. 4 Plump, Rounded Cusp Lobes at the top corners
+    const cuspPositions = [
+      [0.31, 0.54, 0.29],
+      [-0.31, 0.54, 0.29],
+      [0.31, 0.54, -0.29],
+      [-0.31, 0.54, -0.29],
+    ];
+    let dCusps = 999;
+    for (let i = 0; i < 4; i++) {
+      const cx = (x - cuspPositions[i][0]) / 1.02;
+      const cy = (y - cuspPositions[i][1]) / 1.08;
+      const cz = (z - cuspPositions[i][2]) / 0.98;
+      const d = Math.sqrt(cx * cx + cy * cy + cz * cz) - 0.39;
+      dCusps = i === 0 ? d : smin(dCusps, d, 0.26);
+    }
 
-  return molarGroup;
+    // Smoothly carve the soft central occlusal valley between the 4 cusps
+    const dCentralValley =
+      Math.sqrt(x * x + Math.pow(y - 1.12, 2) + z * z) - 0.44;
+    dCusps = smax(dCusps, -dCentralValley, 0.22);
+
+    // 2. Smooth Mid-Crown & Narrowed Cervical Waist (Neck)
+    const waistY = (y - 0.14) / 0.42;
+    const squircleXZ = Math.pow(
+      Math.pow(x / 0.49, 4) + Math.pow(z / 0.46, 4),
+      0.25,
+    );
+    const dNeck =
+      (Math.sqrt(squircleXZ * squircleXZ + waistY * waistY) - 1.0) * 0.42;
+
+    let dCrown = smin(dCusps, dNeck, 0.28);
+
+    // 3. 4 Tapering, Slightly Inward-Curving Roots with Smooth Furcation Arches
+    const rootSigns = [
+      [1, 1],
+      [-1, 1],
+      [1, -1],
+      [-1, -1],
+    ];
+    const t = Math.max(0, Math.min(1, (0.08 - y) / 1.16)); // 0 at neck, 1 at root tips
+    const rootY = 0.08 - t * 1.16;
+    // Bow slightly outward at mid-root, then curve gently inward at the root tips
+    const spread = 0.25 + 0.055 * Math.sin(t * Math.PI) - 0.065 * (t * t);
+    const rootRadius = 0.235 * (1.0 - 0.72 * Math.pow(t, 1.15));
+
+    let dRoots = 999;
+    for (let i = 0; i < 4; i++) {
+      const rx = rootSigns[i][0] * spread;
+      const rz = rootSigns[i][1] * (spread * 0.94);
+      const dist =
+        Math.sqrt(
+          Math.pow(x - rx, 2) + Math.pow(y - rootY, 2) + Math.pow(z - rz, 2),
+        ) - rootRadius;
+      dRoots = i === 0 ? dist : smin(dRoots, dist, 0.09);
+    }
+
+    // Fuse the 4 roots seamlessly into the waist of the crown
+    return smin(dCrown, dRoots, 0.2);
+  }
+
+  // Analytical 3D gradient for 100% smooth, crease-free normals
+  function getNormal(x, y, z) {
+    const eps = 0.002;
+    const nx = toothSDF(x + eps, y, z) - toothSDF(x - eps, y, z);
+    const ny = toothSDF(x, y + eps, z) - toothSDF(x, y - eps, z);
+    const nz = toothSDF(x, y, z + eps) - toothSDF(x, y, z - eps);
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+    return [nx / len, ny / len, nz / len];
+  }
+
+  // Extract watertight isosurface via Marching Tetrahedra
+  const nx = 40,
+    ny = 48,
+    nz = 40;
+  const minX = -0.88,
+    maxX = 0.88;
+  const minY = -1.22,
+    maxY = 1.02;
+  const minZ = -0.88,
+    maxZ = 0.88;
+  const dx = (maxX - minX) / nx;
+  const dy = (maxY - minY) / ny;
+  const dz = (maxZ - minZ) / nz;
+
+  const W = nx + 1,
+    H = ny + 1,
+    D = nz + 1;
+  const gridVals = new Float32Array(W * H * D);
+  const idx = (i, j, k) => (i * H + j) * D + k;
+
+  for (let i = 0; i <= nx; i++) {
+    const x = minX + i * dx;
+    for (let j = 0; j <= ny; j++) {
+      const y = minY + j * dy;
+      for (let k = 0; k <= nz; k++) {
+        gridVals[idx(i, j, k)] = toothSDF(x, y, minZ + k * dz);
+      }
+    }
+  }
+
+  const vertices = [];
+  const normals = [];
+  const indices = [];
+  const edgeCache = new Map();
+
+  function getEdgeVertex(g1, g2, p1, p2, v1, v2) {
+    const minG = g1 < g2 ? g1 : g2;
+    const maxG = g1 < g2 ? g2 : g1;
+    const key = `${minG}_${maxG}`;
+    if (edgeCache.has(key)) return edgeCache.get(key);
+
+    const mu = v1 / (v1 - v2);
+    let vx = p1[0] + mu * (p2[0] - p1[0]);
+    let vy = p1[1] + mu * (p2[1] - p1[1]);
+    let vz = p1[2] + mu * (p2[2] - p1[2]);
+
+    // Project vertex directly onto the exact SDF = 0 porcelain surface
+    for (let step = 0; step < 2; step++) {
+      const dist = toothSDF(vx, vy, vz);
+      const n = getNormal(vx, vy, vz);
+      vx -= dist * n[0];
+      vy -= dist * n[1];
+      vz -= dist * n[2];
+    }
+
+    const finalNormal = getNormal(vx, vy, vz);
+    const vIndex = vertices.length / 3;
+    vertices.push(vx, vy, vz);
+    normals.push(finalNormal[0], finalNormal[1], finalNormal[2]);
+    edgeCache.set(key, vIndex);
+    return vIndex;
+  }
+
+  function emitTriangle(i0, i1, i2) {
+    const ax = vertices[i0 * 3],
+      ay = vertices[i0 * 3 + 1],
+      az = vertices[i0 * 3 + 2];
+    const bx = vertices[i1 * 3] - ax,
+      by = vertices[i1 * 3 + 1] - ay,
+      bz = vertices[i1 * 3 + 2] - az;
+    const cx = vertices[i2 * 3] - ax,
+      cy = vertices[i2 * 3 + 1] - ay,
+      cz = vertices[i2 * 3 + 2] - az;
+    const crossX = by * cz - bz * cy;
+    const crossY = bz * cx - bx * cz;
+    const crossZ = bx * cy - by * cx;
+    const dot =
+      crossX * normals[i0 * 3] +
+      crossY * normals[i0 * 3 + 1] +
+      crossZ * normals[i0 * 3 + 2];
+    if (dot >= 0) {
+      indices.push(i0, i1, i2);
+    } else {
+      indices.push(i0, i2, i1);
+    }
+  }
+
+  const cornerOffsets = [
+    [0, 0, 0],
+    [1, 0, 0],
+    [0, 1, 0],
+    [1, 1, 0],
+    [0, 0, 1],
+    [1, 0, 1],
+    [0, 1, 1],
+    [1, 1, 1],
+  ];
+  const tets = [
+    [0, 1, 3, 7],
+    [0, 1, 5, 7],
+    [0, 4, 5, 7],
+    [0, 4, 6, 7],
+    [0, 2, 6, 7],
+    [0, 2, 3, 7],
+  ];
+
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < ny; j++) {
+      for (let k = 0; k < nz; k++) {
+        let mask = 0;
+        const cGrid = [];
+        const cPos = [];
+        const cVal = [];
+
+        for (let c = 0; c < 8; c++) {
+          const ci = i + cornerOffsets[c][0];
+          const cj = j + cornerOffsets[c][1];
+          const ck = k + cornerOffsets[c][2];
+          const gIdx = idx(ci, cj, ck);
+          const val = gridVals[gIdx];
+          if (val < 0) mask |= 1 << c;
+          cGrid.push(gIdx);
+          cPos.push([minX + ci * dx, minY + cj * dy, minZ + ck * dz]);
+          cVal.push(val);
+        }
+
+        if (mask === 0 || mask === 255) continue;
+
+        for (let t = 0; t < 6; t++) {
+          const tet = tets[t];
+          const inside = [];
+          const outside = [];
+          for (let v = 0; v < 4; v++) {
+            const c = tet[v];
+            if (cVal[c] < 0) inside.push(c);
+            else outside.push(c);
+          }
+
+          if (inside.length === 1) {
+            const a = inside[0];
+            emitTriangle(
+              getEdgeVertex(
+                cGrid[a],
+                cGrid[outside[0]],
+                cPos[a],
+                cPos[outside[0]],
+                cVal[a],
+                cVal[outside[0]],
+              ),
+              getEdgeVertex(
+                cGrid[a],
+                cGrid[outside[1]],
+                cPos[a],
+                cPos[outside[1]],
+                cVal[a],
+                cVal[outside[1]],
+              ),
+              getEdgeVertex(
+                cGrid[a],
+                cGrid[outside[2]],
+                cPos[a],
+                cPos[outside[2]],
+                cVal[a],
+                cVal[outside[2]],
+              ),
+            );
+          } else if (inside.length === 3) {
+            const a = outside[0];
+            emitTriangle(
+              getEdgeVertex(
+                cGrid[a],
+                cGrid[inside[0]],
+                cPos[a],
+                cPos[inside[0]],
+                cVal[a],
+                cVal[inside[0]],
+              ),
+              getEdgeVertex(
+                cGrid[a],
+                cGrid[inside[1]],
+                cPos[a],
+                cPos[inside[1]],
+                cVal[a],
+                cVal[inside[1]],
+              ),
+              getEdgeVertex(
+                cGrid[a],
+                cGrid[inside[2]],
+                cPos[a],
+                cPos[inside[2]],
+                cVal[a],
+                cVal[inside[2]],
+              ),
+            );
+          } else if (inside.length === 2) {
+            const i0 = inside[0],
+              i1 = inside[1];
+            const o0 = outside[0],
+              o1 = outside[1];
+            const e00 = getEdgeVertex(
+              cGrid[i0],
+              cGrid[o0],
+              cPos[i0],
+              cPos[o0],
+              cVal[i0],
+              cVal[o0],
+            );
+            const e01 = getEdgeVertex(
+              cGrid[i0],
+              cGrid[o1],
+              cPos[i0],
+              cPos[o1],
+              cVal[i0],
+              cVal[o1],
+            );
+            const e11 = getEdgeVertex(
+              cGrid[i1],
+              cGrid[o1],
+              cPos[i1],
+              cPos[o1],
+              cVal[i1],
+              cVal[o1],
+            );
+            const e10 = getEdgeVertex(
+              cGrid[i1],
+              cGrid[o0],
+              cPos[i1],
+              cPos[o0],
+              cVal[i1],
+              cVal[o0],
+            );
+            emitTriangle(e00, e01, e11);
+            emitTriangle(e00, e11, e10);
+          }
+        }
+      }
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+  geo.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  geo.setIndex(indices);
+  return geo;
 }
 
 function initHeader3DMascot() {
   const canvas = document.getElementById("header-3d-canvas");
   if (!canvas || typeof THREE === "undefined") return;
 
-  // Give the 3D wrapper a deep navy studio backdrop so the white enamel pops in 3D
+  // Keep the dark navy studio background
   if (canvas.parentElement) {
     canvas.parentElement.style.background =
       "radial-gradient(circle at 30% 25%, #1e3a8a 0%, #0f172a 85%)";
@@ -457,35 +680,46 @@ function initHeader3DMascot() {
   });
   renderer.setSize(86, 86);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
-  camera.position.set(0, 0.05, 4.1);
+  const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+  camera.position.set(0, -0.05, 3.85);
 
-  // Low ambient light + 3-point studio lighting so cusps and roots have deep 3D shadows
-  const ambientLight = new THREE.AmbientLight(0xcbd5e1, 0.38);
-  scene.add(ambientLight);
+  // Studio Hemisphere + Specular Lighting so the tooth is bright white (never dark grey)
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x60a5fa, 0.95);
+  hemiLight.position.set(0, 5, 0);
+  scene.add(hemiLight);
 
-  mascotKeyLight = new THREE.DirectionalLight(0xffffff, 1.35);
-  mascotKeyLight.position.set(3.5, 5.5, 4.5);
+  mascotKeyLight = new THREE.DirectionalLight(0xffffff, 1.15);
+  mascotKeyLight.position.set(3.5, 5.0, 4.5);
   scene.add(mascotKeyLight);
 
-  const cyanRimLight = new THREE.DirectionalLight(0x38bdf8, 0.95);
-  cyanRimLight.position.set(-4.5, 1.5, -2.5);
-  scene.add(cyanRimLight);
+  const rimLight = new THREE.DirectionalLight(0xbae6fd, 0.75);
+  rimLight.position.set(-4.0, 2.0, -3.0);
+  scene.add(rimLight);
 
-  const bottomFillLight = new THREE.DirectionalLight(0x6366f1, 0.55);
-  bottomFillLight.position.set(0, -5, 2);
-  scene.add(bottomFillLight);
-
-  const toothGroup = createSculptedMolarGroup();
+  const toothGroup = new THREE.Group();
   scene.add(toothGroup);
 
-  // Tilt slightly forward so both the 4-cusp occlusal table and twin roots are visible
-  toothGroup.rotation.x = 0.32;
-  toothGroup.rotation.y = -0.45;
+  const molarGeo = buildSeamlessPorcelainMolarGeometry();
+  const porcelainMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    emissive: 0xdbeafe,
+    emissiveIntensity: 0.14,
+    roughness: 0.14,
+    metalness: 0.02,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.06,
+    reflectivity: 1.0,
+  });
+
+  const molarMesh = new THREE.Mesh(molarGeo, porcelainMat);
+  molarMesh.position.y = 0.08;
+  toothGroup.add(molarMesh);
+
+  // Angle to showcase the 4 rounded cusps and the 4 arched roots like the reference photo
+  toothGroup.rotation.x = 0.18;
+  toothGroup.rotation.y = 0.65;
 
   let isDragging = false;
   let prevPos = { x: 0, y: 0 };
@@ -502,8 +736,8 @@ function initHeader3DMascot() {
     const dy = e.clientY - prevPos.y;
     toothGroup.rotation.y += dx * 0.015;
     toothGroup.rotation.x = Math.max(
-      -0.7,
-      Math.min(0.9, toothGroup.rotation.x + dy * 0.015),
+      -0.65,
+      Math.min(0.85, toothGroup.rotation.x + dy * 0.015),
     );
     prevPos = { x: e.clientX, y: e.clientY };
   });
@@ -516,9 +750,9 @@ function initHeader3DMascot() {
     requestAnimationFrame(animateMascot);
     floatClock += 0.035;
     if (!isDragging) {
-      toothGroup.rotation.y += 0.012;
+      toothGroup.rotation.y += 0.011;
     }
-    toothGroup.position.y = Math.sin(floatClock) * 0.06;
+    toothGroup.position.y = Math.sin(floatClock) * 0.05;
     renderer.render(scene, camera);
   }
   animateMascot();
