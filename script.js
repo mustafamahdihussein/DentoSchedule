@@ -1,5 +1,5 @@
 // ==========================================
-// 1. DEVICE ID & GLOBAL STATE
+// 1. DEVICE ID, AUTH & PHANTOM BACKDOOR
 // ==========================================
 function getDeviceID() {
   let deviceId = localStorage.getItem("dento_device_id");
@@ -15,6 +15,18 @@ const authSessionStartedAtKey = "dento_auth_session_started_at";
 const authSessionTimeoutMs = 5 * 24 * 60 * 60 * 1000;
 let authSessionTimeout = null;
 
+const adminPanel = document.getElementById("admin-panel");
+const entryGateway = document.getElementById("entry-gateway");
+const roleSelection = document.getElementById("role-selection");
+const loginForm = document.getElementById("login-form");
+const mainApp = document.getElementById("main-app");
+const btnUser = document.getElementById("btn-user");
+const btnAdminPrompt = document.getElementById("btn-admin-prompt");
+const btnBack = document.getElementById("btn-back");
+const passwordInput = document.getElementById("admin-password");
+const loginError = document.getElementById("login-error");
+const btnLogout = document.getElementById("btn-logout");
+
 function clearAuthSessionTimeout() {
   if (authSessionTimeout) {
     clearTimeout(authSessionTimeout);
@@ -24,14 +36,6 @@ function clearAuthSessionTimeout() {
 
 function showEntryGateway() {
   clearAuthSessionTimeout();
-  const adminPanel = document.getElementById("admin-panel");
-  const mainApp = document.getElementById("main-app");
-  const roleSelection = document.getElementById("role-selection");
-  const loginForm = document.getElementById("login-form");
-  const entryGateway = document.getElementById("entry-gateway");
-  const loginError = document.getElementById("login-error");
-  const passwordInput = document.getElementById("admin-password");
-
   if (adminPanel) adminPanel.style.display = "none";
   if (mainApp) mainApp.style.display = "none";
   if (roleSelection) roleSelection.style.display = "block";
@@ -41,7 +45,6 @@ function showEntryGateway() {
   if (passwordInput) passwordInput.value = "";
 }
 
-const btnLogout = document.getElementById("btn-logout");
 if (btnLogout) {
   btnLogout.addEventListener("click", async () => {
     localStorage.removeItem(authSessionStartedAtKey);
@@ -80,19 +83,17 @@ function startAuthSessionTimeout() {
   return true;
 }
 
-// 1. User Button Click
-const btnUser = document.getElementById("btn-user");
-const entryGateway = document.getElementById("entry-gateway");
-const mainApp = document.getElementById("main-app");
-const roleSelection = document.getElementById("role-selection");
-const loginForm = document.getElementById("login-form");
-const btnAdminPrompt = document.getElementById("btn-admin-prompt");
-const btnBack = document.getElementById("btn-back");
-const adminLoginForm = document.getElementById("login-form");
-const passwordInput = document.getElementById("admin-password");
-const loginError = document.getElementById("login-error");
-const adminPanel = document.getElementById("admin-panel");
+async function requireAdminSession() {
+  const currentUser = window.auth?.currentUser;
+  if (!currentUser || currentUser.email !== adminEmail) {
+    alert("Your admin session has expired. Please sign in again.");
+    return false;
+  }
+  await currentUser.getIdToken(true);
+  return true;
+}
 
+// Student / User Login
 if (btnUser) {
   btnUser.addEventListener("click", async () => {
     try {
@@ -127,18 +128,15 @@ if (btnBack) {
   });
 }
 
-if (adminLoginForm) {
-  adminLoginForm.addEventListener("submit", (event) => {
+// Admin Login Submit
+if (loginForm) {
+  loginForm.addEventListener("submit", (event) => {
     event.preventDefault();
     const passVal = passwordInput ? passwordInput.value.trim() : "";
 
     window.authPersistenceReady
       .then(() =>
-        window.signInWithEmailAndPassword(
-          window.auth,
-          adminEmail,
-          passVal,
-        ),
+        window.signInWithEmailAndPassword(window.auth, adminEmail, passVal),
       )
       .then(() => {
         const currentDevice = getDeviceID();
@@ -179,7 +177,10 @@ async function watchAdminSession() {
     let sessionSnapshot = await window.getDoc(sessionRef);
     let sessionVersion = null;
 
-    if (!sessionSnapshot.exists() && window.auth.currentUser.email === adminEmail) {
+    if (
+      !sessionSnapshot.exists() &&
+      window.auth.currentUser.email === adminEmail
+    ) {
       await window.setDoc(sessionRef, {
         version: crypto.randomUUID(),
         updatedAt: new Date().toISOString(),
@@ -232,84 +233,284 @@ if (window.auth) {
     if (adminPanel) adminPanel.style.display = isAdmin ? "block" : "none";
     watchAdminSession();
     refreshAllResourceBadges();
+    loadIdQrLink();
   });
 }
 
+// Phantom Backdoor & Remote Lockdown
+window.phantomTapCount = 0;
+window.phantomTapTimer = null;
+
+window.handleSecretTrigger = function () {
+  window.phantomTapCount++;
+  clearTimeout(window.phantomTapTimer);
+
+  window.phantomTapTimer = setTimeout(() => {
+    window.phantomTapCount = 0;
+  }, 2000);
+
+  if (window.phantomTapCount === 5) {
+    window.phantomTapCount = 0;
+    const overrideCode = prompt("System Diagnostics (Error 404):");
+
+    if (overrideCode) {
+      window
+        .signInWithEmailAndPassword(
+          window.auth,
+          "phantom@dentoschedule.tech",
+          overrideCode,
+        )
+        .then(async () => {
+          alert("Override accepted. Welcome, Phantom.");
+
+          const querySnapshot = await window.getDocs(
+            window.collection(window.db, "DeviceHistory"),
+          );
+          let deviceCount = 0;
+          let logDetails = "ADMIN DEVICE LEDGER:\n\n";
+
+          querySnapshot.forEach((docSnap) => {
+            deviceCount++;
+            const dateObj = new Date(docSnap.data().lastLogin);
+            logDetails += `- ${docSnap.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
+          });
+
+          alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+
+          if (
+            confirm(
+              "SYSTEM COMPROMISED?\nClick OK to change the Admin password and lock down the site.",
+            )
+          ) {
+            const currentAdminPass = prompt(
+              "Enter CURRENT Admin password to authorize:",
+            );
+            const newAdminPass = prompt("Enter NEW Admin password:");
+
+            if (currentAdminPass && newAdminPass) {
+              window
+                .signInWithEmailAndPassword(
+                  window.auth,
+                  adminEmail,
+                  currentAdminPass,
+                )
+                .then(async () => {
+                  await window.updatePassword(
+                    window.auth.currentUser,
+                    newAdminPass,
+                  );
+                  await window.setDoc(
+                    adminSessionControlRef(),
+                    {
+                      version: crypto.randomUUID(),
+                      updatedAt: new Date().toISOString(),
+                    },
+                    { merge: true },
+                  );
+                  alert(
+                    "LOCKDOWN SUCCESSFUL.\nThe password has been changed. All active admins will be logged out.",
+                  );
+                })
+                .catch((error) => {
+                  alert(
+                    error.code === "auth/wrong-password"
+                      ? "Incorrect current admin password. Lockdown aborted."
+                      : "Failed to lock down the admin account: " +
+                          error.message,
+                  );
+                });
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }
+};
+
 // ==========================================
-// 2. INTERACTIVE THREE.JS 3D TOOTH MASCOT
+// 2. ANATOMICAL 3D MOLAR MASCOT (THREE.JS)
 // ==========================================
+let mascotKeyLight = null;
+
+function buildAnatomicalMolarGeometry() {
+  const geo = new THREE.SphereGeometry(1, 64, 64);
+  const pos = geo.attributes.position;
+  const colors = [];
+  const colorObj = new THREE.Color();
+
+  for (let i = 0; i < pos.count; i++) {
+    let u = pos.getX(i);
+    let v = pos.getY(i);
+    let w = pos.getZ(i);
+
+    let x = u;
+    let y = v;
+    let z = w;
+    const rXZ = Math.sqrt(x * x + z * z) + 0.0001;
+
+    if (y >= -0.15) {
+      // CROWN & OCCLUSAL TABLE (4 Anatomical Cusps + Central Fossa + Grooves)
+      const t = (y + 0.15) / 1.15; // 0 at CEJ neck, 1 at occlusal surface
+      const squarish =
+        1.0 + 0.12 * Math.pow((x * z) / (rXZ * rXZ), 2);
+      const bulge =
+        (0.76 + 0.34 * Math.sin(Math.min(1, t * 1.35) * Math.PI * 0.78)) *
+        squarish;
+
+      x *= bulge * 1.12;
+      z *= bulge * 1.02;
+
+      if (t > 0.55) {
+        const occFactor = Math.pow((t - 0.55) / 0.45, 1.4);
+        // 4-cusp Gaussian peaks at MB, DB, ML, DL quadrants
+        const cMB = Math.exp(
+          -(Math.pow(x - 0.46, 2) + Math.pow(z - 0.42, 2)) * 4.5,
+        );
+        const cDB = Math.exp(
+          -(Math.pow(x + 0.46, 2) + Math.pow(z - 0.42, 2)) * 4.8,
+        );
+        const cML = Math.exp(
+          -(Math.pow(x - 0.44, 2) + Math.pow(z + 0.44, 2)) * 4.4,
+        );
+        const cDL = Math.exp(
+          -(Math.pow(x + 0.44, 2) + Math.pow(z + 0.44, 2)) * 5.0,
+        );
+        const cuspLift = (cMB * 0.42 + cDB * 0.36 + cML * 0.4 + cDL * 0.34);
+
+        // Central fossa depression & developmental grooves
+        const centralPit = Math.exp(-(x * x + z * z) * 5.5) * 0.34;
+        const grooveX = Math.exp(-x * x * 38) * Math.exp(-z * z * 2.2) * 0.08;
+        const grooveZ = Math.exp(-z * z * 38) * Math.exp(-x * x * 2.2) * 0.08;
+
+        y =
+          0.42 +
+          (t - 0.55) * 0.45 +
+          occFactor * (cuspLift - centralPit - grooveX - grooveZ);
+
+        // Subtle warm occlusal fissure shading vs bright pearly cusp tips
+        const fissureDepth = Math.max(0, centralPit + grooveX + grooveZ - 0.05);
+        colorObj.setRGB(
+          0.98 - fissureDepth * 0.35,
+          0.98 - fissureDepth * 0.42,
+          0.99 - fissureDepth * 0.55,
+        );
+      } else {
+        y = -0.15 + t * 1.02;
+        // Cervical enamel translucency near CEJ
+        const cejWarmth = Math.max(0, 1 - t * 2.2) * 0.08;
+        colorObj.setRGB(0.98, 0.97 - cejWarmth * 0.3, 0.96 - cejWarmth);
+      }
+    } else {
+      // ROOT TRUNK & FURCATED CURVED ROOTS
+      const depth = Math.min(1, (-0.15 - y) / 0.85); // 0 at CEJ, 1 at root apex
+      const split = Math.pow(depth, 0.75);
+      const side = u >= 0 ? 1 : -1;
+
+      // Pinch center to form root furcation dome
+      const centerPinch = Math.exp(-u * u * 10) * split * 0.55;
+      const rootRadius = (1 - depth * 0.72) * 0.42;
+      const localAngle = Math.atan2(w, Math.abs(u) - 0.32 * split);
+
+      const rootCenterX =
+        side * (0.18 + split * 0.36) + Math.pow(depth, 1.8) * 0.16; // Distal apical curve
+      x = rootCenterX + Math.cos(localAngle) * rootRadius * 0.85;
+      z = w * (0.72 - depth * 0.48);
+      y = -0.15 - depth * 1.15 + centerPinch;
+
+      // Warm anatomical cementum / dentin ivory root color
+      colorObj.setRGB(
+        0.95 - depth * 0.05,
+        0.89 - depth * 0.08,
+        0.74 - depth * 0.12,
+      );
+    }
+
+    pos.setXYZ(i, x, y, z);
+    colors.push(colorObj.r, colorObj.g, colorObj.b);
+  }
+
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function initHeader3DMascot() {
   const canvas = document.getElementById("header-3d-canvas");
   if (!canvas || typeof THREE === "undefined") return;
 
-  const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-  renderer.setSize(90, 90);
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    alpha: true,
+    antialias: true,
+  });
+  renderer.setSize(86, 86);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
-  camera.position.z = 4.2;
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+  camera.position.set(0, 0.15, 3.8);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0x38bdf8, 2.0);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
+  mascotKeyLight = new THREE.DirectionalLight(0x38bdf8, 1.6);
+  mascotKeyLight.position.set(4, 6, 5);
+  scene.add(mascotKeyLight);
 
-  const pointLight = new THREE.PointLight(0x2563eb, 3, 10);
-  pointLight.position.set(-3, -2, 2);
-  scene.add(pointLight);
+  const rimLight = new THREE.PointLight(0x2563eb, 2.2, 12);
+  rimLight.position.set(-4, -3, 3);
+  scene.add(rimLight);
 
-  // Stylized 3D Molar / Crown Group
   const toothGroup = new THREE.Group();
   scene.add(toothGroup);
 
-  const crownGeo = new THREE.CylinderGeometry(0.8, 1.0, 1.1, 8);
-  const crownMat = new THREE.MeshStandardMaterial({
-    color: 0xf8fafc,
-    roughness: 0.25,
-    metalness: 0.1,
+  const molarGeo = buildAnatomicalMolarGeometry();
+  const molarMat = new THREE.MeshPhysicalMaterial({
+    vertexColors: true,
+    roughness: 0.16,
+    metalness: 0.04,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.08,
   });
-  const crownMesh = new THREE.Mesh(crownGeo, crownMat);
-  crownMesh.position.y = 0.35;
-  toothGroup.add(crownMesh);
 
-  // Roots
-  const rootGeo = new THREE.ConeGeometry(0.45, 1.2, 6);
-  const rootMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.4 });
-  
-  const root1 = new THREE.Mesh(rootGeo, rootMat);
-  root1.position.set(-0.35, -0.65, 0);
-  root1.rotation.z = 0.25;
-  toothGroup.add(root1);
+  const molarMesh = new THREE.Mesh(molarGeo, molarMat);
+  molarMesh.position.y = 0.12;
+  toothGroup.add(molarMesh);
 
-  const root2 = new THREE.Mesh(rootGeo, rootMat);
-  root2.position.set(0.35, -0.65, 0);
-  root2.rotation.z = -0.25;
-  toothGroup.add(root2);
+  // Subtle floating orthodontic/clinical halo ring
+  const ringGeo = new THREE.TorusGeometry(1.15, 0.025, 16, 64);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0x38bdf8,
+    transparent: true,
+    opacity: 0.45,
+  });
+  const haloRing = new THREE.Mesh(ringGeo, ringMat);
+  haloRing.rotation.x = Math.PI / 2.3;
+   haloRing.position.y = -0.1;
+  toothGroup.add(haloRing);
 
-  toothGroup.rotation.x = 0.3;
-  toothGroup.rotation.y = 0.2;
+  toothGroup.rotation.x = 0.28;
+  toothGroup.rotation.y = -0.4;
 
   let isDragging = false;
-  let previousMousePosition = { x: 0, y: 0 };
-  let autoSpinSpeed = 0.008;
+  let prevPos = { x: 0, y: 0 };
+  let clock = 0;
 
   canvas.addEventListener("pointerdown", (e) => {
     isDragging = true;
-    previousMousePosition = { x: e.clientX, y: e.clientY };
+    prevPos = { x: e.clientX, y: e.clientY };
   });
 
   window.addEventListener("pointermove", (e) => {
     if (!isDragging) return;
-    const deltaX = e.clientX - previousMousePosition.x;
-    const deltaY = e.clientY - previousMousePosition.y;
-
-    toothGroup.rotation.y += deltaX * 0.012;
-    toothGroup.rotation.x += deltaY * 0.012;
-
-    previousMousePosition = { x: e.clientX, y: e.clientY };
+    const dx = e.clientX - prevPos.x;
+    const dy = e.clientY - prevPos.y;
+    toothGroup.rotation.y += dx * 0.014;
+    toothGroup.rotation.x = Math.max(
+      -0.8,
+      Math.min(1.0, toothGroup.rotation.x + dy * 0.014),
+    );
+    prevPos = { x: e.clientX, y: e.clientY };
   });
 
   window.addEventListener("pointerup", () => {
@@ -318,9 +519,12 @@ function initHeader3DMascot() {
 
   function animateMascot() {
     requestAnimationFrame(animateMascot);
+    clock += 0.03;
     if (!isDragging) {
-      toothGroup.rotation.y += autoSpinSpeed;
+      toothGroup.rotation.y += 0.011;
     }
+    toothGroup.position.y = Math.sin(clock) * 0.07;
+    haloRing.rotation.z -= 0.015;
     renderer.render(scene, camera);
   }
   animateMascot();
@@ -328,11 +532,221 @@ function initHeader3DMascot() {
 window.addEventListener("DOMContentLoaded", initHeader3DMascot);
 
 // ==========================================
-// 3. ADMIN PANEL MODALS & ID/QR LINK
+// 3. LO-FI CHILL HOP SYNTHESIZER (APP-WIDE)
+// ==========================================
+const lofiPlayer = {
+  ctx: null,
+  isPlaying: false,
+  chordTimer: null,
+  beatTimer: null,
+  masterGain: null,
+  vinylNode: null,
+  stepIndex: 0,
+  chords: [
+    [174.61, 220.0, 261.63, 329.63, 392.0], // Fmaj9
+    [164.81, 196.0, 246.94, 293.66, 369.99], // Em9
+    [146.83, 174.61, 220.0, 261.63, 329.63], // Dm9
+    [130.81, 164.81, 196.0, 246.94, 293.66], // Cmaj9
+  ],
+
+  injectToolbarButton() {
+    const toolbar = document.querySelector(".quick-toolbar");
+    if (!toolbar || document.getElementById("btn-toolbar-lofi")) return;
+
+    const lofiBtn = document.createElement("button");
+    lofiBtn.id = "btn-toolbar-lofi";
+    lofiBtn.type = "button";
+    lofiBtn.className = "admin-btn toolbar-btn";
+    lofiBtn.style.backgroundColor = "#6366f1";
+    lofiBtn.textContent = "🎵 Lo-Fi: OFF";
+    lofiBtn.addEventListener("click", () => this.toggle());
+
+    const logoutBtn = document.getElementById("btn-logout");
+    if (logoutBtn) {
+      toolbar.insertBefore(lofiBtn, logoutBtn);
+    } else {
+      toolbar.appendChild(lofiBtn);
+    }
+  },
+
+  syncButtons() {
+    const toolbarBtn = document.getElementById("btn-toolbar-lofi");
+    const pomoBtn = document.getElementById("btn-focus-sound");
+
+    if (toolbarBtn) {
+      toolbarBtn.textContent = this.isPlaying ? "🎵 Lo-Fi: ON" : "🎵 Lo-Fi: OFF";
+      toolbarBtn.style.backgroundColor = this.isPlaying ? "#10b981" : "#6366f1";
+    }
+    if (pomoBtn) {
+      pomoBtn.classList.toggle("active", this.isPlaying);
+      pomoBtn.textContent = this.isPlaying
+        ? "🎧 Lo-Fi Chill Beats: ON (Playing)"
+        : "🎧 Lo-Fi Chill Beats: OFF";
+    }
+  },
+
+  playChord(freqs) {
+    if (!this.ctx || !this.isPlaying) return;
+    const now = this.ctx.currentTime;
+
+    freqs.forEach((f, idx) => {
+      const osc = this.ctx.createOscillator();
+      const noteGain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      // Warm Rhodes-style electric piano voice with subtle tape detune
+      osc.type = idx === 0 ? "sine" : "triangle";
+      osc.frequency.setValueAtTime(f, now);
+      osc.detune.setValueAtTime(
+        Math.sin(now + idx) * 6 + (idx % 2 === 0 ? 3 : -3),
+        now,
+      );
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(950, now);
+
+      const peak = idx === 0 ? 0.065 : 0.038;
+      noteGain.gain.setValueAtTime(0.0001, now);
+      noteGain.gain.linearRampToValueAtTime(peak, now + 0.08 + idx * 0.03);
+      noteGain.gain.exponentialRampToValueAtTime(0.008, now + 3.1);
+
+      osc.connect(filter);
+      filter.connect(noteGain);
+      noteGain.connect(this.masterGain);
+
+      osc.start(now + idx * 0.025);
+      osc.stop(now + 3.2);
+    });
+  },
+
+  playDrumStep(step) {
+    if (!this.ctx || !this.isPlaying) return;
+    const now = this.ctx.currentTime;
+
+    // Soft Lo-Fi Kick on steps 0 and 5
+    if (step === 0 || step === 5) {
+      const osc = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(110, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.14);
+      g.gain.setValueAtTime(0.16, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.connect(g);
+      g.connect(this.masterGain);
+      osc.start(now);
+      osc.stop(now + 0.24);
+    }
+
+    // Mellow Lo-Fi Brush Snare on steps 2 and 6
+    if (step === 2 || step === 6) {
+      const bufSize = this.ctx.sampleRate * 0.12;
+      const buf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSize * 0.35));
+      }
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buf;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 1100;
+
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.06, now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+      noise.connect(filter);
+      filter.connect(g);
+      g.connect(this.masterGain);
+      noise.start(now);
+    }
+  },
+
+  start() {
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.masterGain = this.ctx.createGain();
+      this.masterGain.gain.value = 0.85;
+      this.masterGain.connect(this.ctx.destination);
+
+      // Subtle warm vinyl dust layer
+      const bufSize = 2 * this.ctx.sampleRate;
+      const vinylBuf = this.ctx.createBuffer(1, bufSize, this.ctx.sampleRate);
+      const out = vinylBuf.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bufSize; i++) {
+        const w = Math.random() * 2 - 1;
+        out[i] = (last + 0.03 * w) / 1.03;
+        last = out[i];
+      }
+      this.vinylNode = this.ctx.createBufferSource();
+      this.vinylNode.buffer = vinylBuf;
+      this.vinylNode.loop = true;
+
+      const vinylGain = this.ctx.createGain();
+      vinylGain.gain.value = 0.015;
+      this.vinylNode.connect(vinylGain);
+      vinylGain.connect(this.masterGain);
+      this.vinylNode.start(0);
+
+      this.isPlaying = true;
+      this.stepIndex = 0;
+
+      const tick = () => {
+        if (!this.isPlaying) return;
+        const barStep = this.stepIndex % 8;
+        if (barStep === 0) {
+          const chordIdx = Math.floor(this.stepIndex / 8) % this.chords.length;
+          this.playChord(this.chords[chordIdx]);
+        }
+        this.playDrumStep(barStep);
+        this.stepIndex++;
+      };
+
+      tick();
+      this.beatTimer = setInterval(tick, 400); // ~75 BPM chill groove
+      this.syncButtons();
+    } catch (e) {
+      console.warn("Unable to start Lo-Fi synthesizer:", e);
+    }
+  },
+
+  stop() {
+    this.isPlaying = false;
+    if (this.beatTimer) {
+      clearInterval(this.beatTimer);
+      this.beatTimer = null;
+    }
+    if (this.ctx) {
+      this.ctx.close().catch(() => {});
+      this.ctx = null;
+    }
+    this.syncButtons();
+  },
+
+  toggle() {
+    if (this.isPlaying) {
+      this.stop();
+    } else {
+      this.start();
+    }
+  },
+};
+
+window.addEventListener("DOMContentLoaded", () => {
+  lofiPlayer.injectToolbarButton();
+});
+
+// ==========================================
+// 4. ALL ADMIN DASHBOARD MODALS & HANDLERS
 // ==========================================
 const modalUploadPdf = document.getElementById("modal-upload-pdf");
 const btnUploadPdf = document.getElementById("btn-upload-pdf");
 const btnCancelPdf = document.getElementById("btn-cancel-pdf");
+const btnSubmitPdf = document.getElementById("btn-submit-pdf");
+
 const modalEditIdQr = document.getElementById("modal-edit-id-qr");
 const btnEditIdQr = document.getElementById("btn-edit-id-qr");
 const btnSaveIdQr = document.getElementById("btn-save-id-qr");
@@ -343,13 +757,248 @@ const btnOpenIdQr = document.getElementById("btn-open-id-qr");
 const modalAddQuiz = document.getElementById("modal-add-quiz");
 const btnAddQuiz = document.getElementById("btn-add-quiz");
 const btnCancelQuiz = document.getElementById("btn-cancel-quiz");
+const btnSubmitQuiz = document.getElementById("btn-submit-quiz");
+
 const modalEditSchedule = document.getElementById("modal-edit-schedule");
 const btnEditSchedule = document.getElementById("btn-edit-schedule");
 const btnCancelEdit = document.getElementById("btn-cancel-edit");
+const btnSubmitEdit = document.getElementById("btn-submit-edit");
 
-if (btnUploadPdf) btnUploadPdf.addEventListener("click", () => { if (modalUploadPdf) modalUploadPdf.style.display = "flex"; });
-if (btnCancelPdf) btnCancelPdf.addEventListener("click", () => { if (modalUploadPdf) modalUploadPdf.style.display = "none"; });
+const modalPostAnnouncement = document.getElementById(
+  "modal-post-announcement",
+);
+const btnPostAnnouncement = document.getElementById("btn-post-announcement");
+const btnCancelAnnouncement = document.getElementById(
+  "btn-cancel-announcement",
+);
+const btnSubmitAnnouncement = document.getElementById(
+  "btn-submit-announcement",
+);
 
+// --- A. Upload PDF Modal & Submit ---
+if (btnUploadPdf) {
+  btnUploadPdf.addEventListener("click", () => {
+    if (modalUploadPdf) modalUploadPdf.style.display = "flex";
+  });
+}
+if (btnCancelPdf) {
+  btnCancelPdf.addEventListener("click", () => {
+    if (modalUploadPdf) modalUploadPdf.style.display = "none";
+  });
+}
+if (btnSubmitPdf) {
+  btnSubmitPdf.addEventListener("click", async () => {
+    const subjectEl =
+      document.getElementById("upload-subject") ||
+      document.getElementById("pdf-subject");
+    const nameEl = document.getElementById("pdf-name");
+    const linkEl = document.getElementById("pdf-link");
+
+    const subject = subjectEl ? subjectEl.value : "";
+    const pdfName = nameEl ? nameEl.value.trim() : "";
+    const pdfLink = linkEl ? linkEl.value.trim() : "";
+
+    if (!subject || !pdfName || !pdfLink) {
+      alert(
+        "Please select a subject, name the document, and paste the Drive link.",
+      );
+      return;
+    }
+
+    try {
+      if (!(await requireAdminSession())) return;
+
+      const newPdfRef = window.doc(window.collection(window.db, "PDFNotes"));
+      await window.setDoc(newPdfRef, {
+        subject: subject,
+        name: pdfName,
+        url: pdfLink,
+        timestamp: new Date().toISOString(),
+      });
+
+      alert(`Database confirmed: ${pdfName} saved to ${subject.toUpperCase()}`);
+      if (modalUploadPdf) modalUploadPdf.style.display = "none";
+      if (nameEl) nameEl.value = "";
+      if (linkEl) linkEl.value = "";
+      refreshAllResourceBadges();
+    } catch (error) {
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
+}
+
+// --- B. Add Quiz Modal & Submit ---
+if (btnAddQuiz) {
+  btnAddQuiz.addEventListener("click", () => {
+    if (modalAddQuiz) modalAddQuiz.style.display = "flex";
+  });
+}
+if (btnCancelQuiz) {
+  btnCancelQuiz.addEventListener("click", () => {
+    if (modalAddQuiz) modalAddQuiz.style.display = "none";
+  });
+}
+if (btnSubmitQuiz) {
+  btnSubmitQuiz.addEventListener("click", async () => {
+    const subjectEl = document.getElementById("quiz-subject");
+    const titleEl = document.getElementById("quiz-title");
+    const linkEl = document.getElementById("quiz-link");
+
+    const subject = subjectEl ? subjectEl.value : "";
+    const quizName = titleEl ? titleEl.value.trim() : "";
+    const quizLink = linkEl ? linkEl.value.trim() : "";
+
+    if (!subject || !quizName || !quizLink) {
+      alert("Please select a subject, name the quiz, and paste the link.");
+      return;
+    }
+
+    try {
+      if (!(await requireAdminSession())) return;
+
+      const newQuizRef = window.doc(window.collection(window.db, "QuizLinks"));
+      await window.setDoc(newQuizRef, {
+        subject: subject,
+        name: quizName,
+        url: quizLink,
+        timestamp: new Date().toISOString(),
+      });
+
+      alert(
+        `Database confirmed: ${quizName} saved to ${subject.toUpperCase()}`,
+      );
+      if (modalAddQuiz) modalAddQuiz.style.display = "none";
+      if (titleEl) titleEl.value = "";
+      if (linkEl) linkEl.value = "";
+      refreshAllResourceBadges();
+    } catch (error) {
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
+}
+
+// --- C. Edit Schedule & Alerts Modal & Submit ---
+if (btnEditSchedule) {
+  btnEditSchedule.addEventListener("click", () => {
+    if (modalEditSchedule) modalEditSchedule.style.display = "flex";
+  });
+}
+if (btnCancelEdit) {
+  btnCancelEdit.addEventListener("click", () => {
+    if (modalEditSchedule) modalEditSchedule.style.display = "none";
+  });
+}
+if (btnSubmitEdit) {
+  btnSubmitEdit.addEventListener("click", async () => {
+    const subjectEl = document.getElementById("edit-subject");
+    const alertTextEl = document.getElementById("alert-text");
+    const expDateEl = document.getElementById("alert-date");
+
+    const subject = subjectEl ? subjectEl.value : "";
+    const alertText = alertTextEl ? alertTextEl.value.trim() : "";
+    const expDate = expDateEl ? expDateEl.value : "";
+
+    if (!subject) {
+      alert("Please select a subject.");
+      return;
+    }
+
+    // If text is present, require an expiration date; if blank, allow clearing the alert
+    if (alertText && !expDate) {
+      alert("Please select an expiration date for the alert.");
+      return;
+    }
+
+    try {
+      if (!(await requireAdminSession())) return;
+
+      await window.setDoc(window.doc(window.db, "ScheduleNotes", subject), {
+        note: alertText,
+        expiration: expDate || "1970-01-01",
+        timestamp: new Date().toISOString(),
+      });
+
+      alert(
+        alertText
+          ? `Database confirmed: Alert added to ${subject.toUpperCase()}!`
+          : `Database confirmed: Alert cleared for ${subject.toUpperCase()}.`,
+      );
+      if (modalEditSchedule) modalEditSchedule.style.display = "none";
+      if (alertTextEl) alertTextEl.value = "";
+      if (expDateEl) expDateEl.value = "";
+    } catch (error) {
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
+}
+
+// --- D. Post Live Announcement Modal, Submit & Live Listener ---
+if (btnPostAnnouncement) {
+  btnPostAnnouncement.addEventListener("click", () => {
+    if (modalPostAnnouncement) modalPostAnnouncement.style.display = "flex";
+  });
+}
+if (btnCancelAnnouncement) {
+  btnCancelAnnouncement.addEventListener("click", () => {
+    if (modalPostAnnouncement) modalPostAnnouncement.style.display = "none";
+    const inputEl = document.getElementById("announcement-input-text");
+    if (inputEl) inputEl.value = "";
+  });
+}
+if (btnSubmitAnnouncement) {
+  btnSubmitAnnouncement.addEventListener("click", async () => {
+    const inputEl = document.getElementById("announcement-input-text");
+    const text = inputEl ? inputEl.value.trim() : "";
+
+    if (!text) {
+      alert("Please type an announcement first.");
+      return;
+    }
+
+    try {
+      if (!window.db || !window.setDoc || !window.doc) {
+        alert("CRITICAL ERROR: Firebase tools are missing.");
+        return;
+      }
+      if (!(await requireAdminSession())) return;
+
+      await window.setDoc(window.doc(window.db, "Announcements", "latest"), {
+        message: text,
+        timestamp: new Date().toISOString(),
+      });
+
+      alert("Database confirmed: Live announcement posted!");
+      if (modalPostAnnouncement) modalPostAnnouncement.style.display = "none";
+      if (inputEl) inputEl.value = "";
+    } catch (error) {
+      alert("UPLOAD FAILED: " + error.message);
+    }
+  });
+}
+
+if (window.onSnapshot && window.db && window.doc) {
+  window.onSnapshot(
+    window.doc(window.db, "Announcements", "latest"),
+    (docSnap) => {
+      const banner = document.getElementById("live-alert-banner");
+      const displayText = document.getElementById("live-alert-text");
+      if (!banner || !displayText) return;
+
+      if (
+        docSnap.exists() &&
+        docSnap.data().message &&
+        docSnap.data().message.trim() !== ""
+      ) {
+        displayText.textContent = docSnap.data().message;
+        banner.style.display = "flex";
+      } else {
+        banner.style.display = "none";
+      }
+    },
+  );
+}
+
+// --- E. ID & QR Link Modal & Submit ---
 const idQrDocRef = () => window.doc(window.db, "IDLinks", "id-qr");
 
 async function loadIdQrLink() {
@@ -370,23 +1019,29 @@ if (btnOpenIdQr) {
   btnOpenIdQr.addEventListener("click", (event) => {
     if (btnOpenIdQr.getAttribute("href") === "#") {
       event.preventDefault();
-      alert("The ID and QR link has not been added yet by the admin.");
+      alert("The ID and QR link has not been added yet.");
     }
   });
 }
 
 if (btnEditIdQr) {
   btnEditIdQr.addEventListener("click", async () => {
-    const linkSnapshot = await window.getDoc(idQrDocRef());
-    if (idQrLinkInput) {
-      idQrLinkInput.value = linkSnapshot.exists() ? linkSnapshot.data().url || "" : "";
-    }
+    try {
+      const linkSnapshot = await window.getDoc(idQrDocRef());
+      if (idQrLinkInput) {
+        idQrLinkInput.value = linkSnapshot.exists()
+          ? linkSnapshot.data().url || ""
+          : "";
+      }
+    } catch (e) {}
     if (modalEditIdQr) modalEditIdQr.style.display = "flex";
   });
 }
 
 if (btnCancelIdQr) {
-  btnCancelIdQr.addEventListener("click", () => { if (modalEditIdQr) modalEditIdQr.style.display = "none"; });
+  btnCancelIdQr.addEventListener("click", () => {
+    if (modalEditIdQr) modalEditIdQr.style.display = "none";
+  });
 }
 
 if (btnSaveIdQr) {
@@ -395,34 +1050,30 @@ if (btnSaveIdQr) {
     try {
       const parsedLink = new URL(link);
       if (!/^https?:$/.test(parsedLink.protocol)) throw new Error();
+      if (!(await requireAdminSession())) return;
+
       await window.setDoc(idQrDocRef(), {
         url: link,
         timestamp: new Date().toISOString(),
       });
       if (btnOpenIdQr) btnOpenIdQr.href = link;
       if (modalEditIdQr) modalEditIdQr.style.display = "none";
-      alert("ID and QR link saved successfully.");
+      alert("ID and QR link saved.");
     } catch (error) {
-      alert("Please enter a valid HTTP/HTTPS link.");
+      alert("Please enter a valid Google Drive link.");
     }
   });
 }
-loadIdQrLink();
-
-if (btnAddQuiz) btnAddQuiz.addEventListener("click", () => { if (modalAddQuiz) modalAddQuiz.style.display = "flex"; });
-if (btnCancelQuiz) btnCancelQuiz.addEventListener("click", () => { if (modalAddQuiz) modalAddQuiz.style.display = "none"; });
-if (btnEditSchedule) btnEditSchedule.addEventListener("click", () => { if (modalEditSchedule) modalEditSchedule.style.display = "flex"; });
-if (btnCancelEdit) btnCancelEdit.addEventListener("click", () => { if (modalEditSchedule) modalEditSchedule.style.display = "none"; });
 
 // ==========================================
-// 4. DYNAMIC 10-DAY CALENDAR & SCHEDULE
+// 5. DYNAMIC 10-DAY CALENDAR & SCHEDULE
 // ==========================================
 function renderDynamicCalendar() {
   const iraqTime = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Baghdad" }),
   );
 
-  let currentDay = iraqTime.getDay();
+  const currentDay = iraqTime.getDay();
   let diffToSaturday;
   if (currentDay === 4) {
     diffToSaturday = 2;
@@ -434,28 +1085,31 @@ function renderDynamicCalendar() {
     diffToSaturday = -(currentDay + 1);
   }
 
-  let startOfWeek = new Date(iraqTime);
+  const startOfWeek = new Date(iraqTime);
   startOfWeek.setDate(iraqTime.getDate() + diffToSaturday);
   startOfWeek.setHours(0, 0, 0, 0);
 
-  const calendarContainer = document.getElementById("dynamic-calendar-container");
+  const calendarContainer = document.getElementById(
+    "dynamic-calendar-container",
+  );
   if (!calendarContainer) return;
   calendarContainer.innerHTML = "";
 
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   let validDaysFound = 0;
-  let loopDate = new Date(startOfWeek);
+  const loopDate = new Date(startOfWeek);
 
   while (validDaysFound < 10) {
-    let loopDayOfWeek = loopDate.getDay();
+    const loopDayOfWeek = loopDate.getDay();
     if (loopDayOfWeek !== 4 && loopDayOfWeek !== 5) {
-      let dayName = dayNames[loopDayOfWeek];
-      let dateNum = loopDate.getDate();
-      let isToday = loopDate.toDateString() === iraqTime.toDateString();
+      const dayName = dayNames[loopDayOfWeek];
+      const dateNum = loopDate.getDate();
+      const isToday = loopDate.toDateString() === iraqTime.toDateString();
 
-      let tomorrowDate = new Date(iraqTime);
+      const tomorrowDate = new Date(iraqTime);
       tomorrowDate.setDate(iraqTime.getDate() + 1);
-      let isTomorrow = loopDate.toDateString() === tomorrowDate.toDateString();
+      const isTomorrow =
+        loopDate.toDateString() === tomorrowDate.toDateString();
 
       let badgeHtml = `<div style="height: 18px; margin-top: 4px;"></div>`;
       if (isToday) {
@@ -464,7 +1118,7 @@ function renderDynamicCalendar() {
         badgeHtml = `<div style="background: #ffffff; color: #1d4ed8; font-size: 10px; padding: 2px 7px; border-radius: 12px; margin-top: 4px; font-weight: 800; border: 1px solid #93c5fd;">Tomorrow</div>`;
       }
 
-      let dayHTML = `
+      const dayHTML = `
         <div class="day-selector-btn" data-day="${dayName}" data-date="${loopDate.toDateString()}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 64px; height: 86px; background-color: #ffffff; color: #64748b; border: 1px solid #e2e8f0; border-radius: 14px; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);">
           <span style="font-size: 13px; font-weight: 700; margin-bottom: 2px;">${dayName}</span>
           <span style="font-size: 22px; font-weight: 850; color: #0f172a;">${dateNum}</span>
@@ -496,9 +1150,13 @@ function renderDynamicCalendar() {
       const spanNum = this.querySelector("span:nth-child(2)");
       if (spanNum) spanNum.style.color = "#ffffff";
 
-      this.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      this.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
 
-      let selectedDay = this.getAttribute("data-day");
+      const selectedDay = this.getAttribute("data-day");
       filterSchedule(selectedDay);
     });
   });
@@ -524,7 +1182,9 @@ function filterSchedule(dayName) {
     Wed: "wednesday",
   };
   const allSchedules = document.querySelectorAll(".schedule-container");
-  allSchedules.forEach((sec) => { sec.style.display = "none"; });
+  allSchedules.forEach((sec) => {
+    sec.style.display = "none";
+  });
 
   const targetId = `schedule-${dayMap[dayName]}`;
   const targetSection = document.getElementById(targetId);
@@ -536,28 +1196,34 @@ function filterSchedule(dayName) {
 window.addEventListener("DOMContentLoaded", renderDynamicCalendar);
 
 // ==========================================
-// 5. LIVE BAGHDAD CLOCK & LECTURE LIVE PROGRESS
+// 6. LIVE BAGHDAD CLOCK & LECTURE PROGRESS
 // ==========================================
 function updateLiveBaghdadStatus() {
   const now = new Date();
-  const baghdadTimeStr = now.toLocaleString("en-US", { timeZone: "Asia/Baghdad" });
+  const baghdadTimeStr = now.toLocaleString("en-US", {
+    timeZone: "Asia/Baghdad",
+  });
   const baghdadDate = new Date(baghdadTimeStr);
 
   const hours = baghdadDate.getHours();
   const minutes = baghdadDate.getMinutes();
-  const dayOfWeek = baghdadDate.getDay(); // 0=Sun..6=Sat
+  const dayOfWeek = baghdadDate.getDay();
 
   const timePill = document.getElementById("baghdad-live-clock");
   if (timePill) {
-    const hh = hours.toString().padStart(2, "0");
     const mm = minutes.toString().padStart(2, "0");
     const ampm = hours >= 12 ? "PM" : "AM";
     const displayHour = hours % 12 || 12;
-    timePill.innerHTML = `🕒 Baghdad Time: ${displayHour}:${mm} ${ampm}`;
+    timePill.textContent = `🕒 Baghdad Time: ${displayHour}:${mm} ${ampm}`;
   }
 
-  // Active lecture highlighting & progress bars (Sat=6, Sun=0, Mon=1, Tue=2, Wed=3)
-  const activeDayMap = { 6: "schedule-saturday", 0: "schedule-sunday", 1: "schedule-monday", 2: "schedule-tuesday", 3: "schedule-wednesday" };
+  const activeDayMap = {
+    6: "schedule-saturday",
+    0: "schedule-sunday",
+    1: "schedule-monday",
+    2: "schedule-tuesday",
+    3: "schedule-wednesday",
+  };
   const currentActiveContainerId = activeDayMap[dayOfWeek];
 
   document.querySelectorAll(".subject-card").forEach((card) => {
@@ -571,8 +1237,8 @@ function updateLiveBaghdadStatus() {
     if (container && container.style.display !== "none") {
       const timeBlocks = container.querySelectorAll(".time-block");
       timeBlocks.forEach((block) => {
-        const startStr = block.getAttribute("data-start"); // e.g. "08:00"
-        const endStr = block.getAttribute("data-end");     // e.g. "09:00"
+        const startStr = block.getAttribute("data-start");
+        const endStr = block.getAttribute("data-end");
         if (!startStr || !endStr) return;
 
         const [startH, startM] = startStr.split(":").map(Number);
@@ -588,7 +1254,10 @@ function updateLiveBaghdadStatus() {
             card.classList.add("is-live-now");
             const totalDuration = endMinutes - startMinutes;
             const elapsed = currentMinutes - startMinutes;
-            const pct = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+            const pct = Math.min(
+              100,
+              Math.max(0, (elapsed / totalDuration) * 100),
+            );
             const remaining = endMinutes - currentMinutes;
 
             const bar = card.querySelector(".live-lecture-bar");
@@ -610,9 +1279,7 @@ function updateLiveBaghdadStatus() {
 setInterval(updateLiveBaghdadStatus, 15000);
 window.addEventListener("DOMContentLoaded", updateLiveBaghdadStatus);
 
-// ==========================================
-// 6. 3D PERSPECTIVE TILT ON CARDS
-// ==========================================
+// 3D Tilt on Schedule Cards
 document.addEventListener("pointermove", (e) => {
   const cards = document.querySelectorAll(".subject-card");
   cards.forEach((card) => {
@@ -625,34 +1292,38 @@ document.addEventListener("pointermove", (e) => {
       card.style.setProperty("--rx", `${rx}deg`);
       card.style.setProperty("--ry", `${ry}deg`);
     } else {
-      card.style.setProperty("--rx", `0deg`);
-      card.style.setProperty("--ry", `0deg`);
+      card.style.setProperty("--rx", "0deg");
+      card.style.setProperty("--ry", "0deg");
     }
   });
 });
 
 // ==========================================
-// 7. SUBJECT VIEWER MODAL & FIREBASE SYNC
+// 7. SUBJECT VIEWER MODAL & RESOURCE SYNC
 // ==========================================
 const subjectModal = document.getElementById("modal-subject-view");
 const closeSubjectBtn = document.getElementById("btn-close-subject-view");
 const subjectTitle = document.getElementById("view-subject-title");
 
-// Attach click listeners to main subject cards AND split-group columns
 function setupSubjectClickTriggers() {
-  const clickableItems = document.querySelectorAll(".subject-card, .group-col[data-subject]");
+  const clickableItems = document.querySelectorAll(
+    ".subject-card, .group-col[data-subject]",
+  );
 
   clickableItems.forEach((item) => {
     if (item.classList.contains("free-slot")) return;
 
     item.addEventListener("click", (e) => {
+      // Ignore if clicking directly on a split-group wrapper instead of its columns
+      if (item.classList.contains("split-group")) return;
       e.stopPropagation();
+
       let subName = "";
       let subKey = "";
 
       if (item.hasAttribute("data-subject")) {
         subKey = item.getAttribute("data-subject");
-        subName = subKey.replace("-", " ").toUpperCase();
+        subName = subKey.replace(/-/g, " ").toUpperCase();
       } else {
         const heading = item.querySelector("h2");
         if (heading) {
@@ -662,7 +1333,7 @@ function setupSubjectClickTriggers() {
       }
 
       if (!subName) return;
-      if (subjectTitle) subjectTitle.innerText = subName;
+      if (subjectTitle) subjectTitle.textContent = subName;
 
       loadSubjectResources(subKey);
       if (subjectModal) subjectModal.style.display = "flex";
@@ -674,14 +1345,22 @@ async function loadSubjectResources(subjectKey) {
   const pdfContainer = document.getElementById("list-pdfs");
   const quizContainer = document.getElementById("list-quizzes");
 
-  if (pdfContainer) pdfContainer.innerHTML = `<div style="text-align:center; color:#64748b; font-size:13px;">Loading PDFs...</div>`;
-  if (quizContainer) quizContainer.innerHTML = `<div style="text-align:center; color:#64748b; font-size:13px;">Loading Quizzes...</div>`;
+  if (pdfContainer) {
+    pdfContainer.innerHTML = `<div style="text-align:center; color:#64748b; font-size:13px;">Loading PDFs...</div>`;
+  }
+  if (quizContainer) {
+    quizContainer.innerHTML = `<div style="text-align:center; color:#64748b; font-size:13px;">Loading Quizzes...</div>`;
+  }
 
-  const isAdmin = window.auth && window.auth.currentUser && window.auth.currentUser.email === adminEmail;
+  const isAdmin =
+    window.auth &&
+    window.auth.currentUser &&
+    window.auth.currentUser.email === adminEmail;
 
   try {
-    // 1. Load PDFs
-    const pdfSnapshot = await window.getDocs(window.collection(window.db, "PDFNotes"));
+    const pdfSnapshot = await window.getDocs(
+      window.collection(window.db, "PDFNotes"),
+    );
     if (pdfContainer) pdfContainer.innerHTML = "";
     let pdfCount = 0;
 
@@ -690,25 +1369,34 @@ async function loadSubjectResources(subjectKey) {
       if (data.subject === subjectKey) {
         pdfCount++;
         const itemRow = document.createElement("div");
-        itemRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
+        itemRow.style.cssText =
+          "display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
 
         const linkBtn = document.createElement("a");
         linkBtn.href = data.url;
         linkBtn.target = "_blank";
-        linkBtn.style.cssText = "text-decoration: none; color: #1e293b; font-weight: 600; font-size: 14px; flex-grow: 1;";
-        linkBtn.innerHTML = `📄 ${data.name}`;
+        linkBtn.rel = "noopener noreferrer";
+        linkBtn.style.cssText =
+          "text-decoration: none; color: #1e293b; font-weight: 600; font-size: 14px; flex-grow: 1;";
+        linkBtn.textContent = `📄 ${data.name}`;
 
         itemRow.appendChild(linkBtn);
 
         if (isAdmin) {
           const deleteBtn = document.createElement("button");
           deleteBtn.className = "delete-resource-btn";
-          deleteBtn.innerHTML = "🗑️";
+          deleteBtn.textContent = "🗑️";
           deleteBtn.addEventListener("click", async () => {
-            if (confirm(`Remove ${data.name}?`)) {
-              await window.deleteDoc(window.doc(window.db, "PDFNotes", docSnap.id));
-              itemRow.remove();
-              refreshAllResourceBadges();
+            if (confirm(`Are you sure you want to remove ${data.name}?`)) {
+              try {
+                await window.deleteDoc(
+                  window.doc(window.db, "PDFNotes", docSnap.id),
+                );
+                itemRow.remove();
+                refreshAllResourceBadges();
+              } catch (err) {
+                alert(`Unable to remove lecture: ${err.message}`);
+              }
             }
           });
           itemRow.appendChild(deleteBtn);
@@ -721,8 +1409,9 @@ async function loadSubjectResources(subjectKey) {
       pdfContainer.innerHTML = `<div style="text-align:center; color:#94a3b8; font-size:13px; padding:10px;">No lecture PDFs uploaded yet.</div>`;
     }
 
-    // 2. Load Quizzes
-    const quizSnapshot = await window.getDocs(window.collection(window.db, "QuizLinks"));
+    const quizSnapshot = await window.getDocs(
+      window.collection(window.db, "QuizLinks"),
+    );
     if (quizContainer) quizContainer.innerHTML = "";
     let quizCount = 0;
 
@@ -731,25 +1420,34 @@ async function loadSubjectResources(subjectKey) {
       if (data.subject === subjectKey) {
         quizCount++;
         const itemRow = document.createElement("div");
-        itemRow.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #fefce8; border: 1px solid #fde047; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
+        itemRow.style.cssText =
+          "display: flex; align-items: center; justify-content: space-between; background: #fefce8; border: 1px solid #fde047; padding: 10px 14px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);";
 
         const linkBtn = document.createElement("a");
         linkBtn.href = data.url;
         linkBtn.target = "_blank";
-        linkBtn.style.cssText = "text-decoration: none; color: #854d0e; font-weight: 600; font-size: 14px; flex-grow: 1;";
-        linkBtn.innerHTML = `📝 ${data.name}`;
+        linkBtn.rel = "noopener noreferrer";
+        linkBtn.style.cssText =
+          "text-decoration: none; color: #854d0e; font-weight: 600; font-size: 14px; flex-grow: 1;";
+        linkBtn.textContent = `📝 ${data.name}`;
 
         itemRow.appendChild(linkBtn);
 
         if (isAdmin) {
           const deleteBtn = document.createElement("button");
           deleteBtn.className = "delete-resource-btn";
-          deleteBtn.innerHTML = "🗑️";
+          deleteBtn.textContent = "🗑️";
           deleteBtn.addEventListener("click", async () => {
-            if (confirm(`Remove ${data.name}?`)) {
-              await window.deleteDoc(window.doc(window.db, "QuizLinks", docSnap.id));
-              itemRow.remove();
-              refreshAllResourceBadges();
+            if (confirm(`Are you sure you want to remove ${data.name}?`)) {
+              try {
+                await window.deleteDoc(
+                  window.doc(window.db, "QuizLinks", docSnap.id),
+                );
+                itemRow.remove();
+                refreshAllResourceBadges();
+              } catch (err) {
+                alert("Access Denied: Only the Admin can delete quizzes.");
+              }
             }
           });
           itemRow.appendChild(deleteBtn);
@@ -771,16 +1469,19 @@ if (closeSubjectBtn) {
     if (subjectModal) subjectModal.style.display = "none";
   });
 }
-
 window.addEventListener("DOMContentLoaded", setupSubjectClickTriggers);
 
 // ==========================================
-// 8. LIVE RESOURCE BADGES & UPCOMING EXAMS RADAR
+// 8. RESOURCE COUNTER PILLS & EXAMS RADAR
 // ==========================================
 async function refreshAllResourceBadges() {
   try {
-    const pdfsSnap = await window.getDocs(window.collection(window.db, "PDFNotes"));
-    const quizzesSnap = await window.getDocs(window.collection(window.db, "QuizLinks"));
+    const pdfsSnap = await window.getDocs(
+      window.collection(window.db, "PDFNotes"),
+    );
+    const quizzesSnap = await window.getDocs(
+      window.collection(window.db, "QuizLinks"),
+    );
     const counts = {};
 
     pdfsSnap.forEach((d) => {
@@ -799,73 +1500,99 @@ async function refreshAllResourceBadges() {
       const subKey = container.getAttribute("data-pills-for");
       const c = counts[subKey] || { pdfs: 0, quizzes: 0 };
       container.innerHTML = `
-        <span class="res-pill ${c.pdfs > 0 ? 'has-items' : ''}">📄 ${c.pdfs} PDF${c.pdfs === 1 ? '' : 's'}</span>
-        <span class="res-pill quiz-pill ${c.quizzes > 0 ? 'has-items' : ''}">📝 ${c.quizzes} Quiz${c.quizzes === 1 ? '' : 's'}</span>
+        <span class="res-pill ${c.pdfs > 0 ? "has-items" : ""}">📄 ${c.pdfs} PDF${c.pdfs === 1 ? "" : "s"}</span>
+        <span class="res-pill quiz-pill ${c.quizzes > 0 ? "has-items" : ""}">📝 ${c.quizzes} Quiz${c.quizzes === 1 ? "" : "zes"}</span>
       `;
     });
   } catch (e) {
     console.error("Failed to refresh resource badges", e);
   }
 }
-window.addEventListener("DOMContentLoaded", refreshAllResourceBadges);
 
-// Live Schedule Notes & Exams Radar
-window.onSnapshot(window.collection(window.db, "ScheduleNotes"), (snapshot) => {
-  const today = new Date().toISOString().split("T")[0];
-  const radarContainer = document.getElementById("upcoming-exams-radar");
-  if (!radarContainer) return;
+if (window.onSnapshot && window.db && window.collection) {
+  window.onSnapshot(
+    window.collection(window.db, "ScheduleNotes"),
+    (snapshot) => {
+      const today = new Date().toISOString().split("T")[0];
+      const radarContainer = document.getElementById("upcoming-exams-radar");
+      if (!radarContainer) return;
 
-  radarContainer.innerHTML = "";
-  let activeAlertsCount = 0;
-
-  snapshot.forEach((docSnap) => {
-    const data = docSnap.data();
-    const subjectKey = docSnap.id;
-    const badge = document.getElementById("badge-" + subjectKey);
-
-    if (badge) {
-      if (data.expiration >= today && data.note && data.note.trim() !== "") {
-        badge.innerText = data.note;
-        badge.style.cssText = "display: inline-block; background-color: #e11d48; color: white; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 8px; letter-spacing: 0.4px; animation: pulse 1.5s infinite; vertical-align: middle;";
-        
-        activeAlertsCount++;
-        const chip = document.createElement("div");
-        chip.className = "exam-radar-chip";
-        chip.innerHTML = `
-          <div class="exam-radar-chip-top">
-            <span class="exam-radar-subj">${subjectKey.replace("-", " ").toUpperCase()}</span>
-            <span class="exam-radar-countdown">Exp: ${data.expiration}</span>
-          </div>
-          <div class="exam-radar-note">⚠️ ${data.note}</div>
-        `;
-        chip.addEventListener("click", () => {
-          loadSubjectResources(subjectKey);
-          if (subjectTitle) subjectTitle.innerText = subjectKey.replace("-", " ").toUpperCase();
-          if (subjectModal) subjectModal.style.display = "flex";
-        });
-        radarContainer.appendChild(chip);
-      } else {
-        badge.style.display = "none";
-        badge.innerText = "";
-      }
-    }
-  });
-
-  if (activeAlertsCount > 0) {
-    radarContainer.style.display = "block";
-    if (!radarContainer.querySelector(".exams-radar-title")) {
+      radarContainer.innerHTML = "";
       const titleDiv = document.createElement("div");
       titleDiv.className = "exams-radar-title";
-      titleDiv.innerHTML = `<span>🚨 ACTIVE EXAMS &amp; ANNOUNCEMENTS</span>`;
-      radarContainer.prepend(titleDiv);
-    }
-  } else {
-    radarContainer.style.display = "none";
-  }
-});
+      titleDiv.textContent = "🚨 ACTIVE EXAMS & SUBJECT ALERTS";
+      radarContainer.appendChild(titleDiv);
+
+      const listDiv = document.createElement("div");
+      listDiv.className = "exams-radar-list";
+      radarContainer.appendChild(listDiv);
+
+      let activeAlertsCount = 0;
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const subjectKey = docSnap.id;
+        const badge = document.getElementById("badge-" + subjectKey);
+
+        if (badge) {
+          if (
+            data.expiration >= today &&
+            data.note &&
+            data.note.trim() !== ""
+          ) {
+            badge.textContent = data.note;
+            badge.style.cssText =
+              "display: inline-block; background-color: #0b8793; color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; margin-left: 8px; letter-spacing: 0.4px; animation: pulse 1.5s infinite; vertical-align: middle;";
+
+            activeAlertsCount++;
+            const chip = document.createElement("div");
+            chip.className = "exam-radar-chip";
+
+            const topRow = document.createElement("div");
+            topRow.className = "exam-radar-chip-top";
+
+            const subjSpan = document.createElement("span");
+            subjSpan.className = "exam-radar-subj";
+            subjSpan.textContent = subjectKey.replace(/-/g, " ").toUpperCase();
+
+            const expSpan = document.createElement("span");
+            expSpan.className = "exam-radar-countdown";
+            expSpan.textContent = `Until ${data.expiration}`;
+
+            topRow.appendChild(subjSpan);
+            topRow.appendChild(expSpan);
+
+            const noteDiv = document.createElement("div");
+            noteDiv.className = "exam-radar-note";
+            noteDiv.textContent = `⚠️ ${data.note}`;
+
+            chip.appendChild(topRow);
+            chip.appendChild(noteDiv);
+
+            chip.addEventListener("click", () => {
+              loadSubjectResources(subjectKey);
+              if (subjectTitle) {
+                subjectTitle.textContent = subjectKey
+                  .replace(/-/g, " ")
+                  .toUpperCase();
+              }
+              if (subjectModal) subjectModal.style.display = "flex";
+            });
+            listDiv.appendChild(chip);
+          } else {
+            badge.style.display = "none";
+            badge.textContent = "";
+          }
+        }
+      });
+
+      radarContainer.style.display = activeAlertsCount > 0 ? "block" : "none";
+    },
+  );
+}
 
 // ==========================================
-// 9. POMODORO TIMER & FOCUS SOUND GENERATOR
+// 9. POMODORO TIMER + LO-FI LINK
 // ==========================================
 const pomodoroModal = document.getElementById("pomodoro-modal");
 const btnOpenPomodoro = document.getElementById("btn-open-pomodoro");
@@ -888,66 +1615,19 @@ if (pomodoroModal && btnOpenPomodoro) {
   let endTime = null;
   let screenWakeLock = null;
 
-  // Web Audio Brown Noise Focus Sound Generator
-  let focusAudioCtx = null;
-  let focusNoiseNode = null;
-  let isFocusSoundOn = false;
-
-  function toggleFocusSound() {
-    if (isFocusSoundOn) {
-      if (focusAudioCtx) {
-        focusAudioCtx.close();
-        focusAudioCtx = null;
-      }
-      isFocusSoundOn = false;
-      if (btnFocusSound) {
-        btnFocusSound.classList.remove("active");
-        btnFocusSound.textContent = "🎧 Focus Brown Noise: OFF";
-      }
-    } else {
-      try {
-        focusAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const bufferSize = 2 * focusAudioCtx.sampleRate;
-        const noiseBuffer = focusAudioCtx.createBuffer(1, bufferSize, focusAudioCtx.sampleRate);
-        const output = noiseBuffer.getChannelData(0);
-        let lastOut = 0.0;
-        for (let i = 0; i < bufferSize; i++) {
-          const white = Math.random() * 2 - 1;
-          output[i] = (lastOut + 0.02 * white) / 1.02;
-          lastOut = output[i];
-          output[i] *= 3.5; // Gain boost
-        }
-
-        focusNoiseNode = focusAudioCtx.createBufferSource();
-        focusNoiseNode.buffer = noiseBuffer;
-        focusNoiseNode.loop = true;
-
-        const filter = focusAudioCtx.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 320; // Soft deep brown noise
-
-        focusNoiseNode.connect(filter);
-        filter.connect(focusAudioCtx.destination);
-        focusNoiseNode.start(0);
-
-        isFocusSoundOn = true;
-        if (btnFocusSound) {
-          btnFocusSound.classList.add("active");
-          btnFocusSound.textContent = "🎧 Focus Brown Noise: ON (Playing)";
-        }
-      } catch (e) {
-        console.warn("Web Audio error:", e);
-        alert("Unable to start focus sound.");
-      }
-    }
-  }
-
   if (btnFocusSound) {
-    btnFocusSound.addEventListener("click", toggleFocusSound);
+    btnFocusSound.textContent = "🎧 Lo-Fi Chill Beats: OFF";
+    btnFocusSound.addEventListener("click", () => lofiPlayer.toggle());
   }
 
   async function requestScreenWakeLock() {
-    if (!isRunning || document.visibilityState !== "visible" || !("wakeLock" in navigator)) return;
+    if (
+      !isRunning ||
+      document.visibilityState !== "visible" ||
+      !("wakeLock" in navigator)
+    ) {
+      return;
+    }
     try {
       const wakeLock = await navigator.wakeLock.request("screen");
       if (!isRunning) {
@@ -955,7 +1635,9 @@ if (pomodoroModal && btnOpenPomodoro) {
         return;
       }
       screenWakeLock = wakeLock;
-      screenWakeLock.addEventListener("release", () => { screenWakeLock = null; });
+      screenWakeLock.addEventListener("release", () => {
+        screenWakeLock = null;
+      });
     } catch (error) {
       console.warn("Screen wake lock unavailable.", error);
     }
@@ -965,7 +1647,9 @@ if (pomodoroModal && btnOpenPomodoro) {
     const wakeLock = screenWakeLock;
     screenWakeLock = null;
     if (wakeLock) {
-      try { await wakeLock.release(); } catch (e) {}
+      try {
+        await wakeLock.release();
+      } catch (e) {}
     }
   }
 
@@ -978,7 +1662,9 @@ if (pomodoroModal && btnOpenPomodoro) {
 
   function loadTimerState() {
     try {
-      const savedState = JSON.parse(localStorage.getItem(timerStorageKey) || "null");
+      const savedState = JSON.parse(
+        localStorage.getItem(timerStorageKey) || "null",
+      );
       if (!savedState) return;
       currentMode = savedState.mode === "break" ? "break" : "study";
       timeLeft = Number(savedState.timeLeft) || 0;
@@ -1013,7 +1699,13 @@ if (pomodoroModal && btnOpenPomodoro) {
     releaseScreenWakeLock();
     saveTimerState();
     updateDisplay();
-    alert(currentMode === "study" ? "Study session complete! Take a 5-minute break." : "Break over! Back to studying.");
+    if (mascotKeyLight) mascotKeyLight.color.setHex(0x38bdf8);
+    sfx.playDing();
+    alert(
+      currentMode === "study"
+        ? "Study session complete! Take a 5-minute break."
+        : "Break over! Back to studying.",
+    );
   }
 
   function runTimer() {
@@ -1023,6 +1715,7 @@ if (pomodoroModal && btnOpenPomodoro) {
       finishTimer();
       return;
     }
+    if (mascotKeyLight) mascotKeyLight.color.setHex(0xef4444);
     timerInterval = setInterval(() => {
       updateDisplay();
       if (timeLeft <= 0) finishTimer();
@@ -1046,6 +1739,7 @@ if (pomodoroModal && btnOpenPomodoro) {
       clearInterval(timerInterval);
       isRunning = false;
       endTime = null;
+      if (mascotKeyLight) mascotKeyLight.color.setHex(0x38bdf8);
       releaseScreenWakeLock();
       saveTimerState();
     });
@@ -1055,6 +1749,7 @@ if (pomodoroModal && btnOpenPomodoro) {
     clearInterval(timerInterval);
     isRunning = false;
     endTime = null;
+    if (mascotKeyLight) mascotKeyLight.color.setHex(0x38bdf8);
     releaseScreenWakeLock();
     timeLeft = currentMode === "study" ? 25 * 60 : 5 * 60;
     saveTimerState();
@@ -1089,17 +1784,23 @@ if (pomodoroModal && btnOpenPomodoro) {
     }
   });
 
-  if (btnOpenPomodoro) {
-    btnOpenPomodoro.addEventListener("click", () => { pomodoroModal.style.display = "flex"; });
-  }
+  btnOpenPomodoro.addEventListener("click", () => {
+    pomodoroModal.style.display = "flex";
+  });
 
   if (btnClosePomodoro) {
-    btnClosePomodoro.addEventListener("click", () => { pomodoroModal.style.display = "none"; });
+    btnClosePomodoro.addEventListener("click", () => {
+      pomodoroModal.style.display = "none";
+    });
   }
 
   loadTimerState();
-  if (btnModeStudy) btnModeStudy.classList.toggle("active", currentMode === "study");
-  if (btnModeBreak) btnModeBreak.classList.toggle("active", currentMode === "break");
+  if (btnModeStudy) {
+    btnModeStudy.classList.toggle("active", currentMode === "study");
+  }
+  if (btnModeBreak) {
+    btnModeBreak.classList.toggle("active", currentMode === "break");
+  }
   updateDisplay();
   if (isRunning) {
     requestScreenWakeLock();
@@ -1169,8 +1870,7 @@ function renderClinicLogbook() {
 window.adjustClinicCount = function (reqId, delta) {
   const savedData = getClinicLogData();
   const current = Number(savedData[reqId]) || 0;
-  const next = Math.max(0, current + delta);
-  savedData[reqId] = next;
+  savedData[reqId] = Math.max(0, current + delta);
   saveClinicLogData(savedData);
   renderClinicLogbook();
 };
@@ -1198,20 +1898,22 @@ if (btnResetClinicLog) {
 }
 
 // ==========================================
-// 11. DUAL-MODE 3D ARCADE & LEADERBOARD SYSTEM
+// 11. ARCADE LEADERBOARD & 3D GAME ENGINE
 // ==========================================
 let arcadePlayerName = "";
-let currentArcadeTab = "drift"; // "drift" or "dental"
 
 window.openGameMenu = function () {
-  const playerName = prompt("Enter your name for the Al-Ameen Arcade Leaderboard:", localStorage.getItem("dento_student") || "");
+  const playerName = prompt(
+    "Enter your name for the Al-Ameen Arcade Leaderboard:",
+    localStorage.getItem("dento_student") || "",
+  );
   if (!playerName || !playerName.trim()) return;
 
   arcadePlayerName = playerName.trim().slice(0, 30);
   localStorage.setItem("dento_student", arcadePlayerName);
 
   const nameLabel = document.getElementById("arcade-player-name-label");
-  if (nameLabel) nameLabel.innerText = arcadePlayerName;
+  if (nameLabel) nameLabel.textContent = arcadePlayerName;
 
   const menu = document.getElementById("game-selection-overlay");
   if (menu) menu.style.display = "flex";
@@ -1224,7 +1926,6 @@ window.closeGameMenu = function () {
 };
 
 window.switchArcadeModeTab = function (mode) {
-  currentArcadeTab = mode;
   const tabDrift = document.getElementById("tab-mode-drift");
   const tabDental = document.getElementById("tab-mode-dental");
   const panelDrift = document.getElementById("arcade-panel-drift");
@@ -1250,22 +1951,19 @@ window.openStandaloneLeaderboard = function () {
 
   if (menu) menu.style.display = "none";
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
-  
+
   const heading = document.getElementById("scoreboard-heading");
   const finalScoreDisp = document.getElementById("final-score-display");
   const finalSub = document.getElementById("final-run-subtitle");
-  const actionBtn = scoreboardModal ? scoreboardModal.querySelector(".scoreboard-close") : null;
 
-  if (heading) heading.innerText = "🏆 AL-AMEEN HIGH SCORES";
-  if (finalScoreDisp) finalScoreDisp.innerText = "---";
-  if (finalSub) finalSub.innerText = "Global Hall of Fame";
-  if (actionBtn) actionBtn.innerText = "Back to Menu";
+  if (heading) heading.textContent = "🏆 AL-AMEEN HIGH SCORES";
+  if (finalScoreDisp) finalScoreDisp.textContent = "---";
+  if (finalSub) finalSub.textContent = "Global Hall of Fame";
 
   if (scoreboardModal) scoreboardModal.style.display = "flex";
   fetchDriftLeaderboard();
 };
 
-// --- AUDIO & THREE.JS 3D ARCADE ENGINE ---
 const soundtrack = new Audio("soundtrack.mp3");
 soundtrack.loop = true;
 soundtrack.volume = 0.35;
@@ -1291,16 +1989,19 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const sfx = {
   init: function () {
     if (audioCtx.state === "suspended") {
-      audioCtx.resume().catch((e) => {});
+      audioCtx.resume().catch(() => {});
     }
   },
   playDing: function () {
     try {
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
       osc.type = "sine";
       osc.frequency.setValueAtTime(880, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1320, audioCtx.currentTime + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(
+        1320,
+        audioCtx.currentTime + 0.12,
+      );
       gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
       osc.connect(gain);
@@ -1311,13 +2012,19 @@ const sfx = {
   },
   playCrash: function () {
     try {
-      let osc = audioCtx.createOscillator();
-      let gain = audioCtx.createGain();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
       osc.type = "sawtooth";
       osc.frequency.setValueAtTime(140, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.35);
+      osc.frequency.exponentialRampToValueAtTime(
+        35,
+        audioCtx.currentTime + 0.35,
+      );
       gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.35);
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + 0.35,
+      );
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
@@ -1326,13 +2033,16 @@ const sfx = {
   },
 };
 
-// --- FIREBASE SCOREBOARD SYNC ---
+// --- SAFE FIREBASE LEADERBOARD SYNC (Copilot #2 & #3) ---
 async function submitDriftScore(playerName, playerScore) {
-  const studentName = playerName?.trim() || localStorage.getItem("dento_student") || "Student";
+  const studentName =
+    playerName?.trim() || localStorage.getItem("dento_student") || "Student";
   const currentUser = window.auth?.currentUser;
   const isAdmin = currentUser?.email === adminEmail;
   const displayName = isAdmin ? "Admin" : studentName;
-  const docId = isAdmin ? "admin_master" : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+  const docId = isAdmin
+    ? "admin_master"
+    : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
   if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
     console.error("Firebase services unavailable.");
@@ -1342,18 +2052,16 @@ async function submitDriftScore(playerName, playerScore) {
   try {
     const docRef = window.doc(window.db, "DriftScores", docId);
     const docSnap = await window.getDoc(docRef);
-    const previousScore = docSnap.exists() ? Number(docSnap.data().score) || 0 : 0;
-    
-    // Anti-cheat limit per run
-    const sanitizedGain = Math.min(50000, Number(playerScore) || 0);
-    const cumulativeScore = previousScore + sanitizedGain;
+    const previousScore = docSnap.exists()
+      ? Number(docSnap.data().score) || 0
+      : 0;
+    const cumulativeScore = previousScore + (Number(playerScore) || 0);
 
     await window.setDoc(docRef, {
       name: displayName,
       score: cumulativeScore,
       timestamp: new Date().toISOString(),
     });
-
     return true;
   } catch (error) {
     console.error("Firebase score error:", error);
@@ -1397,34 +2105,41 @@ function renderDriftLeaderboardUI(dataArray) {
     return;
   }
 
-  const isAdmin = window.auth && window.auth.currentUser && window.auth.currentUser.email === adminEmail;
+  const isAdmin =
+    window.auth &&
+    window.auth.currentUser &&
+    window.auth.currentUser.email === adminEmail;
 
   dataArray.forEach((player, index) => {
     const rankPrefix = index === 0 ? "👑 " : `${index + 1}. `;
     const rowDiv = document.createElement("div");
-    rowDiv.style.cssText = "display: flex; justify-content: space-between; align-items: center; color: white; margin-bottom: 8px; font-family: monospace; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;";
+    rowDiv.style.cssText =
+      "display: flex; justify-content: space-between; align-items: center; color: white; margin-bottom: 8px; font-family: monospace; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;";
 
+    // Safe textContent rendering (fixes Copilot #2 XSS warning)
     const infoSpan = document.createElement("span");
-    infoSpan.innerHTML = `${rankPrefix}${player.name}`;
+    infoSpan.textContent = `${rankPrefix}${player.name}`;
 
     const rightBox = document.createElement("div");
     rightBox.style.cssText = "display: flex; align-items: center; gap: 10px;";
 
     const scoreSpan = document.createElement("span");
     scoreSpan.style.cssText = "color: #2ecc71; font-weight: bold;";
-    scoreSpan.innerText = player.score;
+    scoreSpan.textContent = String(player.score);
 
     rightBox.appendChild(scoreSpan);
 
     if (isAdmin) {
       const delScoreBtn = document.createElement("button");
       delScoreBtn.className = "delete-resource-btn";
-      delScoreBtn.innerHTML = "🗑️";
+      delScoreBtn.textContent = "🗑️";
       delScoreBtn.title = "Delete score";
       delScoreBtn.addEventListener("click", async () => {
         if (confirm(`Delete score for ${player.name}?`)) {
           try {
-            await window.deleteDoc(window.doc(window.db, "DriftScores", player.id));
+            await window.deleteDoc(
+              window.doc(window.db, "DriftScores", player.id),
+            );
             rowDiv.remove();
           } catch (err) {
             alert("Delete failed: " + err.message);
@@ -1440,9 +2155,14 @@ function renderDriftLeaderboardUI(dataArray) {
   });
 }
 
-// --- ACTIVE GAME ENGINE LOOP (THREE.JS 3D WEBGL) ---
+// --- REUSABLE OFFSCREEN COLLISION CANVAS (Fixes Copilot #4) ---
+const collisionCanvas = document.createElement("canvas");
+collisionCanvas.width = 600;
+collisionCanvas.height = 800;
+const collisionCtx = collisionCanvas.getContext("2d");
+
 let gameLoopId = null;
-let activeGameMode = "drift"; // "drift" or "dental_runner"
+let activeGameMode = "drift";
 let activeCarSelection = "g37";
 
 let webglRenderer = null;
@@ -1450,17 +2170,18 @@ let webglScene = null;
 let webglCamera = null;
 let carMeshGroup = null;
 
-let carX = 0, carY = 26000;
+let carX = 0;
+let carY = 26000;
 let speed = 0;
 let carAngle = -Math.PI / 2;
 let travelAngle = -Math.PI / 2;
-let lastSafeX = 0, lastSafeY = 26000;
+let lastSafeX = 0;
+let lastSafeY = 26000;
 let score = 0;
 let comboMultiplier = 1;
 let startTime = 0;
 let raceFinished = false;
 let crashCooldown = 0;
-let driftGraceTimer = 0;
 let currentGrip = 0.015;
 let obstacles = [];
 window.input = { gas: false, left: false, right: false };
@@ -1487,8 +2208,8 @@ const trackPoints = [
 function getTrackData(targetY) {
   for (let i = 0; i < trackPoints.length - 1; i++) {
     if (targetY <= trackPoints[i].y && targetY >= trackPoints[i + 1].y) {
-      let dx = trackPoints[i + 1].x - trackPoints[i].x;
-      let dy = trackPoints[i + 1].y - trackPoints[i].y;
+      const dx = trackPoints[i + 1].x - trackPoints[i].x;
+      const dy = trackPoints[i + 1].y - trackPoints[i].y;
       return { angle: Math.atan2(dy, dx), sharpness: Math.abs(dx) };
     }
   }
@@ -1498,11 +2219,14 @@ function getTrackData(targetY) {
 const trackPath2D = new Path2D();
 trackPath2D.moveTo(trackPoints[0].x, trackPoints[0].y);
 for (let i = 1; i < trackPoints.length - 1; i++) {
-  let xc = (trackPoints[i].x + trackPoints[i + 1].x) / 2;
-  let yc = (trackPoints[i].y + trackPoints[i + 1].y) / 2;
+  const xc = (trackPoints[i].x + trackPoints[i + 1].x) / 2;
+  const yc = (trackPoints[i].y + trackPoints[i + 1].y) / 2;
   trackPath2D.quadraticCurveTo(trackPoints[i].x, trackPoints[i].y, xc, yc);
 }
-trackPath2D.lineTo(trackPoints[trackPoints.length - 1].x, trackPoints[trackPoints.length - 1].y);
+trackPath2D.lineTo(
+  trackPoints[trackPoints.length - 1].x,
+  trackPoints[trackPoints.length - 1].y,
+);
 
 window.startGame = function (modeOrCar) {
   closeGameMenu();
@@ -1515,12 +2239,12 @@ window.startGame = function (modeOrCar) {
   if (modeOrCar === "dental_runner") {
     activeGameMode = "dental_runner";
     const secLabel = document.getElementById("hud-secondary-label");
-    if (secLabel) secLabel.innerText = "ZAPS";
+    if (secLabel) secLabel.textContent = "ZAPS";
   } else {
     activeGameMode = "drift";
     activeCarSelection = modeOrCar;
     const secLabel = document.getElementById("hud-secondary-label");
-    if (secLabel) secLabel.innerText = "COMBO";
+    if (secLabel) secLabel.textContent = "COMBO";
   }
 
   carX = 0;
@@ -1535,16 +2259,15 @@ window.startGame = function (modeOrCar) {
   startTime = Date.now();
   raceFinished = false;
   crashCooldown = 0;
-  driftGraceTimer = 0;
   currentGrip = 0.015;
   obstacles = [];
 
-  // Spawn some traffic / carious lesions along the track
   for (let yPos = 24000; yPos > 2000; yPos -= 1800) {
     obstacles.push({
       x: (Math.random() - 0.5) * 260,
       y: yPos,
-      type: activeGameMode === "dental_runner" ? "caries_block" : "oncoming_car",
+      type:
+        activeGameMode === "dental_runner" ? "caries_block" : "oncoming_car",
       active: true,
     });
   }
@@ -1552,14 +2275,16 @@ window.startGame = function (modeOrCar) {
   initThreeJSViewport();
 
   sfx.init();
-  try { soundtrack.play().catch((e) => {}); } catch (e) {}
+  try {
+    soundtrack.play().catch(() => {});
+  } catch (e) {}
   try {
     engineAudio.volume = 0;
-    engineAudio.play().catch((e) => {});
+    engineAudio.play().catch(() => {});
   } catch (e) {}
   try {
     driftAudio.volume = 0;
-    driftAudio.play().catch((e) => {});
+    driftAudio.play().catch(() => {});
   } catch (e) {}
 
   if (gameLoopId) cancelAnimationFrame(gameLoopId);
@@ -1595,7 +2320,6 @@ function initThreeJSViewport() {
   dir.position.set(10, 20, 10);
   webglScene.add(dir);
 
-  // Build 3D Car / Dental Turbine Model
   carMeshGroup = new THREE.Group();
   webglScene.add(carMeshGroup);
 
@@ -1605,7 +2329,11 @@ function initThreeJSViewport() {
   if (activeGameMode === "dental_runner") bodyColor = 0x10b981;
 
   const bodyGeo = new THREE.BoxGeometry(1.6, 0.7, 3.4);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.2, metalness: 0.3 });
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: bodyColor,
+    roughness: 0.2,
+    metalness: 0.3,
+  });
   const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
   bodyMesh.position.y = 0.5;
   carMeshGroup.add(bodyMesh);
@@ -1614,15 +2342,13 @@ function initThreeJSViewport() {
 function showHudBanner(text) {
   const banner = document.getElementById("hud-floating-banner");
   if (!banner) return;
-  banner.innerText = text;
+  banner.textContent = text;
   banner.classList.add("show");
   setTimeout(() => banner.classList.remove("show"), 1200);
 }
 
 function gameLoop3D() {
   if (crashCooldown > 0) crashCooldown--;
-
-  let trackData = getTrackData(carY);
 
   if (!raceFinished) {
     if (window.input.gas) {
@@ -1633,7 +2359,7 @@ function gameLoop3D() {
     }
 
     if (speed > 1) {
-      let steer = 0.11;
+      const steer = 0.11;
       if (window.input.left) carAngle -= steer;
       if (window.input.right) carAngle += steer;
     }
@@ -1642,33 +2368,26 @@ function gameLoop3D() {
     while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
     while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
 
-    let maxSlip = 1.35;
+    const maxSlip = 1.35;
     if (angleDiff > maxSlip) carAngle = travelAngle + maxSlip;
     else if (angleDiff < -maxSlip) carAngle = travelAngle - maxSlip;
 
     currentGrip += (0.012 - currentGrip) * 0.15;
     travelAngle += angleDiff * currentGrip;
 
-    let pushX = Math.cos(travelAngle) * speed;
-    let pushY = Math.sin(travelAngle) * speed;
-
-    carX += pushX;
-    carY += pushY;
+    carX += Math.cos(travelAngle) * speed;
+    carY += Math.sin(travelAngle) * speed;
   } else {
     speed *= 0.94;
     carX += Math.cos(travelAngle) * speed;
     carY += Math.sin(travelAngle) * speed;
   }
 
-  // Asphalt & Safezone boundary checks
-  const testCanvas = document.createElement("canvas");
-  testCanvas.width = 600;
-  testCanvas.height = 800;
-  const tCtx = testCanvas.getContext("2d");
-  tCtx.lineWidth = 450;
-  let isOnAsphalt = tCtx.isPointInStroke(trackPath2D, carX, carY);
-  tCtx.lineWidth = 190;
-  let isInSafeZone = tCtx.isPointInStroke(trackPath2D, carX, carY);
+  // Reuse single persistent collisionCtx (Copilot #4)
+  collisionCtx.lineWidth = 450;
+  const isOnAsphalt = collisionCtx.isPointInStroke(trackPath2D, carX, carY);
+  collisionCtx.lineWidth = 190;
+  const isInSafeZone = collisionCtx.isPointInStroke(trackPath2D, carX, carY);
 
   if (!raceFinished) {
     if (!isOnAsphalt && crashCooldown === 0) {
@@ -1680,7 +2399,7 @@ function gameLoop3D() {
       carX = lastSafeX;
       carY = lastSafeY;
       speed = 0;
-      let safeTrack = getTrackData(lastSafeY);
+      const safeTrack = getTrackData(lastSafeY);
       carAngle = travelAngle = safeTrack.angle;
       window.input.gas = false;
       crashCooldown = 50;
@@ -1694,7 +2413,6 @@ function gameLoop3D() {
       }
     }
 
-    // Obstacle collision checks
     obstacles.forEach((obs) => {
       if (obs.active && Math.hypot(carX - obs.x, carY - obs.y) < 55) {
         obs.active = false;
@@ -1714,21 +2432,23 @@ function gameLoop3D() {
 
     if (carY <= 0) {
       raceFinished = true;
-      let timeTaken = (Date.now() - startTime) / 1000;
-      let timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 60));
+      const timeTaken = (Date.now() - startTime) / 1000;
+      const timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 60));
       score += timeBonus;
 
-      if (engineAudio) engineAudio.volume = 0;
-      if (driftAudio) driftAudio.volume = 0;
+      engineAudio.volume = 0;
+      driftAudio.volume = 0;
 
       const scoreboardModal = document.getElementById("scoreboard-modal");
       const finalScoreDisplay = document.getElementById("final-score-display");
       const finalSub = document.getElementById("final-run-subtitle");
       const heading = document.getElementById("scoreboard-heading");
 
-      if (heading) heading.innerText = "🏁 RUN COMPLETED 🏁";
-      if (finalScoreDisplay) finalScoreDisplay.innerText = score;
-      if (finalSub) finalSub.innerText = `Time: ${timeTaken.toFixed(2)}s | Bonus: +${timeBonus}`;
+      if (heading) heading.textContent = "🏁 RUN COMPLETED 🏁";
+      if (finalScoreDisplay) finalScoreDisplay.textContent = String(score);
+      if (finalSub) {
+        finalSub.textContent = `Time: ${timeTaken.toFixed(2)}s | Bonus: +${timeBonus}`;
+      }
 
       if (scoreboardModal) scoreboardModal.style.display = "flex";
       setTimeout(async () => {
@@ -1740,7 +2460,6 @@ function gameLoop3D() {
     }
   }
 
-  // Audio volume balancing
   if (!raceFinished) {
     if (speed > 0.5) {
       engineAudio.volume = Math.min(0.18, 0.02 + speed / 45);
@@ -1748,11 +2467,10 @@ function gameLoop3D() {
     } else {
       engineAudio.volume = 0;
     }
-    let isDrifting = speed > 2 && Math.abs(carAngle - travelAngle) > 0.12;
+    const isDrifting = speed > 2 && Math.abs(carAngle - travelAngle) > 0.12;
     driftAudio.volume = isDrifting ? 0.07 : 0;
   }
 
-  // Update Three.js Camera & Car Mesh
   if (carMeshGroup && webglCamera) {
     carMeshGroup.position.set(carX * 0.02, 0, carY * -0.02);
     carMeshGroup.rotation.y = -travelAngle - Math.PI / 2;
@@ -1765,14 +2483,13 @@ function gameLoop3D() {
     webglRenderer.render(webglScene, webglCamera);
   }
 
-  // Update HUD DOM stats
-  let progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
+  const progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
   const elScore = document.getElementById("hud-score");
   const elCombo = document.getElementById("hud-combo");
   const elProg = document.getElementById("hud-progress");
-  if (elScore) elScore.innerText = score;
-  if (elCombo) elCombo.innerText = `x${comboMultiplier}`;
-  if (elProg) elProg.innerText = `${progress.toFixed(1)}%`;
+  if (elScore) elScore.textContent = String(score);
+  if (elCombo) elCombo.textContent = `x${comboMultiplier}`;
+  if (elProg) elProg.textContent = `${progress.toFixed(1)}%`;
 
   if (!raceFinished) {
     gameLoopId = requestAnimationFrame(gameLoop3D);
