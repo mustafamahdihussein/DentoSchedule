@@ -929,6 +929,9 @@ const btnCancelAnnouncement = document.getElementById(
 const btnSubmitAnnouncement = document.getElementById(
   "btn-submit-announcement",
 );
+const btnDeleteAnnouncement = document.getElementById(
+  "btn-delete-announcement",
+);
 const modalUploadLofi = document.getElementById("modal-upload-lofi");
 const btnUploadLofi = document.getElementById("btn-upload-lofi");
 const btnSubmitLofi = document.getElementById("btn-submit-lofi");
@@ -1264,6 +1267,31 @@ if (btnSubmitAnnouncement) {
       if (inputEl) inputEl.value = "";
     } catch (error) {
       alert("UPLOAD FAILED: " + error.message);
+    }
+  });
+}
+
+if (btnDeleteAnnouncement) {
+  btnDeleteAnnouncement.addEventListener("click", async () => {
+    if (!window.db || !window.deleteDoc || !window.doc) {
+      alert("CRITICAL ERROR: Firebase tools are missing.");
+      return;
+    }
+    if (!window.confirm("Remove the currently posted announcement?")) return;
+
+    try {
+      if (!(await requireAdminSession())) return;
+
+      await window.deleteDoc(
+        window.doc(window.db, "Announcements", "latest"),
+      );
+
+      alert("Database confirmed: Live announcement removed.");
+      if (modalPostAnnouncement) modalPostAnnouncement.style.display = "none";
+      const inputEl = document.getElementById("announcement-input-text");
+      if (inputEl) inputEl.value = "";
+    } catch (error) {
+      alert("REMOVE FAILED: " + error.message);
     }
   });
 }
