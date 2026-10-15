@@ -1849,10 +1849,13 @@ if (window.onSnapshot && window.db && window.collection) {
 const pomodoroModal = document.getElementById("pomodoro-modal");
 const btnOpenPomodoro = document.getElementById("btn-open-pomodoro");
 const btnFocusSound = document.getElementById("btn-focus-sound");
+const btnToolbarLofi = document.getElementById("btn-toolbar-lofi");
 
-if (btnFocusSound) {
-  btnFocusSound.addEventListener("click", () => window.lofiPlayer.toggle());
-}
+[btnFocusSound, btnToolbarLofi]
+  .filter(Boolean)
+  .forEach((button) =>
+    button.addEventListener("click", () => window.lofiPlayer.toggle()),
+  );
 
 if (pomodoroModal && btnOpenPomodoro) {
   const btnClosePomodoro = document.getElementById("btn-close-pomodoro");
@@ -2237,9 +2240,6 @@ function stopArcadeAudio() {
 }
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-const lofiAudio = new Audio();
-lofiAudio.loop = true;
-lofiAudio.preload = "auto";
 const lofiBlobUrls = new Map();
 let lofiIndexedDbPromise;
 
@@ -2311,87 +2311,124 @@ async function deleteCachedLofiBlob(trackId) {
 
 const lofiPlayer = {
   isPlaying: false,
+  isLoading: false,
+  loadingPromise: null,
   loadError: null,
+  currentTrackId: null,
+  decodedTrackId: null,
+  decodedAudioBuffer: null,
+  source: null,
   toggle() {
+    if (this.isLoading) return;
     if (this.isPlaying) {
       this.stop();
-    } else {
-      if (this.loadError && !lofiAudio.src) {
-        alert(
-          "Unable to load the uploaded Lo-Fi track: " +
-            (this.loadError.message || "Unknown loading error."),
-        );
-        return;
-      }
-      const playPromise = lofiAudio.play();
-      if (playPromise) {
-        playPromise
-          .then(() => {
-            this.isPlaying = true;
-            this.updateButton();
-          })
-          .catch((error) => {
-            console.error("Unable to play uploaded Lo-Fi track.", error);
-            this.stop();
-            alert(
-              "Unable to play the uploaded Lo-Fi track: " +
-                (error?.message || "Unknown playback error."),
-            );
-          });
-      }
+      return;
     }
+
+    // Resume directly from the gesture so mobile browsers unlock audio before
+    // the asynchronous Firestore/IndexedDB work begins.
+    const resumePromise =
+      audioCtx.state === "suspended" ? audioCtx.resume() : Promise.resolve();
+    this.isLoading = true;
+    this.loadError = null;
+    this.updateButton();
+    this.loadingPromise = Promise.resolve(resumePromise)
+      .then(() => this.startPlayback())
+      .catch((error) => {
+        this.loadError = error;
+        console.error("Unable to play uploaded Lo-Fi track.", error);
+        this.isPlaying = false;
+        this.updateButton();
+        alert(
+          "Unable to play the uploaded Lo-Fi track: " +
+            (error?.message || "Unknown playback error."),
+        );
+      })
+      .finally(() => {
+        this.isLoading = false;
+        this.loadingPromise = null;
+        this.updateButton();
+      });
+  },
+  async startPlayback() {
+    const trackId = await this.getCurrentTrackId();
+    if (!trackId) {
+      throw new Error("No uploaded Lo-Fi track is available.");
+    }
+    if (
+      this.decodedTrackId !== trackId ||
+      !this.decodedAudioBuffer
+    ) {
+      const arrayBuffer = await this.getTrackArrayBuffer(trackId);
+      this.decodedAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      this.decodedTrackId = trackId;
+    }
+    const source = audioCtx.createBufferSource();
+    source.buffer = this.decodedAudioBuffer;
+    source.loop = true;
+    source.connect(audioCtx.destination);
+    source.start(0);
+    this.source = source;
+    this.isPlaying = true;
+    this.updateButton();
+  },
+  async getCurrentTrackId() {
+    if (this.currentTrackId) return this.currentTrackId;
+    const metadataSnapshot = await window.getDoc(
+      window.doc(window.db, "Announcements", "lofi_meta"),
+    );
+    if (!metadataSnapshot.exists() || !metadataSnapshot.data().trackId) {
+      return null;
+    }
+    this.currentTrackId = metadataSnapshot.data().trackId;
+    return this.currentTrackId;
+  },
+  async getTrackArrayBuffer(trackId) {
+    let blob = await getCachedLofiBlob(trackId);
+    if (!blob) {
+      const metadataSnapshot = await window.getDoc(
+        window.doc(window.db, "Announcements", "lofi_meta"),
+      );
+      if (!metadataSnapshot.exists()) {
+        throw new Error("No Lo-Fi MP3 metadata was found.");
+      }
+      const metadata = metadataSnapshot.data();
+      if (metadata.trackId !== trackId || !Number.isInteger(metadata.totalChunks)) {
+        throw new Error("Lo-Fi MP3 metadata is invalid.");
+      }
+      const chunkSnapshots = await Promise.all(
+        Array.from({ length: metadata.totalChunks }, (_, index) =>
+          window.getDoc(
+            window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
+          ),
+        ),
+      );
+      const base64 = chunkSnapshots
+        .map((chunkSnapshot, index) => {
+          if (
+            !chunkSnapshot.exists() ||
+            chunkSnapshot.data().trackId !== trackId ||
+            chunkSnapshot.data().index !== index
+          ) {
+            throw new Error(`Lo-Fi MP3 chunk ${index} is missing or invalid.`);
+          }
+          return chunkSnapshot.data().data;
+        })
+        .join("");
+      blob = base64ToBlob(base64);
+      await cacheLofiBlob(trackId, blob);
+    }
+    return blob.arrayBuffer();
   },
   async loadUploadedTrack(trackId, cachedBase64) {
-    this.loadError = null;
     this.stop();
-    let url = lofiBlobUrls.get(trackId);
-    if (!url) {
-      let blob = await getCachedLofiBlob(trackId);
-      if (!blob) {
-        let base64 = cachedBase64;
-        if (!base64) {
-          const metadataSnapshot = await window.getDoc(
-            window.doc(window.db, "Announcements", "lofi_meta"),
-          );
-          if (!metadataSnapshot.exists()) {
-            throw new Error("No Lo-Fi MP3 metadata was found.");
-          }
-          const metadata = metadataSnapshot.data();
-          if (metadata.trackId !== trackId || !Number.isInteger(metadata.totalChunks)) {
-            throw new Error("Lo-Fi MP3 metadata is invalid.");
-          }
-          const chunkSnapshots = await Promise.all(
-            Array.from({ length: metadata.totalChunks }, (_, index) =>
-              window.getDoc(
-                window.doc(
-                  window.db,
-                  "Announcements",
-                  `lofi_chunk_${index}`,
-                ),
-              ),
-            ),
-          );
-          base64 = chunkSnapshots
-            .map((chunkSnapshot, index) => {
-              if (
-                !chunkSnapshot.exists() ||
-                chunkSnapshot.data().trackId !== trackId ||
-                chunkSnapshot.data().index !== index
-              ) {
-                throw new Error(`Lo-Fi MP3 chunk ${index} is missing or invalid.`);
-              }
-              return chunkSnapshot.data().data;
-            })
-            .join("");
-        }
-        blob = base64ToBlob(base64);
-        await cacheLofiBlob(trackId, blob);
-      }
-      url = URL.createObjectURL(blob);
-      lofiBlobUrls.set(trackId, url);
+    this.loadError = null;
+    this.currentTrackId = trackId;
+    this.decodedTrackId = null;
+    this.decodedAudioBuffer = null;
+    if (cachedBase64) {
+      await cacheLofiBlob(trackId, base64ToBlob(cachedBase64));
     }
-    lofiAudio.src = url;
-    lofiAudio.load();
   },
   async loadSavedTrack() {
     try {
@@ -2399,7 +2436,7 @@ const lofiPlayer = {
         window.doc(window.db, "Announcements", "lofi_meta"),
       );
       if (snapshot.exists() && snapshot.data().trackId) {
-        await this.loadUploadedTrack(snapshot.data().trackId);
+        this.currentTrackId = snapshot.data().trackId;
       }
     } catch (error) {
       this.loadError = error;
@@ -2428,18 +2465,33 @@ const lofiPlayer = {
       lofiBlobUrls.delete(trackId);
     }
     await deleteCachedLofiBlob(trackId);
-    lofiAudio.removeAttribute("src");
-    lofiAudio.load();
+    if (this.currentTrackId === trackId) {
+      this.currentTrackId = null;
+      this.decodedTrackId = null;
+      this.decodedAudioBuffer = null;
+    }
   },
   updateButton() {
-    if (!btnFocusSound) return;
-    btnFocusSound.textContent = this.isPlaying
-      ? "🎧 Lo-Fi Beats: ON"
-      : "🎧 Lo-Fi Beats: OFF";
-    btnFocusSound.classList.toggle("active", this.isPlaying);
+    const buttons = [
+      btnFocusSound,
+      btnToolbarLofi,
+    ].filter(Boolean);
+    const text = this.isLoading
+      ? "⏳ Loading Lo-Fi..."
+      : this.isPlaying
+        ? "🎧 Lo-Fi Beats: ON"
+        : "🎧 Lo-Fi Beats: OFF";
+    buttons.forEach((button) => {
+      button.textContent = text;
+      button.classList.toggle("active", this.isPlaying);
+    });
   },
   stop() {
-    lofiAudio.pause();
+    if (this.source) {
+      this.source.stop();
+      this.source.disconnect();
+      this.source = null;
+    }
     this.isPlaying = false;
     this.updateButton();
   },
