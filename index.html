@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dental Schedule</title>
+    <title>Dental Schedule • Al-Ameen 4th Year</title>
     <meta property="og:title" content="Al-Ameen DentoSchedule" />
     <meta
       property="og:description"
@@ -15,6 +15,10 @@
     />
     <link rel="icon" href="Al-ameen-Logo-350.png" type="image/png" />
     <link href="style.css" rel="stylesheet" type="text/css" />
+
+    <!-- Three.js 3D WebGL Engine for the home-screen mascot -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
       import {
@@ -42,19 +46,15 @@
         limit,
       } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-      // Your web app's Firebase configuration
-      // For Firebase JS SDK v7.20.0 and later, measurementId is optional
       const firebaseConfig = {
         apiKey: "AIzaSyCCzUL2v915_YGQxNocncUtBAHDKNyyNPI",
         authDomain: "dentoschedule.firebaseapp.com",
         projectId: "dentoschedule",
-        storageBucket: "dentoschedule.firebasestorage.app",
         messagingSenderId: "561930604700",
         appId: "1:561930604700:web:0b61415901961a42bc5d59",
         measurementId: "G-MFXGTM0LPH",
       };
 
-      // Initialize Firebase
       const app = initializeApp(firebaseConfig);
       window.auth = getAuth(app);
       window.authPersistenceReady = setPersistence(
@@ -98,7 +98,6 @@
             "
             draggable="false"
           />
-
           <p class="uni-subtitle">Al-Ameen University • College of Dentistry</p>
         </div>
 
@@ -144,11 +143,11 @@
       </form>
     </div>
 
-    <!-- Wrap your existing app content inside this main container -->
+    <!-- Main Application Container -->
     <main id="main-app" style="display: none">
       <!-- Admin Control Panel (Hidden by default) -->
       <div id="admin-panel" class="admin-panel" style="display: none">
-        <h3>Admin Dashboard</h3>
+        <h3>⚡ Admin Dashboard</h3>
         <div class="admin-actions">
           <button class="admin-btn" id="btn-edit-schedule">
             Edit Schedule
@@ -163,10 +162,51 @@
           <button class="admin-btn" id="btn-post-announcement">
             📢 Post Announcement
           </button>
+          <button class="admin-btn" id="btn-upload-lofi">
+            🎧 Upload Lo-Fi MP3
+          </button>
         </div>
       </div>
 
-      <!-- Admin Modal: Upload PDF (Hidden by default) -->
+        <!-- Admin Modal: Upload Lo-Fi MP3 -->
+        <div id="modal-upload-lofi" class="admin-modal" style="display: none">
+          <div class="modal-content">
+            <h3>Upload Lo-Fi MP3</h3>
+            <label for="lofi-file">Select an MP3 file:</label>
+            <input
+              id="lofi-file"
+              class="admin-input"
+              type="file"
+              accept=".mp3,audio/mpeg"
+            />
+            <p class="modal-help-text">
+              This replaces the current Lo-Fi track for all users.
+            </p>
+            <p
+              id="lofi-upload-status"
+              class="modal-help-text"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div class="modal-actions">
+              <button id="btn-submit-lofi" class="admin-btn" type="button">
+                Upload Track
+              </button>
+              <button id="btn-delete-lofi" class="admin-btn cancel-btn" type="button">
+                Delete Current Track
+              </button>
+              <button
+                id="btn-cancel-lofi"
+                class="admin-btn cancel-btn"
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Modal: Upload PDF -->
       <div id="modal-upload-pdf" class="admin-modal" style="display: none">
         <div class="modal-content">
           <h3>Upload Lecture PDF</h3>
@@ -182,8 +222,6 @@
             <option value="general-surgery">General Surgery</option>
             <option value="oral-pathology">Oral Pathology</option>
             <option value="conservative">Conservative</option>
-
-            <!-- We can add the rest of the 4th-year subjects here later -->
           </select>
 
           <label for="pdf-name">Document Name:</label>
@@ -231,7 +269,8 @@
           </div>
         </div>
       </div>
-      <!-- Admin Modal: Add Quiz (Hidden by default) -->
+
+      <!-- Admin Modal: Add Quiz -->
       <div id="modal-add-quiz" class="admin-modal" style="display: none">
         <div class="modal-content">
           <h3>Add Interactive Quiz</h3>
@@ -273,9 +312,11 @@
           </div>
         </div>
       </div>
+
+      <!-- Admin Modal: Edit Schedule & Alerts -->
       <div id="modal-edit-schedule" class="admin-modal" style="display: none">
         <div class="modal-content">
-          <h3>Edit Schedule & Alerts</h3>
+          <h3>Edit Schedule &amp; Alerts</h3>
 
           <label for="edit-subject">Select Subject:</label>
           <select id="edit-subject" class="admin-input">
@@ -290,11 +331,11 @@
             <option value="conservative">Conservative</option>
           </select>
 
-          <label for="alert-text">Temporary Alert (Optional):</label>
+          <label for="alert-text">Temporary Alert (Leave blank to clear):</label>
           <input
             type="text"
             id="alert-text"
-            placeholder="e.g., Contains an exam! ⚠️"
+            placeholder="e.g., Midterm Exam Lec 1-4! ⚠️"
             class="admin-input"
           />
 
@@ -309,7 +350,8 @@
           </div>
         </div>
       </div>
-      <!-- Admin Modal: Post Announcement (Hidden by default) -->
+
+      <!-- Admin Modal: Post Announcement -->
       <div
         id="modal-post-announcement"
         class="admin-modal"
@@ -350,7 +392,7 @@
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
-                max-height: 300px;
+                max-height: 260px;
                 overflow-y: auto;
               "
             ></div>
@@ -364,7 +406,7 @@
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
-                max-height: 300px;
+                max-height: 260px;
                 overflow-y: auto;
               "
             ></div>
@@ -373,7 +415,8 @@
           <div class="modal-actions">
             <button
               id="btn-close-subject-view"
-              class="admin-btn admin-btn-cancel"
+              class="admin-btn cancel-btn"
+              type="button"
             >
               Close
             </button>
@@ -381,17 +424,47 @@
         </div>
       </div>
 
-      <!-- Study Timer Modal -->
+      <!-- NEW: 4th-Year Clinical Requirements Tracker Modal -->
+      <div id="modal-clinic-log" class="admin-modal" style="display: none">
+        <div class="modal-content clinic-log-modal">
+          <h3>🦷 4th-Year Clinical Logbook</h3>
+          <p class="clinic-log-subtitle">
+            Track your completed clinical requirements (saved automatically to your phone).
+          </p>
+          <div id="clinic-requirements-list" class="clinic-req-list">
+            <!-- Populated dynamically by script.js -->
+          </div>
+          <div class="modal-actions">
+            <button
+              id="btn-reset-clinic-log"
+              class="admin-btn cancel-btn"
+              type="button"
+              style="background-color: #94a3b8; font-size: 0.8rem"
+            >
+              Reset Counts
+            </button>
+            <button
+              id="btn-close-clinic-log"
+              class="admin-btn"
+              type="button"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Study Timer Modal (With Web Audio Focus Sound) -->
       <div id="pomodoro-modal" class="pomodoro-wrapper" style="display: none">
         <div class="pomodoro-card">
-          <h2>Study Timer</h2>
+          <h2>🍅 Study Timer</h2>
           <div id="time-display" class="timer-display">25:00</div>
           <div class="timer-modes">
             <button id="btn-mode-study" class="mode-btn active" type="button">
-              Study
+              Study (25m)
             </button>
             <button id="btn-mode-break" class="mode-btn" type="button">
-              Break
+              Break (5m)
             </button>
           </div>
           <div class="timer-controls">
@@ -409,181 +482,187 @@
               Reset
             </button>
           </div>
+
           <button
             id="btn-close-pomodoro"
             class="admin-btn cancel-btn"
             type="button"
-            style="margin-top: 12px"
+            style="margin-top: 10px; width: 100%"
           >
             Close
           </button>
         </div>
       </div>
-      <div
-        style="
-          text-align: center;
-          margin-bottom: 15px;
-          display: flex;
-          justify-content: center;
-          flex-wrap: wrap;
-          gap: 10px;
-        "
-      >
+
+      <!-- Top Quick-Action Toolbar -->
+      <div class="quick-toolbar">
         <button
           id="btn-open-pomodoro"
-          class="admin-btn"
-          style="
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            margin: 0;
-          "
+          class="admin-btn toolbar-btn"
+          style="background-color: #e74c3c"
         >
           🍅 Study Time
         </button>
 
         <button
-          id="btn-open-game"
-          class="admin-btn"
-          onclick="openGameMenu()"
-          style="
-            background-color: #2c3e50;
-            color: white;
-            border: none;
-            margin: 0;
-          "
+          id="btn-focus-sound"
+          class="admin-btn toolbar-btn"
+          type="button"
+          style="background-color: #7c3aed"
         >
-          🎮 Play Drift
+          🎧 Lo-Fi Beats: OFF
+        </button>
+
+        <button
+          id="btn-theme-toggle"
+          class="admin-btn toolbar-btn theme-toggle-btn"
+          type="button"
+        >
+          🌙 Dark Mode
+        </button>
+
+        <button
+          id="btn-open-clinic-log"
+          class="admin-btn toolbar-btn"
+          type="button"
+          style="background-color: #2563eb"
+        >
+          🦷 Clinic Log
         </button>
 
         <a
           id="btn-open-id-qr"
-          class="admin-btn"
+          class="admin-btn toolbar-btn"
           href="#"
           target="_blank"
           rel="noopener noreferrer"
-          style="
-            background-color: #16a085;
-            color: white;
-            border: none;
-            margin: 0;
-            text-decoration: none;
-          "
+          style="background-color: #0d9488; text-decoration: none"
         >
           ID🪪 no.&amp;QR
         </a>
 
         <button
           id="btn-logout"
-          class="admin-btn"
+          class="admin-btn toolbar-btn"
           type="button"
-          style="background-color: #7f1d1d; color: white; border: none; margin: 0"
+          style="background-color: #7f1d1d"
         >
           Log out
         </button>
       </div>
 
-      <!-- ... (YOUR EXISTING HEADER, DATE RIBBON, AND SCHEDULE CODE GOES HERE) ... -->
-
-      <header>
-        <h1>Class Schedule</h1>
-
-        <p>4th Year Dentistry</p>
+      <!-- Interactive 3D Hero Header -->
+      <header class="hero-header">
+        <div class="hero-3d-wrapper" title="Drag to spin 3D Tooth!">
+          <canvas id="header-3d-canvas" width="90" height="90"></canvas>
+        </div>
+        <div class="hero-text-wrapper">
+          <h1>Class Schedule</h1>
+          <p>4th Year Dentistry • Al-Ameen University</p>
+        </div>
       </header>
+
       <!-- Live Alert Banner (Hidden by default) -->
       <div
         id="live-alert-banner"
-        style="
-          display: none;
-          background-color: #fcf8e3;
-          border-left: 5px solid #f39c12;
-          padding: 12px 15px;
-          margin: 0 0 20px 0;
-          border-radius: 6px;
-          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
-          align-items: center;
-          gap: 8px;
-        "
+        class="live-alert-banner"
+        style="display: none"
       >
-        <span style="font-size: 18px">🚨</span>
-        <span
-          style="
-            font-weight: 700;
-            color: #8a6d3b;
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-          "
-          >UPDATE:</span
-        >
-        <span
-          id="live-alert-text"
-          style="color: #333333; font-size: 14px; font-weight: 600"
-        ></span>
+        <span class="live-alert-icon">🚨</span>
+        <span class="live-alert-label">UPDATE:</span>
+        <span id="live-alert-text" class="live-alert-text"></span>
       </div>
-      <!-- DYNAMIC CALENDAR CONTAINER -->
+
+      <!-- NEW: Global Upcoming Exams & Alerts Radar Strip -->
+      <div
+        id="upcoming-exams-radar"
+        class="exams-radar-container"
+        style="display: none"
+      >
+        <!-- Automatically populated by script.js when any subject has an active alert -->
+      </div>
+
+      <!-- DYNAMIC 10-DAY CALENDAR CONTAINER -->
       <div
         id="dynamic-calendar-container"
-        style="
-          display: flex;
-          gap: 12px;
-          justify-content: flex-start;
-          overflow-x: auto;
-          padding: 10px 20px;
-        "
+        class="date-ribbon"
       >
-        <!-- JavaScript will automatically generate the Iraq dates and badges here -->
+        <!-- JavaScript automatically generates the Iraq dates and badges here -->
       </div>
 
       <!-- Saturday Schedule Cards -->
       <section
         id="schedule-saturday"
         class="schedule-container"
+        data-day-name="Sat"
         style="display: none"
       >
-        <div class="time-block">
+        <div class="time-block" data-start="08:00" data-end="09:00">
           <div class="time">8:00 - 9:00 AM</div>
-          <div id="card_orthodontics" class="subject-card">
-            <h2>
-              Orthodontics
-              <span id="badge-orthodontics" style="display: none"></span>
-            </h2>
+          <div
+            id="card_orthodontics"
+            class="subject-card"
+            data-subject="orthodontics"
+          >
+            <div class="card-top-row">
+              <h2>
+                Orthodontics
+                <span id="badge-orthodontics" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="orthodontics"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="09:00" data-end="10:00">
           <div class="time">9:00 - 10:00 AM</div>
-          <div id="card_periodontics" class="subject-card">
-            <h2>
-              Periodontics
-              <span id="badge-periodontics" style="display: none"></span>
-            </h2>
+          <div
+            id="card_periodontics"
+            class="subject-card"
+            data-subject="periodontics"
+          >
+            <div class="card-top-row">
+              <h2>
+                Periodontics
+                <span id="badge-periodontics" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="periodontics"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="10:00" data-end="12:00">
           <div class="time">10:00 - 12:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="orthodontics">
               <h3>Group A</h3>
               <p>Orthodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="periodontics">
               <h3>Group B</h3>
               <p>Periodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="12:00" data-end="14:00">
           <div class="time">12:00 - 2:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="periodontics">
               <h3>Group A</h3>
               <p>Periodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="orthodontics">
               <h3>Group B</h3>
               <p>Orthodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
@@ -593,51 +672,75 @@
       <section
         id="schedule-sunday"
         class="schedule-container"
+        data-day-name="Sun"
         style="display: none"
       >
-        <div class="time-block">
+        <div class="time-block" data-start="08:00" data-end="09:00">
           <div class="time">8:00 - 9:00 AM</div>
-          <div id="card_prosthodontics" class="subject-card">
-            <h2>
-              Prosthodontics
-              <span id="badge-prosthodontics" style="display: none"></span>
-            </h2>
+          <div
+            id="card_prosthodontics"
+            class="subject-card"
+            data-subject="prosthodontics"
+          >
+            <div class="card-top-row">
+              <h2>
+                Prosthodontics
+                <span id="badge-prosthodontics" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="prosthodontics"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="09:00" data-end="10:00">
           <div class="time">9:00 - 10:00 AM</div>
-          <div id="card_pedodontics" class="subject-card">
-            <h2>
-              Pedodontics
-              <span id="badge-pedodontics" style="display: none"></span>
-            </h2>
+          <div
+            id="card_pedodontics"
+            class="subject-card"
+            data-subject="pedodontics"
+          >
+            <div class="card-top-row">
+              <h2>
+                Pedodontics
+                <span id="badge-pedodontics" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="pedodontics"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="10:00" data-end="12:00">
           <div class="time">10:00 - 12:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="prosthodontics">
               <h3>Group A</h3>
               <p>Prosthodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="pedodontics">
               <h3>Group B</h3>
               <p>Pedodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="12:00" data-end="14:00">
           <div class="time">12:00 - 2:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="pedodontics">
               <h3>Group A</h3>
               <p>Pedodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="prosthodontics">
               <h3>Group B</h3>
               <p>Prosthodontics</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
@@ -647,92 +750,140 @@
       <section
         id="schedule-monday"
         class="schedule-container"
+        data-day-name="Mon"
         style="display: block"
       >
-        <div class="time-block">
+        <div class="time-block" data-start="08:00" data-end="09:00">
           <div class="time">8:00 - 9:00 AM</div>
-          <div id="card-general-medicine" class="subject-card">
-            <h2>
-              General Medicine
-              <span id="badge-general-medicine" style="display: none"></span>
-            </h2>
+          <div
+            id="card-general-medicine"
+            class="subject-card"
+            data-subject="general-medicine"
+          >
+            <div class="card-top-row">
+              <h2>
+                General Medicine
+                <span id="badge-general-medicine" style="display: none"></span>
+              </h2>
+              <div
+                class="resource-pills"
+                data-pills-for="general-medicine"
+              ></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
 
-        <div class="time-block">
+        <div class="time-block" data-start="09:00" data-end="10:00">
           <div class="time">9:00 - 10:00 AM</div>
-          <div id="card-oral-surgery" class="subject-card">
-            <h2>
-              Oral Surgery
-              <span id="badge-oral-surgery" style="display: none"></span>
-            </h2>
+          <div
+            id="card-oral-surgery"
+            class="subject-card"
+            data-subject="oral-surgery"
+          >
+            <div class="card-top-row">
+              <h2>
+                Oral Surgery
+                <span id="badge-oral-surgery" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="oral-surgery"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
 
-        <div class="time-block">
+        <div class="time-block" data-start="10:00" data-end="12:00">
           <div class="time">10:00 - 12:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="oral-surgery">
               <h3>Group A</h3>
               <p>Oral Surgery Lab</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="oral-surgery">
               <h3>Group B</h3>
               <p>Oral Surgery Lab</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
       </section>
+
       <!-- Tuesday Schedule Cards -->
       <section
         id="schedule-tuesday"
         class="schedule-container"
+        data-day-name="Tue"
         style="display: none"
       >
-        <div class="time-block">
+        <div class="time-block" data-start="08:00" data-end="09:00">
           <div class="time">8:00 - 9:00 AM</div>
-          <div id="card-general-surgery" class="subject-card">
-            <h2>
-              General Surgery
-              <span id="badge-general-surgery" style="display: none"></span>
-            </h2>
+          <div
+            id="card-general-surgery"
+            class="subject-card"
+            data-subject="general-surgery"
+          >
+            <div class="card-top-row">
+              <h2>
+                General Surgery
+                <span id="badge-general-surgery" style="display: none"></span>
+              </h2>
+              <div
+                class="resource-pills"
+                data-pills-for="general-surgery"
+              ></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="09:00" data-end="10:00">
           <div class="time">9:00 - 10:00 AM</div>
-          <div id="card-oral-pathology" class="subject-card">
-            <h2>
-              Oral Pathology
-              <span id="badge-oral-pathology" style="display: none"></span>
-            </h2>
+          <div
+            id="card-oral-pathology"
+            class="subject-card"
+            data-subject="oral-pathology"
+          >
+            <div class="card-top-row">
+              <h2>
+                Oral Pathology
+                <span id="badge-oral-pathology" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="oral-pathology"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="10:00" data-end="12:00">
           <div class="time">10:00 - 12:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="oral-pathology">
               <h3>Group A</h3>
               <p>Oral Pathology</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col free-slot">
               <h3>Group B</h3>
               <p>-</p>
             </div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="12:00" data-end="14:00">
           <div class="time">12:00 - 2:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col free-slot">
               <h3>Group A</h3>
               <p>-</p>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="oral-pathology">
               <h3>Group B</h3>
               <p>Oral Pathology</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
@@ -742,42 +893,55 @@
       <section
         id="schedule-wednesday"
         class="schedule-container"
+        data-day-name="Wed"
         style="display: none"
       >
-        <div class="time-block">
+        <div class="time-block" data-start="08:00" data-end="09:00">
           <div class="time">8:00 - 9:00 AM</div>
-          <div id="card_conservative" class="subject-card">
-            <h2>
-              Conservative
-              <span id="badge-conservative" style="display: none"></span>
-            </h2>
+          <div
+            id="card_conservative"
+            class="subject-card"
+            data-subject="conservative"
+          >
+            <div class="card-top-row">
+              <h2>
+                Conservative
+                <span id="badge-conservative" style="display: none"></span>
+              </h2>
+              <div class="resource-pills" data-pills-for="conservative"></div>
+            </div>
+            <div class="live-lecture-bar"></div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="10:00" data-end="12:00">
           <div class="time">10:00 - 12:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col" data-subject="conservative">
               <h3>Group A</h3>
               <p>Conservative</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col free-slot">
               <h3>Group B</h3>
               <p>-</p>
             </div>
           </div>
         </div>
-        <div class="time-block">
+
+        <div class="time-block" data-start="12:00" data-end="14:00">
           <div class="time">12:00 - 2:00 PM</div>
           <div class="subject-card split-group">
-            <div class="group-col">
+            <div class="group-col free-slot">
               <h3>Group A</h3>
               <p>-</p>
             </div>
             <div class="divider"></div>
-            <div class="group-col">
+            <div class="group-col" data-subject="conservative">
               <h3>Group B</h3>
               <p>Conservative</p>
+              <span class="lab-tap-hint">Tap for files →</span>
             </div>
           </div>
         </div>
@@ -786,7 +950,7 @@
       <!-- Subtle Contact Footer -->
       <footer class="app-footer">
         <p>
-          Developed & Managed by 
+          Developed &amp; Managed by
           <strong>Mustafa Mahdi</strong>
         </p>
         <a href="mailto:mustafa.mahdi.hu@gmail.com" class="contact-link"
@@ -794,272 +958,7 @@
         >
       </footer>
     </main>
-    <!-- Closing the main app container -->
+
     <script type="module" src="script.js"></script>
-    <!-- Game Selection Overlay -->
-    <div
-      id="game-selection-overlay"
-      style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.85);
-        z-index: 99999;
-        justify-content: center;
-        align-items: center;
-      "
-    >
-      <div
-        style="
-          position: relative;
-          width: 95%;
-          max-width: 400px;
-          background: #fff;
-          padding: 10px;
-          border-radius: 8px;
-        "
-      >
-        <!-- The Image -->
-        <img
-          src="watermarked_img_13301361789905492204.jpg"
-          alt="Car Selection"
-          style="width: 100%; display: block; border-radius: 4px"
-        />
-
-        <!-- Invisible Hitbox Buttons -->
-        <!-- G37 Hitbox (Top Left) -->
-        <button
-          class="car-hitbox"
-          onclick="startGame('g37')"
-          style="top: 5%; left: 5%; width: 42%; height: 45%"
-        ></button>
-
-        <!-- Skyline Hitbox (Top Right) -->
-        <button
-          class="car-hitbox"
-          onclick="startGame('skyline')"
-          style="top: 5%; right: 5%; width: 42%; height: 45%"
-        ></button>
-
-        <!-- Accent Hitbox (Bottom) -->
-        <button
-          class="car-hitbox"
-          onclick="startGame('accent')"
-          style="top: 55%; left: 20%; width: 60%; height: 35%"
-        ></button>
-
-        <button
-          class="admin-btn cancel-btn"
-          onclick="closeGameMenu()"
-          style="width: 100%; margin-top: 10px"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-    <!-- Game Canvas Overlay (Hidden by default) -->
-    <div
-      id="game-canvas-overlay"
-      style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: #1a1a1a;
-        z-index: 999999;
-        flex-direction: column;
-        align-items: center;
-      "
-    >
-      <!-- Game UI Top Bar -->
-      <div
-        style="
-          width: 100%;
-          max-width: 800px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 10px;
-          color: white;
-          font-family: monospace;
-          font-size: 18px;
-        "
-      >
-        <div id="game-score"></div>
-        <button
-          class="admin-btn cancel-btn"
-          onclick="quitGame()"
-          style="margin: 0; padding: 5px 15px"
-        >
-          Quit 峠
-        </button>
-      </div>
-
-      <!-- The Actual Game Engine Screen -->
-      <canvas
-        id="drift-canvas"
-        width="600"
-        height="800"
-        style="
-          background-color: #2c3e50;
-          border: 4px solid #fff;
-          border-radius: 8px;
-          max-width: 95%;
-          max-height: 80vh;
-          box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        "
-      ></canvas>
-
-      <!-- Mobile Game Controls (3-Button Arcade Layout) -->
-      <div
-        style="
-          display: flex;
-          gap: 10px;
-          margin-top: 20px;
-          width: 95%;
-          max-width: 600px;
-          justify-content: space-between;
-          user-select: none;
-        "
-      >
-        <!-- Steering (Left Thumb) -->
-        <div style="display: flex; gap: 10px; flex: 2">
-          <button
-            class="admin-btn"
-            style="
-              flex: 1;
-              padding: 25px 0;
-              font-size: 24px;
-              margin: 0;
-              background-color: #34495e;
-            "
-            ontouchstart="input.left=true; event.preventDefault()"
-            ontouchend="input.left=false"
-            onmousedown="input.left = true"
-            onmouseup="input.left = false"
-          >
-            ⬅️
-          </button>
-
-          <button
-            class="admin-btn"
-            style="
-              flex: 1;
-              padding: 25px 0;
-              font-size: 24px;
-              margin: 0;
-              background-color: #34495e;
-            "
-            ontouchstart="input.right=true; event.preventDefault()"
-            ontouchend="input.right=false"
-            onmousedown="input.right = true"
-            onmouseup="input.right = false"
-          >
-            ➡️
-          </button>
-        </div>
-
-        <!-- Gas Pedal (Right Thumb) -->
-        <button
-          class="admin-btn"
-          style="
-            flex: 1.5;
-            padding: 25px 0;
-            font-size: 20px;
-            margin: 0;
-            background-color: #27ae60;
-          "
-          ontouchstart="input.gas=true; event.preventDefault()"
-          ontouchend="input.gas=false"
-          onmousedown="input.gas = true"
-          onmouseup="input.gas = false"
-        >
-          ⏫ Drift Gas
-        </button>
-      </div>
-      <!-- Post-Race Leaderboard Modal (Hidden by default) -->
-      <!-- Post-Race Leaderboard Modal (Database Ready) -->
-      <div
-        id="scoreboard-modal"
-        class="scoreboard-modal"
-        style="
-          display: none;
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background-color: #2c3e50;
-          border: 4px solid #f1c40f;
-          border-radius: 10px;
-          padding: 20px;
-          width: 90%;
-          max-width: 500px;
-          z-index: 1000000;
-        "
-      >
-        <h2
-          style="
-            color: #f1c40f;
-            margin-top: 0;
-            text-align: center;
-            font-family: monospace;
-          "
-        >
-          🏁 RACE FINISHED 🏁
-        </h2>
-        <h3
-          class="scoreboard-final-score"
-          style="color: white; font-family: monospace; margin: 5px 0"
-        >
-          Final Score:
-          <span id="final-score-display" style="color: #2ecc71">0</span>
-        </h3>
-
-        <div
-          style="
-            width: 100%;
-            background-color: #1a252f;
-            border-radius: 5px;
-            margin: 15px 0;
-            padding: 10px;
-          "
-        >
-          <h4
-            style="
-              color: #bdc3c7;
-              margin: 0 0 10px 0;
-              text-align: center;
-              border-bottom: 1px solid #7f8c8d;
-              padding-bottom: 5px;
-              font-family: monospace;
-            "
-          >
-            AL-AMEEN LIVE LEADERBOARD
-          </h4>
-
-          <!-- JS will inject the live database rows here -->
-          <div id="leaderboard-list" style="width: 100%">
-            <div
-              style="text-align: center; color: white; font-family: monospace"
-            >
-              Connecting to server...
-            </div>
-          </div>
-        </div>
-
-        <button
-          class="admin-btn scoreboard-close"
-          style="background-color: #e74c3c; padding: 10px 20px; font-size: 18px"
-          onclick="quitGame()"
-        >
-          Close & Return
-        </button>
-      </div>
-    </div>
   </body>
 </html>
