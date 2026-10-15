@@ -45,6 +45,12 @@
         orderBy,
         limit,
       } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+      import {
+        getStorage,
+        ref,
+        uploadBytes,
+        getDownloadURL,
+      } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
 
       const firebaseConfig = {
         apiKey: "AIzaSyCCzUL2v915_YGQxNocncUtBAHDKNyyNPI",
@@ -78,6 +84,10 @@
       window.orderBy = orderBy;
       window.limit = limit;
       window.updatePassword = updatePassword;
+      window.storage = getStorage(app);
+      window.storageRef = ref;
+      window.uploadBytes = uploadBytes;
+      window.getDownloadURL = getDownloadURL;
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
   </head>
@@ -163,10 +173,42 @@
           <button class="admin-btn" id="btn-post-announcement">
             📢 Post Announcement
           </button>
+          <button class="admin-btn" id="btn-upload-lofi">
+            🎧 Upload Lo-Fi MP3
+          </button>
         </div>
       </div>
 
-      <!-- Admin Modal: Upload PDF -->
+        <!-- Admin Modal: Upload Lo-Fi MP3 -->
+        <div id="modal-upload-lofi" class="admin-modal" style="display: none">
+          <div class="modal-content">
+            <h3>Upload Lo-Fi MP3</h3>
+            <label for="lofi-file">Select an MP3 file:</label>
+            <input
+              id="lofi-file"
+              class="admin-input"
+              type="file"
+              accept=".mp3,audio/mpeg"
+            />
+            <p class="modal-help-text">
+              This replaces the current Lo-Fi track for all users.
+            </p>
+            <div class="modal-actions">
+              <button id="btn-submit-lofi" class="admin-btn" type="button">
+                Upload Track
+              </button>
+              <button
+                id="btn-cancel-lofi"
+                class="admin-btn cancel-btn"
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Modal: Upload PDF -->
       <div id="modal-upload-pdf" class="admin-modal" style="display: none">
         <div class="modal-content">
           <h3>Upload Lecture PDF</h3>

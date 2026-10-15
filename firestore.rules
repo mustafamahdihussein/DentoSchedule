@@ -41,6 +41,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /AudioSettings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /AdminControl/{controlId} {
       allow read: if request.auth != null;
       allow write: if isAdmin() || isPhantom();

@@ -895,6 +895,73 @@ const btnCancelAnnouncement = document.getElementById(
 const btnSubmitAnnouncement = document.getElementById(
   "btn-submit-announcement",
 );
+const modalUploadLofi = document.getElementById("modal-upload-lofi");
+const btnUploadLofi = document.getElementById("btn-upload-lofi");
+const btnSubmitLofi = document.getElementById("btn-submit-lofi");
+const btnCancelLofi = document.getElementById("btn-cancel-lofi");
+const lofiFileInput = document.getElementById("lofi-file");
+
+if (btnUploadLofi) {
+  btnUploadLofi.addEventListener("click", () => {
+    if (modalUploadLofi) modalUploadLofi.style.display = "flex";
+  });
+}
+
+if (btnCancelLofi) {
+  btnCancelLofi.addEventListener("click", () => {
+    if (modalUploadLofi) modalUploadLofi.style.display = "none";
+    if (lofiFileInput) lofiFileInput.value = "";
+  });
+}
+
+if (btnSubmitLofi) {
+  btnSubmitLofi.addEventListener("click", async () => {
+    const file = lofiFileInput?.files?.[0];
+    const isMp3 =
+      file &&
+      (file.type === "audio/mpeg" || /\.mp3$/i.test(file.name));
+    if (!isMp3) {
+      alert("Please select a valid MP3 file.");
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      alert("Please choose an MP3 file smaller than 25 MB.");
+      return;
+    }
+
+    try {
+      if (!(await requireAdminSession())) return;
+      if (
+        !window.storage ||
+        !window.storageRef ||
+        !window.uploadBytes ||
+        !window.getDownloadURL
+      ) {
+        throw new Error("Firebase Storage is unavailable.");
+      }
+
+      const trackRef = window.storageRef(window.storage, "lofi/current.mp3");
+      await window.uploadBytes(trackRef, file, {
+        contentType: "audio/mpeg",
+        cacheControl: "public,max-age=300",
+      });
+      const downloadUrl = await window.getDownloadURL(trackRef);
+      await window.setDoc(window.doc(window.db, "AudioSettings", "lofi"), {
+        url: downloadUrl,
+        name: file.name,
+        timestamp: new Date().toISOString(),
+      });
+
+      await window.lofiPlayer.loadUploadedTrack(downloadUrl);
+      if (modalUploadLofi) modalUploadLofi.style.display = "none";
+      if (lofiFileInput) lofiFileInput.value = "";
+      alert("Lo-Fi MP3 uploaded and published for all users.");
+    } catch (error) {
+      console.error("Unable to upload Lo-Fi MP3.", error);
+      alert("Lo-Fi upload failed: " + error.message);
+    }
+  });
+}
 
 // --- A. Upload PDF Modal & Submit ---
 if (btnUploadPdf) {
@@ -2098,23 +2165,42 @@ function stopArcadeAudio() {
 }
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const lofiAudio = new Audio();
+lofiAudio.loop = true;
+lofiAudio.preload = "none";
 
-// A self-contained lo-fi loop keeps the focus button usable without
-// depending on a third-party stream or an additional audio file.
 const lofiPlayer = {
   isPlaying: false,
-  timer: null,
-  master: null,
-  compressor: null,
-  noiseSource: null,
-  noiseGain: null,
-  beat: 0,
-  chordOscillators: [],
   toggle() {
+    if (!lofiAudio.src) {
+      alert("No Lo-Fi MP3 has been uploaded yet.");
+      return;
+    }
     if (this.isPlaying) {
       this.stop();
     } else {
-      this.start();
+      this.start().catch((error) => {
+        console.error("Unable to play uploaded Lo-Fi track.", error);
+        this.stop();
+        alert("Unable to play the uploaded Lo-Fi track.");
+      });
+    }
+  },
+  async loadUploadedTrack(url) {
+    this.stop();
+    lofiAudio.src = url;
+    lofiAudio.load();
+  },
+  async loadSavedTrack() {
+    try {
+      const snapshot = await window.getDoc(
+        window.doc(window.db, "AudioSettings", "lofi"),
+      );
+      if (snapshot.exists() && snapshot.data().url) {
+        await this.loadUploadedTrack(snapshot.data().url);
+      }
+    } catch (error) {
+      console.error("Unable to load the uploaded Lo-Fi track.", error);
     }
   },
   updateButton() {
@@ -2124,120 +2210,19 @@ const lofiPlayer = {
       : "🎧 Lo-Fi Beats: OFF";
     btnFocusSound.classList.toggle("active", this.isPlaying);
   },
-  start() {
-    try {
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume().catch(() => {});
-      }
-
-      this.master = audioCtx.createGain();
-      this.master.gain.value = 0.14;
-      this.master.connect(audioCtx.destination);
-
-      this.compressor = audioCtx.createDynamicsCompressor();
-      this.compressor.threshold.value = -24;
-      this.compressor.knee.value = 18;
-      this.compressor.ratio.value = 4;
-      this.compressor.attack.value = 0.02;
-      this.compressor.release.value = 0.3;
-      this.compressor.connect(this.master);
-
-      const padFilter = audioCtx.createBiquadFilter();
-      padFilter.type = "lowpass";
-      padFilter.frequency.value = 1250;
-      padFilter.Q.value = 0.7;
-      padFilter.connect(this.compressor);
-
-      const chord = [146.83, 174.61, 220.0, 261.63];
-      this.chordOscillators = chord.map((frequency, index) => {
-        const oscillator = audioCtx.createOscillator();
-        oscillator.type = index === 0 ? "sine" : "triangle";
-        oscillator.frequency.value = frequency;
-        oscillator.detune.value = index % 2 ? -5 : 4;
-        const gain = audioCtx.createGain();
-        gain.gain.value = index === 0 ? 0.32 : 0.18;
-        oscillator.connect(gain);
-        gain.connect(padFilter);
-        oscillator.start();
-        return oscillator;
-      });
-
-      const noiseBuffer = audioCtx.createBuffer(
-        1,
-        audioCtx.sampleRate * 3,
-        audioCtx.sampleRate,
-      );
-      const noiseData = noiseBuffer.getChannelData(0);
-      for (let index = 0; index < noiseData.length; index++) {
-        noiseData[index] = (Math.random() * 2 - 1) * 0.035;
-      }
-      this.noiseSource = audioCtx.createBufferSource();
-      this.noiseSource.buffer = noiseBuffer;
-      this.noiseSource.loop = true;
-      const noiseFilter = audioCtx.createBiquadFilter();
-      noiseFilter.type = "lowpass";
-      noiseFilter.frequency.value = 1800;
-      this.noiseSource.connect(noiseFilter);
-      this.noiseGain = audioCtx.createGain();
-      this.noiseGain.gain.value = 0.18;
-      noiseFilter.connect(this.noiseGain);
-      this.noiseGain.connect(this.compressor);
-      this.noiseSource.start();
-
-      this.beat = 0;
-      this.timer = setInterval(() => {
-        const melody = [293.66, 349.23, 392.0, 440.0, 392.0, 349.23, 329.63, 293.66];
-        const frequency = melody[this.beat % melody.length];
-        const now = audioCtx.currentTime;
-        const note = audioCtx.createOscillator();
-        const noteGain = audioCtx.createGain();
-        const noteFilter = audioCtx.createBiquadFilter();
-        note.type = "triangle";
-        note.frequency.value = frequency;
-        note.detune.value = this.beat % 3 === 0 ? -7 : 0;
-        noteFilter.type = "lowpass";
-        noteFilter.frequency.value = 1050;
-        noteGain.gain.setValueAtTime(0.0001, now);
-        noteGain.gain.exponentialRampToValueAtTime(0.13, now + 0.035);
-        noteGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
-        note.connect(noteFilter);
-        noteFilter.connect(noteGain);
-        noteGain.connect(this.compressor);
-        note.start(now);
-        note.stop(now + 0.65);
-        this.beat++;
-      }, 600);
-
+  async start() {
+    await lofiAudio.play();
       this.isPlaying = true;
       this.updateButton();
-    } catch (error) {
-      console.error("Unable to start Lo-Fi audio.", error);
-      this.stop();
-      alert("Unable to start Lo-Fi audio. Please try again.");
-    }
   },
   stop() {
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.chordOscillators.forEach((oscillator) => oscillator.stop());
-    this.chordOscillators = [];
-    if (this.noiseSource) {
-      this.noiseSource.stop();
-      this.noiseSource = null;
-    }
-    this.noiseGain = null;
-    this.compressor = null;
-    if (this.master) {
-      this.master.disconnect();
-      this.master = null;
-    }
+    lofiAudio.pause();
     this.isPlaying = false;
     this.updateButton();
   },
 };
 window.lofiPlayer = lofiPlayer;
+lofiPlayer.loadSavedTrack();
 
 const sfx = {
   init: function () {

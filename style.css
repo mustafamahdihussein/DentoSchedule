@@ -803,6 +803,12 @@ header p,
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
 }
 
+.modal-help-text {
+  margin: 8px 0 0;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
 /* ==========================================
    7. DUAL-MODE 3D ARCADE & WEBGL HUD
    ========================================== */
