@@ -423,6 +423,83 @@ function buildSeamlessPorcelainMolarGeometry() {
     return [nx / len, ny / len, nz / len];
   }
 
+  function getVertexAO(x, y, z, normal) {
+    const tangent = Math.abs(normal[1]) < 0.9
+      ? [normal[2], 0, -normal[0]]
+      : [1, 0, 0];
+    const tangentLength =
+      Math.sqrt(
+        tangent[0] * tangent[0] +
+          tangent[1] * tangent[1] +
+          tangent[2] * tangent[2],
+      ) || 1;
+    tangent[0] /= tangentLength;
+    tangent[1] /= tangentLength;
+    tangent[2] /= tangentLength;
+
+    const bitangent = [
+      normal[1] * tangent[2] - normal[2] * tangent[1],
+      normal[2] * tangent[0] - normal[0] * tangent[2],
+      normal[0] * tangent[1] - normal[1] * tangent[0],
+    ];
+    const sampleDistance = [0.035, 0.07, 0.11];
+    const sampleDirections = [
+      [0.85, 0.38],
+      [-0.85, 0.38],
+      [0.38, 0.85],
+      [-0.38, 0.85],
+      [0, 1],
+      [0, 0.55],
+    ];
+    let occludedSamples = 0;
+
+    sampleDirections.forEach(([tangentAmount, bitangentAmount]) => {
+      const direction = [
+        normal[0] * 0.45 +
+          tangent[0] * tangentAmount +
+          bitangent[0] * bitangentAmount,
+        normal[1] * 0.45 +
+          tangent[1] * tangentAmount +
+          bitangent[1] * bitangentAmount,
+        normal[2] * 0.45 +
+          tangent[2] * tangentAmount +
+          bitangent[2] * bitangentAmount,
+      ];
+      const directionLength =
+        Math.sqrt(
+          direction[0] * direction[0] +
+            direction[1] * direction[1] +
+            direction[2] * direction[2],
+        ) || 1;
+      direction[0] /= directionLength;
+      direction[1] /= directionLength;
+      direction[2] /= directionLength;
+
+      sampleDistance.forEach((distance, index) => {
+        const sample = toothSDF(
+          x + direction[0] * distance,
+          y + direction[1] * distance,
+          z + direction[2] * distance,
+        );
+        if (sample < -0.012 * (index + 1)) occludedSamples++;
+      });
+    });
+
+    const sampledAO = occludedSamples / (sampleDirections.length * sampleDistance.length);
+    const fossaAO =
+      y > 0.38
+        ? Math.max(0, 1 - Math.sqrt(x * x + z * z) / 0.34) * 0.42
+        : 0;
+    const rootArchAO =
+      y < 0.14
+        ? Math.max(0, 1 - Math.sqrt(x * x + z * z) / 0.34) *
+          Math.max(0, Math.min(1, (0.14 - y) / 0.28)) *
+          0.5
+        : 0;
+
+    return Math.min(1, sampledAO * 0.9 + fossaAO + rootArchAO);
+  }
+
   const nx = 42,
     ny = 52,
     nz = 42;
@@ -454,6 +531,7 @@ function buildSeamlessPorcelainMolarGeometry() {
 
   const vertices = [];
   const normals = [];
+  const vertexAO = [];
   const indices = [];
   const edgeCache = new Map();
 
@@ -477,9 +555,11 @@ function buildSeamlessPorcelainMolarGeometry() {
     }
 
     const finalNormal = getNormal(vx, vy, vz);
+    const ao = getVertexAO(vx, vy, vz, finalNormal);
     const vIndex = vertices.length / 3;
     vertices.push(vx, vy, vz);
     normals.push(finalNormal[0], finalNormal[1], finalNormal[2]);
+    vertexAO.push(ao);
     edgeCache.set(key, vIndex);
     return vIndex;
   }
@@ -663,6 +743,19 @@ function buildSeamlessPorcelainMolarGeometry() {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
   geo.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+  const vertexColors = [];
+  vertexAO.forEach((ao) => {
+    const shade = 1 - ao * 0.72;
+    vertexColors.push(
+      0.86 * shade + 0.08 * ao,
+      0.9 * shade + 0.13 * ao,
+      0.96 * shade + 0.2 * ao,
+    );
+  });
+  geo.setAttribute(
+    "color",
+    new THREE.Float32BufferAttribute(vertexColors, 3),
+  );
   geo.setIndex(indices);
   return geo;
 }
@@ -692,16 +785,16 @@ function initHeader3DMascot() {
   const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 100);
   camera.position.set(0, 0.0, 4.45);
 
-  // Pure white & soft silver studio lighting (eliminates the cyan/blue stain on the tooth)
-  const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.95);
+  // Keep the base light low so the fossa, waist, and furcation retain deep shadows.
+  const hemiLight = new THREE.HemisphereLight(0x9aa8bc, 0x111827, 0.32);
   hemiLight.position.set(0, 5, 0);
   scene.add(hemiLight);
 
-  mascotKeyLight = new THREE.DirectionalLight(0xffffff, 1.15);
+  mascotKeyLight = new THREE.DirectionalLight(0xdbeafe, 0.9);
   mascotKeyLight.position.set(2.8, 4.5, 4.5);
   scene.add(mascotKeyLight);
 
-  const fillLight = new THREE.DirectionalLight(0xf1f5f9, 0.65);
+  const fillLight = new THREE.DirectionalLight(0x334155, 0.18);
   fillLight.position.set(-3.5, 1.0, 3.5);
   scene.add(fillLight);
 
@@ -713,13 +806,12 @@ function initHeader3DMascot() {
   const molarGeo = buildSeamlessPorcelainMolarGeometry();
   const porcelainMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    emissive: 0xffffff,
-    emissiveIntensity: 0.12,
-    roughness: 0.12,
+    vertexColors: true,
+    roughness: 0.22,
     metalness: 0.02,
     clearcoat: 1.0,
     clearcoatRoughness: 0.05,
-    reflectivity: 1.0,
+    reflectivity: 0.72,
   });
 
   const molarMesh = new THREE.Mesh(molarGeo, porcelainMat);
@@ -1625,6 +1717,11 @@ if (window.onSnapshot && window.db && window.collection) {
 // ==========================================
 const pomodoroModal = document.getElementById("pomodoro-modal");
 const btnOpenPomodoro = document.getElementById("btn-open-pomodoro");
+const btnFocusSound = document.getElementById("btn-focus-sound");
+
+if (btnFocusSound) {
+  btnFocusSound.addEventListener("click", () => window.lofiPlayer.toggle());
+}
 
 if (pomodoroModal && btnOpenPomodoro) {
   const btnClosePomodoro = document.getElementById("btn-close-pomodoro");
@@ -1634,7 +1731,6 @@ if (pomodoroModal && btnOpenPomodoro) {
   const btnTimerStart = document.getElementById("btn-timer-start");
   const btnTimerPause = document.getElementById("btn-timer-pause");
   const btnTimerReset = document.getElementById("btn-timer-reset");
-  const btnFocusSound = document.getElementById("btn-focus-sound");
 
   const timerStorageKey = "dento_pomodoro_timer";
   let timerInterval;
@@ -1643,11 +1739,6 @@ if (pomodoroModal && btnOpenPomodoro) {
   let currentMode = "study";
   let endTime = null;
   let screenWakeLock = null;
-
-  if (btnFocusSound) {
-    btnFocusSound.textContent = "🎧 Lo-Fi Chill Beats: OFF";
-    btnFocusSound.addEventListener("click", () => lofiPlayer.toggle());
-  }
 
   async function requestScreenWakeLock() {
     if (
@@ -2015,6 +2106,122 @@ function stopArcadeAudio() {
 }
 
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+// A small self-contained lo-fi loop keeps the focus button usable without
+// depending on a third-party stream or an additional audio file.
+const lofiPlayer = {
+  isPlaying: false,
+  step: 0,
+  timer: null,
+  master: null,
+  oscillators: [],
+  noiseSource: null,
+  toggle() {
+    if (this.isPlaying) {
+      this.stop();
+    } else {
+      this.start();
+    }
+  },
+  updateButton() {
+    if (!btnFocusSound) return;
+    btnFocusSound.textContent = this.isPlaying
+      ? "🎧 Lo-Fi Beats: ON"
+      : "🎧 Lo-Fi Beats: OFF";
+    btnFocusSound.classList.toggle("active", this.isPlaying);
+  },
+  start() {
+    try {
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+
+      this.master = audioCtx.createGain();
+      this.master.gain.value = 0.08;
+      this.master.connect(audioCtx.destination);
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 1800;
+      filter.Q.value = 0.4;
+      filter.connect(this.master);
+
+      const notes = [261.63, 329.63, 392.0, 493.88];
+      this.oscillators = notes.map((frequency, index) => {
+        const oscillator = audioCtx.createOscillator();
+        oscillator.type = index % 2 ? "triangle" : "sine";
+        oscillator.frequency.value = frequency;
+        oscillator.detune.value = index * 2 - 3;
+        oscillator.connect(filter);
+        oscillator.start();
+        return oscillator;
+      });
+
+      const noiseBuffer = audioCtx.createBuffer(
+        1,
+        audioCtx.sampleRate * 2,
+        audioCtx.sampleRate,
+      );
+      const noiseData = noiseBuffer.getChannelData(0);
+      for (let index = 0; index < noiseData.length; index++) {
+        noiseData[index] = (Math.random() * 2 - 1) * 0.12;
+      }
+      this.noiseSource = audioCtx.createBufferSource();
+      this.noiseSource.buffer = noiseBuffer;
+      this.noiseSource.loop = true;
+      const noiseFilter = audioCtx.createBiquadFilter();
+      noiseFilter.type = "lowpass";
+      noiseFilter.frequency.value = 900;
+      this.noiseSource.connect(noiseFilter);
+      noiseFilter.connect(this.master);
+      this.noiseSource.start();
+
+      this.step = 0;
+      this.timer = setInterval(() => {
+        const progression = [
+          [261.63, 329.63, 392.0, 493.88],
+          [220.0, 261.63, 329.63, 440.0],
+          [174.61, 220.0, 261.63, 349.23],
+          [196.0, 246.94, 293.66, 392.0],
+        ][this.step++ % 4];
+        this.oscillators.forEach((oscillator, index) => {
+          oscillator.frequency.setTargetAtTime(
+            progression[index],
+            audioCtx.currentTime,
+            0.25,
+          );
+        });
+      }, 4000);
+
+      this.isPlaying = true;
+      this.updateButton();
+    } catch (error) {
+      console.error("Unable to start Lo-Fi audio.", error);
+      this.stop();
+      alert("Unable to start Lo-Fi audio. Please try again.");
+    }
+  },
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.oscillators.forEach((oscillator) => oscillator.stop());
+    this.oscillators = [];
+    if (this.noiseSource) {
+      this.noiseSource.stop();
+      this.noiseSource = null;
+    }
+    if (this.master) {
+      this.master.disconnect();
+      this.master = null;
+    }
+    this.isPlaying = false;
+    this.updateButton();
+  },
+};
+window.lofiPlayer = lofiPlayer;
+
 const sfx = {
   init: function () {
     if (audioCtx.state === "suspended") {
