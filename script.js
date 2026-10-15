@@ -193,7 +193,7 @@ async function watchAdminSession() {
     stopAdminSessionWatch();
     stopAdminSessionWatch = null;
   }
-  if (!window.auth || !window.auth.currentUser) return;
+  if (window.auth?.currentUser?.email !== adminEmail) return;
 
   try {
     const sessionRef = adminSessionControlRef();
@@ -202,7 +202,7 @@ async function watchAdminSession() {
 
     if (
       !sessionSnapshot.exists() &&
-      window.auth.currentUser.email === adminEmail
+      window.auth?.currentUser?.email === adminEmail
     ) {
       await window.setDoc(sessionRef, {
         version: crypto.randomUUID(),
@@ -210,6 +210,7 @@ async function watchAdminSession() {
       });
       sessionSnapshot = await window.getDoc(sessionRef);
     }
+    if (window.auth?.currentUser?.email !== adminEmail) return;
     if (sessionSnapshot.exists()) {
       sessionVersion = sessionSnapshot.data().version;
     }
@@ -227,6 +228,7 @@ async function watchAdminSession() {
         stopAdminSessionWatch();
         stopAdminSessionWatch = null;
       }
+      if (window.auth.currentUser?.email !== adminEmail) return;
       window.signOut(window.auth).then(() => {
         showEntryGateway();
         alert("The admin password changed. Please sign in again.");
@@ -240,6 +242,10 @@ async function watchAdminSession() {
 if (window.auth) {
   window.onAuthStateChanged(window.auth, (user) => {
     if (!user) {
+      if (stopAdminSessionWatch) {
+        stopAdminSessionWatch();
+        stopAdminSessionWatch = null;
+      }
       localStorage.removeItem(authSessionStartedAtKey);
       showEntryGateway();
       return;
@@ -254,7 +260,12 @@ if (window.auth) {
 
     const isAdmin = user.email === adminEmail;
     if (adminPanel) adminPanel.style.display = isAdmin ? "block" : "none";
-    watchAdminSession();
+    if (isAdmin) {
+      watchAdminSession();
+    } else if (stopAdminSessionWatch) {
+      stopAdminSessionWatch();
+      stopAdminSessionWatch = null;
+    }
     refreshAllResourceBadges();
     loadIdQrLink();
   });
@@ -2114,9 +2125,9 @@ function renderClinicLogbook() {
       <div class="clinic-req-header">
         <span class="clinic-req-title">${req.title}</span>
         <div class="clinic-req-controls">
-          <button class="clinic-step-btn" onclick="adjustClinicCount('${req.id}', -1)">-</button>
+          <button class="clinic-step-btn" data-req-id="${req.id}" data-delta="-1">-</button>
           <span class="clinic-req-count">${currentCount} / ${req.target}</span>
-          <button class="clinic-step-btn" onclick="adjustClinicCount('${req.id}', 1)">+</button>
+          <button class="clinic-step-btn" data-req-id="${req.id}" data-delta="1">+</button>
         </div>
       </div>
       <div class="clinic-progress-track">
@@ -2124,6 +2135,16 @@ function renderClinicLogbook() {
       </div>
     `;
     clinicReqList.appendChild(itemDiv);
+
+    itemDiv.querySelectorAll(".clinic-step-btn").forEach((button) => {
+      button.addEventListener("click", () => {
+        const reqId = button.getAttribute("data-req-id");
+        const delta = Number(button.getAttribute("data-delta"));
+        if (reqId && Number.isFinite(delta)) {
+          window.adjustClinicCount(reqId, delta);
+        }
+      });
+    });
   });
 }
 
@@ -2158,12 +2179,11 @@ if (btnResetClinicLog) {
 }
 
 // ==========================================
-// 11. ARCADE LEADERBOARD & 3D GAME ENGINE
+// 11. ARCADE LEADERBOARD & DUAL-MODE 3D ENGINE
 // ==========================================
 let arcadePlayerName = "";
 
 window.openGameMenu = function () {
-  if (window.lofiPlayer) window.lofiPlayer.stop();
   const playerName = prompt(
     "Enter your name for the Al-Ameen Arcade Leaderboard:",
     localStorage.getItem("dento_student") || "",
@@ -2206,7 +2226,6 @@ window.switchArcadeModeTab = function (mode) {
 };
 
 window.openStandaloneLeaderboard = function () {
-  if (window.lofiPlayer) window.lofiPlayer.stop();
   const scoreboardModal = document.getElementById("scoreboard-modal");
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   const menu = document.getElementById("game-selection-overlay");
@@ -2220,12 +2239,13 @@ window.openStandaloneLeaderboard = function () {
 
   if (heading) heading.textContent = "🏆 AL-AMEEN HIGH SCORES";
   if (finalScoreDisp) finalScoreDisp.textContent = "---";
-  if (finalSub) finalSub.textContent = "Global Hall of Fame";
+  if (finalSub) finalSub.textContent = "Global Hall of Fame (Cumulative)";
 
   if (scoreboardModal) scoreboardModal.style.display = "flex";
   fetchDriftLeaderboard();
 };
 
+// --- CAR MP3 AUDIO & WEB AUDIO SYNTHESIS ---
 const soundtrack = new Audio("soundtrack.mp3");
 soundtrack.loop = true;
 soundtrack.volume = 0.35;
@@ -2238,6 +2258,117 @@ const driftAudio = new Audio("drift.mp3");
 driftAudio.loop = true;
 driftAudio.volume = 0;
 
+let arcadeAudioCtx = null;
+
+function getArcadeAudioCtx() {
+  if (arcadeAudioCtx) return arcadeAudioCtx;
+
+  const AudioContextConstructor =
+    window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextConstructor) return null;
+
+  try {
+    arcadeAudioCtx = new AudioContextConstructor();
+  } catch (error) {
+    console.warn("Web Audio API unavailable.", error);
+    return null;
+  }
+  return arcadeAudioCtx;
+}
+
+const dentalArcadeSynth = {
+  timer: null,
+  step: 0,
+  drillOsc: null,
+  drillGain: null,
+  notes: [
+    261.63, 329.63, 392.0, 523.25, 392.0, 329.63,
+    293.66, 349.23, 440.0, 587.33, 440.0, 349.23,
+    246.94, 329.63, 392.0, 493.88, 392.0, 329.63,
+    261.63, 311.13, 392.0, 523.25, 622.25, 523.25,
+  ],
+  startMusic() {
+    this.stopMusic();
+    const audioCtx = getArcadeAudioCtx();
+    if (!audioCtx) return;
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume().catch(() => {});
+    }
+    this.step = 0;
+    this.timer = setInterval(() => {
+      try {
+        const now = audioCtx.currentTime;
+        const freq = this.notes[this.step % this.notes.length];
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = this.step % 6 === 0 ? "square" : "triangle";
+        osc.frequency.setValueAtTime(freq, now);
+        g.gain.setValueAtTime(0.045, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+
+        // Bass pulse on every 3rd step
+        if (this.step % 3 === 0) {
+          const bass = audioCtx.createOscillator();
+          const bg = audioCtx.createGain();
+          bass.type = "sawtooth";
+          bass.frequency.setValueAtTime(freq * 0.25, now);
+          bg.gain.setValueAtTime(0.055, now);
+          bg.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          bass.connect(bg);
+          bg.connect(audioCtx.destination);
+          bass.start(now);
+          bass.stop(now + 0.19);
+        }
+        this.step++;
+      } catch (e) {}
+    }, 150);
+
+    // Continuous high-speed turbine whirr node (volume controlled by Drill button)
+    try {
+      this.drillOsc = audioCtx.createOscillator();
+      this.drillGain = audioCtx.createGain();
+      this.drillOsc.type = "sine";
+      this.drillOsc.frequency.setValueAtTime(2900, audioCtx.currentTime);
+      this.drillGain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      this.drillOsc.connect(this.drillGain);
+      this.drillGain.connect(audioCtx.destination);
+      this.drillOsc.start();
+    } catch (e) {}
+  },
+  setDrillActive(isActive) {
+    if (!this.drillGain || !this.drillOsc) return;
+    const audioCtx = getArcadeAudioCtx();
+    if (!audioCtx) return;
+    try {
+      const now = audioCtx.currentTime;
+      this.drillGain.gain.setTargetAtTime(isActive ? 0.045 : 0.0001, now, 0.04);
+      this.drillOsc.frequency.setTargetAtTime(
+        isActive ? 3400 + Math.random() * 250 : 2600,
+        now,
+        0.03,
+      );
+    } catch (e) {}
+  },
+  stopMusic() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    if (this.drillOsc) {
+      try {
+        this.drillOsc.stop();
+        this.drillOsc.disconnect();
+      } catch (e) {}
+      this.drillOsc = null;
+      this.drillGain = null;
+    }
+  },
+};
+
 function stopArcadeAudio() {
   try {
     engineAudio.pause();
@@ -2245,290 +2376,30 @@ function stopArcadeAudio() {
     soundtrack.pause();
     soundtrack.currentTime = 0;
   } catch (e) {}
+  dentalArcadeSynth.stopMusic();
 }
-
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-const lofiBlobUrls = new Map();
-let lofiIndexedDbPromise;
-
-function base64ToBlob(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index++) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return new Blob([bytes], { type: "audio/mpeg" });
-}
-
-function openLofiIndexedDb() {
-  if (!("indexedDB" in window)) {
-    return Promise.reject(new Error("IndexedDB is unavailable in this browser."));
-  }
-  if (!lofiIndexedDbPromise) {
-    lofiIndexedDbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open("DentoScheduleLofi", 1);
-      request.onupgradeneeded = () => {
-        request.result.createObjectStore("blobs");
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () =>
-        reject(request.error || new Error("Unable to open IndexedDB."));
-    });
-  }
-  return lofiIndexedDbPromise;
-}
-
-async function getCachedLofiBlob(trackId) {
-  const database = await openLofiIndexedDb();
-  return new Promise((resolve, reject) => {
-    const request = database
-      .transaction("blobs", "readonly")
-      .objectStore("blobs")
-      .get(trackId);
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () =>
-      reject(request.error || new Error("Unable to read the Lo-Fi cache."));
-  });
-}
-
-async function cacheLofiBlob(trackId, blob) {
-  const database = await openLofiIndexedDb();
-  return new Promise((resolve, reject) => {
-    const request = database
-      .transaction("blobs", "readwrite")
-      .objectStore("blobs")
-      .put(blob, trackId);
-    request.onsuccess = () => resolve();
-    request.onerror = () =>
-      reject(request.error || new Error("Unable to cache the Lo-Fi track."));
-  });
-}
-
-async function deleteCachedLofiBlob(trackId) {
-  const database = await openLofiIndexedDb();
-  return new Promise((resolve, reject) => {
-    const request = database
-      .transaction("blobs", "readwrite")
-      .objectStore("blobs")
-      .delete(trackId);
-    request.onsuccess = () => resolve();
-    request.onerror = () =>
-      reject(request.error || new Error("Unable to clear the Lo-Fi cache."));
-  });
-}
-
-const lofiPlayer = {
-  isPlaying: false,
-  isLoading: false,
-  loadingPromise: null,
-  playbackRequestId: 0,
-  loadError: null,
-  currentTrackId: null,
-  decodedTrackId: null,
-  decodedAudioBuffer: null,
-  source: null,
-  toggle() {
-    if (this.isLoading) return;
-    if (this.isPlaying) {
-      this.stop();
-      return;
-    }
-
-    // Resume directly from the gesture so mobile browsers unlock audio before
-    // the asynchronous Firestore/IndexedDB work begins.
-    const resumePromise =
-      audioCtx.state === "suspended" ? audioCtx.resume() : Promise.resolve();
-    this.isLoading = true;
-    this.loadError = null;
-    this.updateButton();
-    const requestId = ++this.playbackRequestId;
-    this.loadingPromise = Promise.resolve(resumePromise)
-      .then(() => this.startPlayback(requestId))
-      .catch((error) => {
-        this.loadError = error;
-        console.error("Unable to play uploaded Lo-Fi track.", error);
-        this.isPlaying = false;
-        this.updateButton();
-        alert(
-          "Unable to play the uploaded Lo-Fi track: " +
-            (error?.message || "Unknown playback error."),
-        );
-      })
-      .finally(() => {
-        this.isLoading = false;
-        this.loadingPromise = null;
-        this.updateButton();
-      });
-  },
-  async startPlayback(requestId) {
-    const trackId = await this.getCurrentTrackId();
-    if (requestId !== this.playbackRequestId) return;
-    if (!trackId) {
-      throw new Error("No uploaded Lo-Fi track is available.");
-    }
-    if (
-      this.decodedTrackId !== trackId ||
-      !this.decodedAudioBuffer
-    ) {
-      const arrayBuffer = await this.getTrackArrayBuffer(trackId);
-      this.decodedAudioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-      this.decodedTrackId = trackId;
-    }
-    if (requestId !== this.playbackRequestId) return;
-    const source = audioCtx.createBufferSource();
-    source.buffer = this.decodedAudioBuffer;
-    source.loop = true;
-    source.connect(audioCtx.destination);
-    source.start(0);
-    this.source = source;
-    this.isPlaying = true;
-    this.updateButton();
-  },
-  async getCurrentTrackId() {
-    if (this.currentTrackId) return this.currentTrackId;
-    const metadataSnapshot = await window.getDoc(
-      window.doc(window.db, "Announcements", "lofi_meta"),
-    );
-    if (!metadataSnapshot.exists() || !metadataSnapshot.data().trackId) {
-      return null;
-    }
-    this.currentTrackId = metadataSnapshot.data().trackId;
-    return this.currentTrackId;
-  },
-  async getTrackArrayBuffer(trackId) {
-    let blob = await getCachedLofiBlob(trackId);
-    if (!blob) {
-      const metadataSnapshot = await window.getDoc(
-        window.doc(window.db, "Announcements", "lofi_meta"),
-      );
-      if (!metadataSnapshot.exists()) {
-        throw new Error("No Lo-Fi MP3 metadata was found.");
-      }
-      const metadata = metadataSnapshot.data();
-      if (metadata.trackId !== trackId || !Number.isInteger(metadata.totalChunks)) {
-        throw new Error("Lo-Fi MP3 metadata is invalid.");
-      }
-      const chunkSnapshots = await Promise.all(
-        Array.from({ length: metadata.totalChunks }, (_, index) =>
-          window.getDoc(
-            window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
-          ),
-        ),
-      );
-      const base64 = chunkSnapshots
-        .map((chunkSnapshot, index) => {
-          if (
-            !chunkSnapshot.exists() ||
-            chunkSnapshot.data().trackId !== trackId ||
-            chunkSnapshot.data().index !== index
-          ) {
-            throw new Error(`Lo-Fi MP3 chunk ${index} is missing or invalid.`);
-          }
-          return chunkSnapshot.data().data;
-        })
-        .join("");
-      blob = base64ToBlob(base64);
-      await cacheLofiBlob(trackId, blob);
-    }
-    return blob.arrayBuffer();
-  },
-  async loadUploadedTrack(trackId, cachedBase64) {
-    this.stop();
-    this.loadError = null;
-    this.currentTrackId = trackId;
-    this.decodedTrackId = null;
-    this.decodedAudioBuffer = null;
-    if (cachedBase64) {
-      await cacheLofiBlob(trackId, base64ToBlob(cachedBase64));
-    }
-  },
-  async loadSavedTrack() {
-    try {
-      const snapshot = await window.getDoc(
-        window.doc(window.db, "Announcements", "lofi_meta"),
-      );
-      if (snapshot.exists() && snapshot.data().trackId) {
-        this.currentTrackId = snapshot.data().trackId;
-      }
-    } catch (error) {
-      this.loadError = error;
-      console.error("Unable to load the uploaded Lo-Fi track.", error);
-    }
-  },
-  async deleteTrack(trackId) {
-    this.stop();
-    const metadataSnapshot = await window.getDoc(
-      window.doc(window.db, "Announcements", "lofi_meta"),
-    );
-    const metadata = metadataSnapshot.exists() ? metadataSnapshot.data() : null;
-    if (metadata?.trackId === trackId && Number.isInteger(metadata.totalChunks)) {
-      for (let index = 0; index < metadata.totalChunks; index++) {
-        await window.deleteDoc(
-          window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
-        );
-      }
-      await window.deleteDoc(
-        window.doc(window.db, "Announcements", "lofi_meta"),
-      );
-    }
-    const url = lofiBlobUrls.get(trackId);
-    if (url) {
-      URL.revokeObjectURL(url);
-      lofiBlobUrls.delete(trackId);
-    }
-    await deleteCachedLofiBlob(trackId);
-    if (this.currentTrackId === trackId) {
-      this.currentTrackId = null;
-      this.decodedTrackId = null;
-      this.decodedAudioBuffer = null;
-    }
-  },
-  updateButton() {
-    const buttons = [
-      btnFocusSound,
-      btnToolbarLofi,
-    ].filter(Boolean);
-    const text = this.isLoading
-      ? "⏳ Loading Lo-Fi..."
-      : this.isPlaying
-        ? "🎧 Lo-Fi Beats: ON"
-        : "🎧 Lo-Fi Beats: OFF";
-    buttons.forEach((button) => {
-      button.textContent = text;
-      button.classList.toggle("active", this.isPlaying);
-    });
-  },
-  stop() {
-    this.playbackRequestId++;
-    if (this.source) {
-      this.source.stop();
-      this.source.disconnect();
-      this.source = null;
-    }
-    this.isPlaying = false;
-    this.updateButton();
-  },
-};
-window.lofiPlayer = lofiPlayer;
-lofiPlayer.loadSavedTrack();
 
 const sfx = {
-  init: function () {
+  init() {
+    const audioCtx = getArcadeAudioCtx();
+    if (!audioCtx) return;
     if (audioCtx.state === "suspended") {
       audioCtx.resume().catch(() => {});
     }
   },
-  playDing: function () {
+  playDing(pitch = 880) {
+    const audioCtx = getArcadeAudioCtx();
+    if (!audioCtx) return;
     try {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+      osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(
-        1320,
+        pitch * 1.5,
         audioCtx.currentTime + 0.12,
       );
-      gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.16, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
@@ -2536,7 +2407,9 @@ const sfx = {
       osc.stop(audioCtx.currentTime + 0.2);
     } catch (e) {}
   },
-  playCrash: function () {
+  playCrash() {
+    const audioCtx = getArcadeAudioCtx();
+    if (!audioCtx) return;
     try {
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
@@ -2546,7 +2419,7 @@ const sfx = {
         35,
         audioCtx.currentTime + 0.35,
       );
-      gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.32, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(
         0.001,
         audioCtx.currentTime + 0.35,
@@ -2559,7 +2432,7 @@ const sfx = {
   },
 };
 
-// --- SAFE FIREBASE LEADERBOARD SYNC (Copilot #2 & #3) ---
+// --- FIREBASE SCOREBOARD SYNC ---
 async function submitDriftScore(playerName, playerScore) {
   const studentName =
     playerName?.trim() || localStorage.getItem("dento_student") || "Student";
@@ -2571,7 +2444,6 @@ async function submitDriftScore(playerName, playerScore) {
     : studentName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
 
   if (!window.db || !window.doc || !window.getDoc || !window.setDoc) {
-    console.error("Firebase services unavailable.");
     return false;
   }
 
@@ -2581,7 +2453,7 @@ async function submitDriftScore(playerName, playerScore) {
     const previousScore = docSnap.exists()
       ? Number(docSnap.data().score) || 0
       : 0;
-    const cumulativeScore = previousScore + (Number(playerScore) || 0);
+    const cumulativeScore = previousScore + Math.max(0, Math.round(Number(playerScore) || 0));
 
     await window.setDoc(docRef, {
       name: displayName,
@@ -2614,7 +2486,6 @@ async function fetchDriftLeaderboard() {
     });
     renderDriftLeaderboardUI(dataArray);
   } catch (error) {
-    console.error("Failed to fetch leaderboard:", error);
     if (leaderboardList) {
       leaderboardList.innerHTML = `<div style="text-align: center; color: #ef4444; font-family: monospace;">Unable to load live scores.</div>`;
     }
@@ -2642,7 +2513,6 @@ function renderDriftLeaderboardUI(dataArray) {
     rowDiv.style.cssText =
       "display: flex; justify-content: space-between; align-items: center; color: white; margin-bottom: 8px; font-family: monospace; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 5px;";
 
-    // Safe textContent rendering (fixes Copilot #2 XSS warning)
     const infoSpan = document.createElement("span");
     infoSpan.textContent = `${rankPrefix}${player.name}`;
 
@@ -2652,7 +2522,6 @@ function renderDriftLeaderboardUI(dataArray) {
     const scoreSpan = document.createElement("span");
     scoreSpan.style.cssText = "color: #2ecc71; font-weight: bold;";
     scoreSpan.textContent = String(player.score);
-
     rightBox.appendChild(scoreSpan);
 
     if (isAdmin) {
@@ -2681,344 +2550,1174 @@ function renderDriftLeaderboardUI(dataArray) {
   });
 }
 
-// --- REUSABLE OFFSCREEN COLLISION CANVAS (Fixes Copilot #4) ---
-const collisionCanvas = document.createElement("canvas");
-collisionCanvas.width = 600;
-collisionCanvas.height = 800;
-const collisionCtx = collisionCanvas.getContext("2d");
+// ==========================================
+// 12. PROCEDURAL 3D MODEL BUILDERS (THREE.JS)
+// ==========================================
+window.input = { gas: false, left: false, right: false };
 
+// Desktop Keyboard Support (Arrows / WASD / Space)
+window.addEventListener("keydown", (e) => {
+  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") window.input.left = true;
+  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") window.input.right = true;
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === " ") window.input.gas = true;
+});
+window.addEventListener("keyup", (e) => {
+  if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") window.input.left = false;
+  if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") window.input.right = false;
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "W" || e.key === " ") window.input.gas = false;
+});
+
+function build3DCarMesh(carType, isTraffic = false) {
+  const carGroup = new THREE.Group();
+  const bodyPivot = new THREE.Group();
+  carGroup.add(bodyPivot);
+
+  let primaryColor = 0xdc2626; // G37 Crimson Sport
+  let neonColor = 0xef4444;
+  if (carType === "skyline") {
+    primaryColor = 0x0284c7; // Bayside Blue GT-R
+    neonColor = 0x38bdf8;
+  } else if (carType === "accent") {
+    primaryColor = 0xf59e0b; // Cyber Gold Tuner
+    neonColor = 0xfacc15;
+  } else if (isTraffic) {
+    const palette = [0x64748b, 0x334155, 0x475569, 0x1e293b, 0x7c2d12, 0x1e3a8a];
+    primaryColor = palette[Math.floor(Math.random() * palette.length)];
+  }
+
+  const paintMat = new THREE.MeshPhysicalMaterial({
+    color: primaryColor,
+    metalness: 0.55,
+    roughness: 0.22,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.08,
+  });
+  const darkTrimMat = new THREE.MeshStandardMaterial({
+    color: 0x0f172a,
+    roughness: 0.5,
+    metalness: 0.3,
+  });
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0x090d16,
+    metalness: 0.2,
+    roughness: 0.1,
+    transparent: true,
+    opacity: 0.88,
+  });
+
+  // Lower Sculpted Chassis
+  const chassisLength = carType === "accent" ? 3.8 : 4.3;
+  const chassis = new THREE.Mesh(
+    new THREE.BoxGeometry(1.92, 0.54, chassisLength),
+    paintMat,
+  );
+  chassis.position.y = 0.48;
+  bodyPivot.add(chassis);
+
+  // Front Splitter & Side Skirts
+  const splitter = new THREE.Mesh(
+    new THREE.BoxGeometry(1.98, 0.12, chassisLength + 0.14),
+    darkTrimMat,
+  );
+  splitter.position.y = 0.24;
+  bodyPivot.add(splitter);
+
+  // Tapered Aerodynamic Cabin / Greenhouse
+  const cabinGeo = new THREE.CylinderGeometry(1.02, 1.32, 0.52, 4);
+  cabinGeo.rotateY(Math.PI / 4);
+  cabinGeo.scale(1.0, 1.0, carType === "accent" ? 1.45 : 1.55);
+  const cabin = new THREE.Mesh(cabinGeo, glassMat);
+  cabin.position.set(0, 0.96, carType === "accent" ? 0.15 : -0.1);
+  bodyPivot.add(cabin);
+
+  // Roof Cap
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(1.36, 0.06, carType === "accent" ? 1.75 : 1.65),
+    paintMat,
+  );
+  roof.position.set(0, 1.22, carType === "accent" ? 0.15 : -0.1);
+  bodyPivot.add(roof);
+
+  // Side Mirrors
+  [-1.02, 1.02].forEach((mx) => {
+    const mirror = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.12, 0.22),
+      paintMat,
+    );
+    mirror.position.set(mx, 0.78, -0.55);
+    bodyPivot.add(mirror);
+  });
+
+  // 4 Wheels + Metallic Rims
+  const wheelGeo = new THREE.CylinderGeometry(0.36, 0.36, 0.26, 20);
+  wheelGeo.rotateZ(Math.PI / 2);
+  const tireMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.85 });
+
+  const rimGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.28, 12);
+  rimGeo.rotateZ(Math.PI / 2);
+  const rimMat = new THREE.MeshStandardMaterial({
+    color: 0xe2e8f0,
+    metalness: 0.85,
+    roughness: 0.2,
+  });
+
+  const zWheelOffset = chassisLength * 0.32;
+  const wheelCoords = [
+    [-0.95, 0.36, -zWheelOffset],
+    [0.95, 0.36, -zWheelOffset],
+    [-0.95, 0.36, zWheelOffset],
+    [0.95, 0.36, zWheelOffset],
+  ];
+  wheelCoords.forEach(([wx, wy, wz]) => {
+    const w = new THREE.Mesh(wheelGeo, tireMat);
+    w.position.set(wx, wy, wz);
+    carGroup.add(w);
+    const r = new THREE.Mesh(rimGeo, rimMat);
+    r.position.set(wx, wy, wz);
+    carGroup.add(r);
+  });
+
+  // Headlights (Front is -Z)
+  const headMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+  [-0.65, 0.65].forEach((hx) => {
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.08), headMat);
+    hl.position.set(hx, 0.55, -chassisLength / 2 - 0.02);
+    bodyPivot.add(hl);
+  });
+
+  // Signature Taillights & Spoilers (Rear is +Z)
+  const tailGlowMat = new THREE.MeshBasicMaterial({ color: 0xff1e27 });
+  const rearZ = chassisLength / 2 + 0.02;
+
+  if (carType === "g37" && !isTraffic) {
+    // G37 Signature Quad LED Halo Rings + Ducktail Trunk Lip + Dual Exhaust
+    [-0.68, -0.44, 0.44, 0.68].forEach((tx, idx) => {
+      const radius = idx === 0 || idx === 3 ? 0.11 : 0.085;
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.028, 10, 24),
+        tailGlowMat,
+      );
+      ring.position.set(tx, 0.56, rearZ);
+      bodyPivot.add(ring);
+    });
+    const ducktail = new THREE.Mesh(
+      new THREE.BoxGeometry(1.76, 0.1, 0.22),
+      paintMat,
+    );
+    ducktail.position.set(0, 0.78, rearZ - 0.12);
+    ducktail.rotation.x = 0.25;
+    bodyPivot.add(ducktail);
+  } else if (carType === "skyline" && !isTraffic) {
+    // GT-R Quad Round Stove-Pipe Taillights + Raised Carbon GT Wing
+    [-0.68, -0.42, 0.42, 0.68].forEach((tx, idx) => {
+      const radius = idx === 0 || idx === 3 ? 0.12 : 0.09;
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, 0.032, 10, 24),
+        tailGlowMat,
+      );
+      ring.position.set(tx, 0.56, rearZ);
+      bodyPivot.add(ring);
+    });
+    const wingBlade = new THREE.Mesh(
+      new THREE.BoxGeometry(1.9, 0.06, 0.32),
+      darkTrimMat,
+    );
+    wingBlade.position.set(0, 1.02, rearZ - 0.18);
+    bodyPivot.add(wingBlade);
+    [-0.55, 0.55].forEach((sx) => {
+      const strut = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.28, 0.18),
+        darkTrimMat,
+      );
+      strut.position.set(sx, 0.86, rearZ - 0.18);
+      bodyPivot.add(strut);
+    });
+  } else {
+    // Wide LED Tailbar (Accent & Traffic Cars)
+    const bar = new THREE.Mesh(
+      new THREE.BoxGeometry(1.65, 0.14, 0.06),
+      tailGlowMat,
+    );
+    bar.position.set(0, 0.56, rearZ);
+    bodyPivot.add(bar);
+  }
+
+  if (!isTraffic) {
+    // Underbody Neon Street Glow + Projected Headlight Cones on Asphalt
+    const neonPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.3, chassisLength + 0.4),
+      new THREE.MeshBasicMaterial({
+        color: neonColor,
+        transparent: true,
+        opacity: 0.28,
+      }),
+    );
+    neonPlane.rotation.x = -Math.PI / 2;
+    neonPlane.position.y = 0.03;
+    carGroup.add(neonPlane);
+
+    const beamMat = new THREE.MeshBasicMaterial({
+      color: 0xe0f2fe,
+      transparent: true,
+      opacity: 0.15,
+    });
+    [-0.65, 0.65].forEach((bx) => {
+      const beam = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 9.0), beamMat);
+      beam.rotation.x = -Math.PI / 2;
+      beam.position.set(bx, 0.04, -chassisLength / 2 - 4.6);
+      bodyPivot.add(beam);
+    });
+  }
+
+  carGroup.userData = { bodyPivot };
+  return carGroup;
+}
+
+function build3DDentalHandpiece() {
+  const group = new THREE.Group();
+
+  const chromeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xe2e8f0,
+    metalness: 0.85,
+    roughness: 0.15,
+    clearcoat: 1.0,
+  });
+  const gripRingMat = new THREE.MeshStandardMaterial({
+    color: 0x0284c7,
+    metalness: 0.5,
+    roughness: 0.3,
+  });
+  const burMat = new THREE.MeshStandardMaterial({
+    color: 0x94a3b8,
+    metalness: 0.9,
+    roughness: 0.3,
+  });
+
+  // Main Contra-Angle Turbine Handle (Angled forward)
+  const handle = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.22, 0.26, 3.2, 20),
+    chromeMat,
+  );
+  handle.rotation.x = Math.PI / 2.6;
+  handle.position.set(0, 1.55, 1.05);
+  group.add(handle);
+
+  // Anodized Blue Grip Rings
+  [-0.4, 0.2].forEach((offset) => {
+    const ring = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.25, 0.25, 0.18, 20),
+      gripRingMat,
+    );
+    ring.rotation.x = Math.PI / 2.6;
+    ring.position.set(0, 1.55 + offset * 0.35, 1.05 + offset * 0.9);
+    group.add(ring);
+  });
+
+  // Contra-Angle Neck
+  const neck = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.22, 1.1, 16),
+    chromeMat,
+  );
+  neck.rotation.x = Math.PI / 3.8;
+  neck.position.set(0, 1.05, -0.45);
+  group.add(neck);
+
+  // Turbine Chuck Head
+  const head = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.26, 0.68, 24),
+    chromeMat,
+  );
+  head.position.set(0, 0.82, -0.95);
+  group.add(head);
+
+  // LED Fiber-Optic Ring under Head
+  const ledRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.22, 0.035, 10, 24),
+    new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+  );
+  ledRing.rotation.x = Math.PI / 2;
+  ledRing.position.set(0, 0.48, -0.95);
+  group.add(ledRing);
+
+  // High-Speed Diamond Bur (Spins rapidly)
+  const burPivot = new THREE.Group();
+  burPivot.position.set(0, 0.45, -0.95);
+  const burShaft = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.045, 0.045, 0.55, 12),
+    burMat,
+  );
+  burShaft.position.y = -0.22;
+  burPivot.add(burShaft);
+  const diamondTip = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 14, 14),
+    new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.5,
+      roughness: 0.2,
+    }),
+  );
+  diamondTip.position.y = -0.48;
+  burPivot.add(diamondTip);
+  group.add(burPivot);
+
+  // Water-Spray & Laser Excavation Cone (Visible when holding Drill button)
+  const sprayCone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.55, 1.1, 18, 1, true),
+    new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.0,
+      side: THREE.DoubleSide,
+    }),
+  );
+  sprayCone.position.set(0, -0.1, -0.95);
+  group.add(sprayCone);
+
+  group.userData = { burPivot, sprayCone };
+  return group;
+}
+
+function build3DCrownPlatformMesh() {
+  const crownGroup = new THREE.Group();
+  const enamelMat = new THREE.MeshPhysicalMaterial({
+    color: 0xf8fafc,
+    roughness: 0.2,
+    metalness: 0.05,
+    clearcoat: 0.9,
+  });
+
+  // Main Molar Crown Base
+  const base = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.65, 2.2), enamelMat);
+  base.position.y = -0.35;
+  crownGroup.add(base);
+
+  // 4 Rounded Occlusal Cusps on the corners
+  const cuspGeo = new THREE.SphereGeometry(0.58, 12, 10);
+  cuspGeo.scale(1.0, 0.35, 1.0);
+  [
+    [-0.55, -0.02, -0.55],
+    [0.55, -0.02, -0.55],
+    [-0.55, -0.02, 0.55],
+    [0.55, -0.02, 0.55],
+  ].forEach(([cx, cy, cz]) => {
+    const c = new THREE.Mesh(cuspGeo, enamelMat);
+    c.position.set(cx, cy, cz);
+    crownGroup.add(c);
+  });
+
+  return crownGroup;
+}
+
+// ==========================================
+// 13. DUAL-MODE 3D ARCADE STATE & MAIN LOOP
+// ==========================================
 let gameLoopId = null;
-let activeGameMode = "drift";
+let activeGameMode = "drift"; // "drift" or "dental_runner"
 let activeCarSelection = "g37";
 
 let webglRenderer = null;
 let webglScene = null;
 let webglCamera = null;
-let carMeshGroup = null;
+let playerMesh = null;
 
-let carX = 0;
-let carY = 26000;
-let speed = 0;
-let carAngle = -Math.PI / 2;
-let travelAngle = -Math.PI / 2;
-let lastSafeX = 0;
-let lastSafeY = 26000;
+// Shared Game State
 let score = 0;
 let comboMultiplier = 1;
-let startTime = 0;
+let distanceTraveled = 0;
+const totalRunDistance = 1800; // 100% progress target
 let raceFinished = false;
-let crashCooldown = 0;
-let currentGrip = 0.015;
-let obstacles = [];
-window.input = { gas: false, left: false, right: false };
+let startTime = 0;
+let crashShake = 0;
+let bannerTimeout = null;
 
-const trackPoints = [
-  { x: 0, y: 26200 },
-  { x: 0, y: 25000 },
-  { x: 2000, y: 23500 },
-  { x: -2000, y: 21500 },
-  { x: 2500, y: 19500 },
-  { x: -2500, y: 17500 },
-  { x: 2800, y: 15500 },
-  { x: 500, y: 14000 },
-  { x: -2800, y: 12500 },
-  { x: 2500, y: 10500 },
-  { x: -2000, y: 8500 },
-  { x: 1500, y: 6500 },
-  { x: -1000, y: 4500 },
-  { x: 500, y: 2500 },
-  { x: 0, y: 1000 },
-  { x: 0, y: -800 },
-];
+// Drift Mode Specific State
+let playerX = 0;
+let playerSpeed = 0;
+let driftSlipAngle = 0;
+let roadProps = [];
+let trafficCars = [];
+let nitroPads = [];
+let smokeParticles = [];
 
-function getTrackData(targetY) {
-  for (let i = 0; i < trackPoints.length - 1; i++) {
-    if (targetY <= trackPoints[i].y && targetY >= trackPoints[i + 1].y) {
-      const dx = trackPoints[i + 1].x - trackPoints[i].x;
-      const dy = trackPoints[i + 1].y - trackPoints[i].y;
-      return { angle: Math.atan2(dy, dx), sharpness: Math.abs(dx) };
-    }
-  }
-  return { angle: -Math.PI / 2, sharpness: 0 };
+// Dental Runner Specific State
+let dentalTargetLane = 0; // -1 (Left), 0 (Center), 1 (Right)
+let dentalCurrentX = 0;
+let laneSwitchLocked = false;
+let molarRows = [];
+let dentalTargets = [];
+let shatterParticles = [];
+
+function showHudBanner(text, color = "#facc15") {
+  const banner = document.getElementById("hud-floating-banner");
+  if (!banner) return;
+  banner.textContent = text;
+  banner.style.color = color;
+  banner.classList.add("show");
+  if (bannerTimeout) clearTimeout(bannerTimeout);
+  bannerTimeout = setTimeout(() => banner.classList.remove("show"), 1150);
 }
-
-const trackPath2D = new Path2D();
-trackPath2D.moveTo(trackPoints[0].x, trackPoints[0].y);
-for (let i = 1; i < trackPoints.length - 1; i++) {
-  const xc = (trackPoints[i].x + trackPoints[i + 1].x) / 2;
-  const yc = (trackPoints[i].y + trackPoints[i + 1].y) / 2;
-  trackPath2D.quadraticCurveTo(trackPoints[i].x, trackPoints[i].y, xc, yc);
-}
-trackPath2D.lineTo(
-  trackPoints[trackPoints.length - 1].x,
-  trackPoints[trackPoints.length - 1].y,
-);
 
 window.startGame = function (modeOrCar) {
-  if (window.lofiPlayer) window.lofiPlayer.stop();
   closeGameMenu();
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   const scoreboardModal = document.getElementById("scoreboard-modal");
+  const actionBtn = document.getElementById("btn-game-action");
+  const secLabel = document.getElementById("hud-secondary-label");
 
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "flex";
   if (scoreboardModal) scoreboardModal.style.display = "none";
 
-  if (modeOrCar === "dental_runner") {
-    activeGameMode = "dental_runner";
-    const secLabel = document.getElementById("hud-secondary-label");
-    if (secLabel) secLabel.textContent = "ZAPS";
-  } else {
-    activeGameMode = "drift";
-    activeCarSelection = modeOrCar;
-    const secLabel = document.getElementById("hud-secondary-label");
-    if (secLabel) secLabel.textContent = "COMBO";
-  }
-
-  carX = 0;
-  carY = 26000;
-  speed = 0;
-  carAngle = -Math.PI / 2;
-  travelAngle = -Math.PI / 2;
-  lastSafeX = 0;
-  lastSafeY = 26000;
+  window.input = { gas: false, left: false, right: false };
   score = 0;
   comboMultiplier = 1;
-  startTime = Date.now();
+  distanceTraveled = 0;
   raceFinished = false;
-  crashCooldown = 0;
-  currentGrip = 0.015;
-  obstacles = [];
-
-  for (let yPos = 24000; yPos > 2000; yPos -= 1800) {
-    obstacles.push({
-      x: (Math.random() - 0.5) * 260,
-      y: yPos,
-      type:
-        activeGameMode === "dental_runner" ? "caries_block" : "oncoming_car",
-      active: true,
-    });
-  }
-
-  initThreeJSViewport();
+  startTime = Date.now();
+  crashShake = 0;
 
   sfx.init();
-  try {
-    soundtrack.play().catch(() => {});
-  } catch (e) {}
-  try {
-    engineAudio.volume = 0;
-    engineAudio.play().catch(() => {});
-  } catch (e) {}
-  try {
-    driftAudio.volume = 0;
-    driftAudio.play().catch(() => {});
-  } catch (e) {}
+  stopArcadeAudio();
+
+  if (modeOrCar === "dental_runner") {
+    activeGameMode = "dental_runner";
+    if (actionBtn) actionBtn.textContent = "⚡ Drill / Zap";
+    if (secLabel) secLabel.textContent = "CLEANED";
+    initDentalRunnerScene();
+    dentalArcadeSynth.startMusic();
+  } else {
+    activeGameMode = "drift";
+    activeCarSelection = modeOrCar || "g37";
+    if (actionBtn) actionBtn.textContent = "⏫ Drift Gas";
+    if (secLabel) secLabel.textContent = "COMBO";
+    initNightDriftScene();
+    try {
+      soundtrack.play().catch(() => {});
+      engineAudio.volume = 0;
+      engineAudio.play().catch(() => {});
+      driftAudio.volume = 0;
+      driftAudio.play().catch(() => {});
+    } catch (e) {}
+  }
 
   if (gameLoopId) cancelAnimationFrame(gameLoopId);
-  gameLoop3D();
+  gameLoopId = requestAnimationFrame(masterArcadeLoop);
 };
 
 window.quitGame = function () {
-  if (gameLoopId) cancelAnimationFrame(gameLoopId);
+  if (gameLoopId) {
+    cancelAnimationFrame(gameLoopId);
+    gameLoopId = null;
+  }
   const gameCanvasOverlay = document.getElementById("game-canvas-overlay");
   if (gameCanvasOverlay) gameCanvasOverlay.style.display = "none";
   stopArcadeAudio();
 };
 
-function initThreeJSViewport() {
+function ensureWebGLRenderer() {
   const canvas = document.getElementById("drift-canvas");
-  if (!canvas || typeof THREE === "undefined") return;
-
+  if (!canvas || typeof THREE === "undefined") return false;
   if (!webglRenderer) {
-    webglRenderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    webglRenderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
     webglRenderer.setSize(600, 800);
     webglRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   }
+  return true;
+}
+
+// ==========================================
+// 14. MODE A: 3D MIDNIGHT TOUGE DRIFT SCENE & LOOP
+// ==========================================
+function initNightDriftScene() {
+  if (!ensureWebGLRenderer()) return;
 
   webglScene = new THREE.Scene();
-  webglScene.background = new THREE.Color(0x090d16);
+  webglScene.background = new THREE.Color(0x060913);
+  webglScene.fog = new THREE.FogExp2(0x060913, 0.011);
 
-  webglCamera = new THREE.PerspectiveCamera(55, 600 / 800, 0.1, 1000);
+  webglCamera = new THREE.PerspectiveCamera(60, 600 / 800, 0.1, 220);
 
-  const amb = new THREE.AmbientLight(0xffffff, 1.0);
-  webglScene.add(amb);
+  const hemi = new THREE.HemisphereLight(0x93c5fd, 0x0f172a, 0.85);
+  webglScene.add(hemi);
 
-  const dir = new THREE.DirectionalLight(0x38bdf8, 1.8);
-  dir.position.set(10, 20, 10);
-  webglScene.add(dir);
+  const dirLight = new THREE.DirectionalLight(0xe0f2fe, 1.35);
+  dirLight.position.set(12, 28, 16);
+  webglScene.add(dirLight);
 
-  carMeshGroup = new THREE.Group();
-  webglScene.add(carMeshGroup);
-
-  let bodyColor = 0xe74c3c;
-  if (activeCarSelection === "skyline") bodyColor = 0x38bdf8;
-  if (activeCarSelection === "accent") bodyColor = 0xf59e0b;
-  if (activeGameMode === "dental_runner") bodyColor = 0x10b981;
-
-  const bodyGeo = new THREE.BoxGeometry(1.6, 0.7, 3.4);
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: bodyColor,
-    roughness: 0.2,
-    metalness: 0.3,
+  // Asphalt Highway Plane
+  const roadMat = new THREE.MeshStandardMaterial({
+    color: 0x111827,
+    roughness: 0.45,
+    metalness: 0.2,
   });
-  const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-  bodyMesh.position.y = 0.5;
-  carMeshGroup.add(bodyMesh);
-}
+  const roadMesh = new THREE.Mesh(new THREE.PlaneGeometry(15, 300), roadMat);
+  roadMesh.rotation.x = -Math.PI / 2;
+  roadMesh.position.z = -120;
+  webglScene.add(roadMesh);
 
-function showHudBanner(text) {
-  const banner = document.getElementById("hud-floating-banner");
-  if (!banner) return;
-  banner.textContent = text;
-  banner.classList.add("show");
-  setTimeout(() => banner.classList.remove("show"), 1200);
-}
+  // Glowing Cyan Guardrails
+  const railMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+  [-7.6, 7.6].forEach((rx) => {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.65, 300), railMat);
+    rail.position.set(rx, 0.35, -120);
+    webglScene.add(rail);
+  });
 
-function gameLoop3D() {
-  if (crashCooldown > 0) crashCooldown--;
+  // Repeating Road Props (Lane Dashes, Red/White Curbs, Streetlamps, Skyline Buildings)
+  roadProps = [];
+  const dashMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+  const redCurbMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+  const whiteCurbMat = new THREE.MeshBasicMaterial({ color: 0xf8fafc });
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 });
+  const lampGlowMat = new THREE.MeshBasicMaterial({ color: 0xfef08a });
+  const bldgMat = new THREE.MeshStandardMaterial({
+    color: 0x0f172a,
+    emissive: 0x1e293b,
+    emissiveIntensity: 0.4,
+  });
 
-  if (!raceFinished) {
-    if (window.input.gas) {
-      speed += 0.24;
-      if (speed > 8.2) speed = 8.2;
-    } else {
-      speed *= 0.97;
-    }
+  for (let i = 0; i < 28; i++) {
+    const z = -i * 8;
+    const rowGroup = new THREE.Group();
+    rowGroup.position.z = z;
 
-    if (speed > 1) {
-      const steer = 0.11;
-      if (window.input.left) carAngle -= steer;
-      if (window.input.right) carAngle += steer;
-    }
-
-    let angleDiff = carAngle - travelAngle;
-    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-
-    const maxSlip = 1.35;
-    if (angleDiff > maxSlip) carAngle = travelAngle + maxSlip;
-    else if (angleDiff < -maxSlip) carAngle = travelAngle - maxSlip;
-
-    currentGrip += (0.012 - currentGrip) * 0.15;
-    travelAngle += angleDiff * currentGrip;
-
-    carX += Math.cos(travelAngle) * speed;
-    carY += Math.sin(travelAngle) * speed;
-  } else {
-    speed *= 0.94;
-    carX += Math.cos(travelAngle) * speed;
-    carY += Math.sin(travelAngle) * speed;
-  }
-
-  // Reuse single persistent collisionCtx (Copilot #4)
-  collisionCtx.lineWidth = 450;
-  const isOnAsphalt = collisionCtx.isPointInStroke(trackPath2D, carX, carY);
-  collisionCtx.lineWidth = 190;
-  const isInSafeZone = collisionCtx.isPointInStroke(trackPath2D, carX, carY);
-
-  if (!raceFinished) {
-    if (!isOnAsphalt && crashCooldown === 0) {
-      score = Math.max(0, score - 250);
-      comboMultiplier = 1;
-      showHudBanner("💥 CRASH! -250");
-      sfx.playCrash();
-
-      carX = lastSafeX;
-      carY = lastSafeY;
-      speed = 0;
-      const safeTrack = getTrackData(lastSafeY);
-      carAngle = travelAngle = safeTrack.angle;
-      window.input.gas = false;
-      crashCooldown = 50;
-    } else {
-      if (isInSafeZone && crashCooldown === 0) {
-        lastSafeX = carX;
-        lastSafeY = carY;
-      }
-      if (speed > 2) {
-        score += comboMultiplier;
-      }
-    }
-
-    obstacles.forEach((obs) => {
-      if (obs.active && Math.hypot(carX - obs.x, carY - obs.y) < 55) {
-        obs.active = false;
-        if (activeGameMode === "dental_runner") {
-          score += 400 * comboMultiplier;
-          comboMultiplier++;
-          showHudBanner("⚡ CARIES DRILLED! +400");
-          sfx.playDing();
-        } else {
-          score += 300 * comboMultiplier;
-          comboMultiplier++;
-          showHudBanner("🚗 NEAR MISS! +300");
-          sfx.playDing();
-        }
-      }
+    // 2 Lane Divider Dashes
+    [-2.5, 2.5].forEach((lx) => {
+      const dash = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 3.2), dashMat);
+      dash.rotation.x = -Math.PI / 2;
+      dash.position.set(lx, 0.02, 0);
+      rowGroup.add(dash);
     });
 
-    if (carY <= 0) {
-      raceFinished = true;
-      const timeTaken = (Date.now() - startTime) / 1000;
-      const timeBonus = Math.max(0, Math.floor((90 - timeTaken) * 60));
-      score += timeBonus;
+    // Left & Right Alternating Red/White Racing Curbs
+    const curbMat = i % 2 === 0 ? redCurbMat : whiteCurbMat;
+    [-7.35, 7.35].forEach((cx) => {
+      const curb = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.12, 8.0), curbMat);
+      curb.position.set(cx, 0.06, 0);
+      rowGroup.add(curb);
+    });
 
-      engineAudio.volume = 0;
-      driftAudio.volume = 0;
+    // Streetlamps & City Buildings every 3rd segment
+    if (i % 3 === 0) {
+      [-8.5, 8.5].forEach((px) => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 6.5, 8), poleMat);
+        pole.position.set(px, 3.25, 0);
+        rowGroup.add(pole);
 
-      const scoreboardModal = document.getElementById("scoreboard-modal");
-      const finalScoreDisplay = document.getElementById("final-score-display");
-      const finalSub = document.getElementById("final-run-subtitle");
-      const heading = document.getElementById("scoreboard-heading");
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.1, 0.15), poleMat);
+        arm.position.set(px > 0 ? px - 0.8 : px + 0.8, 6.4, 0);
+        rowGroup.add(arm);
 
-      if (heading) heading.textContent = "🏁 RUN COMPLETED 🏁";
-      if (finalScoreDisplay) finalScoreDisplay.textContent = String(score);
-      if (finalSub) {
-        finalSub.textContent = `Time: ${timeTaken.toFixed(2)}s | Bonus: +${timeBonus}`;
-      }
+        const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 0.3), lampGlowMat);
+        bulb.position.set(px > 0 ? px - 1.4 : px + 1.4, 6.32, 0);
+        rowGroup.add(bulb);
+      });
 
-      if (scoreboardModal) scoreboardModal.style.display = "flex";
-      setTimeout(async () => {
-        const saved = await submitDriftScore(arcadePlayerName, score);
-        if (saved) {
-          fetchDriftLeaderboard();
+      [-18 - Math.random() * 8, 18 + Math.random() * 8].forEach((bx) => {
+        const h = 14 + Math.random() * 26;
+        const bldg = new THREE.Mesh(new THREE.BoxGeometry(7, h, 7), bldgMat);
+        bldg.position.set(bx, h / 2, 0);
+        rowGroup.add(bldg);
+      });
+    }
+
+    webglScene.add(rowGroup);
+    roadProps.push(rowGroup);
+  }
+
+  // Player 3D Car
+  playerX = 0;
+  playerSpeed = 0.25;
+  driftSlipAngle = 0;
+  playerMesh = build3DCarMesh(activeCarSelection, false);
+  webglScene.add(playerMesh);
+
+  // 3D Traffic Cars Pool
+  trafficCars = [];
+  const laneCenters = [-4.6, 0, 4.6];
+  for (let i = 0; i < 6; i++) {
+    const tCar = build3DCarMesh("traffic", true);
+    const lane = laneCenters[i % 3];
+    tCar.position.set(lane, 0, -45 - i * 36);
+    tCar.userData.speed = 0.42 + (i % 3) * 0.08;
+    tCar.userData.nearMissed = false;
+    webglScene.add(tCar);
+    trafficCars.push(tCar);
+  }
+
+  // Glowing Nitro Pads on the Road
+  nitroPads = [];
+  const nitroMat = new THREE.MeshBasicMaterial({
+    color: 0x10b981,
+    transparent: true,
+    opacity: 0.75,
+  });
+  for (let i = 0; i < 3; i++) {
+    const pad = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 4.5), nitroMat);
+    pad.rotation.x = -Math.PI / 2;
+    pad.position.set(laneCenters[(i + 1) % 3], 0.03, -65 - i * 75);
+    webglScene.add(pad);
+    nitroPads.push(pad);
+  }
+
+  // 3D Tire Smoke Particle Pool
+  smokeParticles = [];
+  const smokeGeo = new THREE.SphereGeometry(0.28, 8, 8);
+  for (let i = 0; i < 24; i++) {
+    const sMat = new THREE.MeshBasicMaterial({
+      color: 0xcbd5e1,
+      transparent: true,
+      opacity: 0,
+    });
+    const puff = new THREE.Mesh(smokeGeo, sMat);
+    puff.visible = false;
+    puff.userData = { life: 0, vx: 0, vy: 0, vz: 0 };
+    webglScene.add(puff);
+    smokeParticles.push(puff);
+  }
+}
+
+function updateNightDriftLoop() {
+  const topSpeed = activeCarSelection === "skyline" ? 1.52 : activeCarSelection === "g37" ? 1.44 : 1.38;
+  const accel = window.input.gas ? 0.022 : -0.014;
+  playerSpeed = Math.max(0.28, Math.min(topSpeed, playerSpeed + accel));
+
+  // Steering & Drift Slip Angle Physics
+  const steerRate = activeCarSelection === "accent" ? 0.19 : 0.165;
+  let steerInput = 0;
+  if (window.input.left) steerInput = -1;
+  if (window.input.right) steerInput = 1;
+
+  playerX += steerInput * steerRate * (0.55 + playerSpeed * 0.45);
+
+  const targetSlip =
+    steerInput !== 0 && window.input.gas && playerSpeed > 0.65
+      ? -steerInput * 0.42
+      : 0;
+  driftSlipAngle += (targetSlip - driftSlipAngle) * 0.14;
+
+  // Guardrail Wall Collision Check
+  if (Math.abs(playerX) > 6.35) {
+    playerX = Math.sign(playerX) * 6.1;
+    playerSpeed *= 0.55;
+    driftSlipAngle = 0;
+    comboMultiplier = 1;
+    score = Math.max(0, score - 150);
+    crashShake = 12;
+    sfx.playCrash();
+    showHudBanner("💥 GUARDRAIL HIT! -150", "#ef4444");
+  }
+
+  distanceTraveled += playerSpeed;
+
+  // Drift Points & 3D Tire Smoke Spawning
+  const isDrifting = Math.abs(driftSlipAngle) > 0.16 && playerSpeed > 0.7;
+  if (isDrifting) {
+    score += Math.ceil(3 * comboMultiplier);
+    const freeSmoke = smokeParticles.find((p) => p.userData.life <= 0);
+    if (freeSmoke) {
+      freeSmoke.visible = true;
+      freeSmoke.position.set(
+        playerX + (Math.random() - 0.5) * 1.4,
+        0.22,
+        1.8,
+      );
+      freeSmoke.scale.set(0.6, 0.6, 0.6);
+      freeSmoke.material.opacity = 0.55;
+      freeSmoke.userData = {
+        life: 1.0,
+        vx: (Math.random() - 0.5) * 0.08,
+        vy: 0.03 + Math.random() * 0.02,
+        vz: playerSpeed * 0.5,
+      };
+    }
+  } else if (playerSpeed > 0.6) {
+    score += 1;
+  }
+
+  // Animate Smoke Particles
+  smokeParticles.forEach((p) => {
+    if (p.userData.life > 0) {
+      p.position.x += p.userData.vx;
+      p.position.y += p.userData.vy;
+      p.position.z += p.userData.vz;
+      p.scale.multiplyScalar(1.06);
+      p.userData.life -= 0.06;
+      p.material.opacity = Math.max(0, p.userData.life * 0.5);
+      if (p.userData.life <= 0) p.visible = false;
+    }
+  });
+
+  // Scroll Infinite Road Segments
+  roadProps.forEach((seg) => {
+    seg.position.z += playerSpeed;
+    if (seg.position.z > 14) {
+      seg.position.z -= 28 * 8;
+    }
+  });
+
+  // Update Nitro Boost Pads
+  const laneCenters = [-4.6, 0, 4.6];
+  nitroPads.forEach((pad) => {
+    pad.position.z += playerSpeed;
+    if (
+      Math.abs(pad.position.z) < 2.4 &&
+      Math.abs(playerX - pad.position.x) < 1.5
+    ) {
+      playerSpeed = Math.min(topSpeed + 0.35, playerSpeed + 0.35);
+      score += 250 * comboMultiplier;
+      sfx.playDing(1100);
+      showHudBanner("⚡ NITRO BOOST! +250", "#34d399");
+      pad.position.z = -210;
+      pad.position.x = laneCenters[Math.floor(Math.random() * 3)];
+    }
+    if (pad.position.z > 15) {
+      pad.position.z = -210 - Math.random() * 40;
+      pad.position.x = laneCenters[Math.floor(Math.random() * 3)];
+    }
+  });
+
+  // Update Traffic Cars & Check Collisions / Near-Misses
+  trafficCars.forEach((tCar) => {
+    const relZ = playerSpeed - tCar.userData.speed;
+    tCar.position.z += relZ;
+
+    const dz = Math.abs(tCar.position.z);
+    const dx = Math.abs(playerX - tCar.position.x);
+
+    if (dz < 3.5 && dx < 1.68) {
+      // Traffic Collision
+      playerSpeed = 0.3;
+      comboMultiplier = 1;
+      score = Math.max(0, score - 250);
+      crashShake = 18;
+      sfx.playCrash();
+      showHudBanner("💥 TRAFFIC CRASH! -250", "#ef4444");
+      tCar.position.z = -180 - Math.random() * 50;
+      tCar.position.x = laneCenters[Math.floor(Math.random() * 3)];
+      tCar.userData.nearMissed = false;
+    } else if (
+      tCar.position.z > 0.5 &&
+      tCar.position.z < 5.0 &&
+      dx < 2.95 &&
+      !tCar.userData.nearMissed
+    ) {
+      // High-Speed Near-Miss!
+      tCar.userData.nearMissed = true;
+      comboMultiplier = Math.min(10, comboMultiplier + 1);
+      const pts = 300 * comboMultiplier;
+      score += pts;
+      sfx.playDing(880 + comboMultiplier * 70);
+      showHudBanner(`🔥 NEAR MISS! +${pts} (x${comboMultiplier})`, "#facc15");
+    }
+
+    if (tCar.position.z > 16) {
+      tCar.position.z = -190 - Math.random() * 65;
+      tCar.position.x = laneCenters[Math.floor(Math.random() * 3)];
+      tCar.userData.nearMissed = false;
+    }
+  });
+
+  // Update Player Car Transform & Dynamic Chase Camera
+  if (playerMesh) {
+    playerMesh.position.set(playerX, 0, 0);
+    playerMesh.rotation.y = driftSlipAngle;
+    if (playerMesh.userData.bodyPivot) {
+      playerMesh.userData.bodyPivot.rotation.z = -driftSlipAngle * 0.28;
+      playerMesh.userData.bodyPivot.position.y =
+        Math.sin(distanceTraveled * 1.5) * 0.015;
+    }
+  }
+
+  const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.45 : 0;
+  const shakeY = crashShake > 0 ? (Math.random() - 0.5) * 0.35 : 0;
+  if (crashShake > 0) crashShake--;
+
+  webglCamera.fov = 58 + playerSpeed * 9;
+  webglCamera.updateProjectionMatrix();
+  webglCamera.position.set(playerX * 0.65 + shakeX, 3.8 + shakeY, 7.6);
+  webglCamera.lookAt(playerX * 0.85, 0.9, -12);
+
+  // Balance Engine & Tire Screech Audio
+  engineAudio.volume = Math.min(0.2, 0.03 + playerSpeed * 0.11);
+  engineAudio.playbackRate = 0.8 + playerSpeed * 0.45;
+  driftAudio.volume = isDrifting ? 0.09 : 0;
+}
+
+// ==========================================
+// 15. MODE B: 3D CROWN & CARIES RUNNER SCENE & LOOP
+// ==========================================
+function initDentalRunnerScene() {
+  if (!ensureWebGLRenderer()) return;
+
+  webglScene = new THREE.Scene();
+  webglScene.background = new THREE.Color(0x130d26);
+  webglScene.fog = new THREE.FogExp2(0x130d26, 0.012);
+
+  webglCamera = new THREE.PerspectiveCamera(56, 600 / 800, 0.1, 200);
+
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xec4899, 0.95);
+  webglScene.add(hemi);
+
+  const surgicalLight = new THREE.DirectionalLight(0xffffff, 1.45);
+  surgicalLight.position.set(8, 25, 14);
+  webglScene.add(surgicalLight);
+
+  // Left & Right Pink Gingiva (Gum) Alveolar Ridges
+  const gumMat = new THREE.MeshPhysicalMaterial({
+    color: 0xf43f5e,
+    roughness: 0.35,
+    clearcoat: 0.8,
+  });
+  [-5.2, 5.2].forEach((gx) => {
+    const gum = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.6, 2.0, 260, 16),
+      gumMat,
+    );
+    gum.rotation.x = Math.PI / 2;
+    gum.position.set(gx, -0.4, -110);
+    webglScene.add(gum);
+  });
+
+  // 3 Lanes of 3D Porcelain Molar Crowns
+  molarRows = [];
+  const laneX = [-2.6, 0, 2.6];
+  for (let r = 0; r < 24; r++) {
+    const rowGroup = new THREE.Group();
+    rowGroup.position.z = -r * 4.2;
+    laneX.forEach((lx) => {
+      const molar = build3DCrownPlatformMesh();
+      molar.position.x = lx;
+      rowGroup.add(molar);
+    });
+    webglScene.add(rowGroup);
+    molarRows.push(rowGroup);
+  }
+
+  // Player 3D High-Speed Dental Handpiece
+  dentalTargetLane = 0;
+  dentalCurrentX = 0;
+  laneSwitchLocked = false;
+  playerMesh = build3DDentalHandpiece();
+  playerMesh.position.set(0, 0.5, 0);
+  webglScene.add(playerMesh);
+
+  // Spawn 3D Dental Targets (Caries, Calculus, Pulp Horns, Fluoride Orbs, Ortho Clamps)
+  dentalTargets = [];
+  for (let i = 0; i < 16; i++) {
+    const targetGroup = new THREE.Group();
+    webglScene.add(targetGroup);
+    respawnDentalTarget(targetGroup, -22 - i * 11);
+    dentalTargets.push(targetGroup);
+  }
+
+  // 3D Shatter Debris Particle Pool
+  shatterParticles = [];
+  const pGeo = new THREE.OctahedronGeometry(0.16, 0);
+  for (let i = 0; i < 24; i++) {
+    const pMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8 });
+    const part = new THREE.Mesh(pGeo, pMat);
+    part.visible = false;
+    part.userData = { life: 0, vx: 0, vy: 0, vz: 0 };
+    webglScene.add(part);
+    shatterParticles.push(part);
+  }
+}
+
+function respawnDentalTarget(targetGroup, zPos) {
+  while (targetGroup.children.length > 0) {
+    targetGroup.remove(targetGroup.children[0]);
+  }
+
+  const laneX = [-2.6, 0, 2.6];
+  const laneIdx = Math.floor(Math.random() * 3);
+  targetGroup.position.set(laneX[laneIdx], 0.15, zPos);
+  targetGroup.userData.resolved = false;
+
+  const roll = Math.random();
+  if (roll < 0.42) {
+    // 1. Dark Carious Lesion (Hold Drill to Excavate & Restore!)
+    targetGroup.userData.type = "caries";
+    const cariesMat = new THREE.MeshStandardMaterial({
+      color: 0x3f2314,
+      roughness: 0.9,
+    });
+    for (let k = 0; k < 4; k++) {
+      const lump = new THREE.Mesh(
+        new THREE.DodecahedronGeometry(0.42, 0),
+        cariesMat,
+      );
+      lump.position.set(
+        (Math.random() - 0.5) * 0.45,
+        0.15,
+        (Math.random() - 0.5) * 0.45,
+      );
+      targetGroup.add(lump);
+    }
+  } else if (roll < 0.68) {
+    // 2. Golden Tartar / Calculus Deposit (Hold Drill to Scale!)
+    targetGroup.userData.type = "calculus";
+    const calcMesh = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.56, 1),
+      new THREE.MeshStandardMaterial({
+        color: 0xeab308,
+        roughness: 0.4,
+        metalness: 0.3,
+      }),
+    );
+    calcMesh.scale.set(1.2, 0.7, 1.1);
+    calcMesh.position.y = 0.22;
+    targetGroup.add(calcMesh);
+  } else if (roll < 0.86) {
+    // 3. Glowing Red Exposed Pulp Horn (DO NOT DRILL! Release Drill or Dodge!)
+    targetGroup.userData.type = "pulp";
+    const pulpMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.52, 16, 16),
+      new THREE.MeshBasicMaterial({ color: 0xff1e42 }),
+    );
+    pulpMesh.scale.set(1.0, 0.65, 1.0);
+    pulpMesh.position.y = 0.18;
+    targetGroup.add(pulpMesh);
+  } else {
+    // 4. Cyan Fluoride Shield Orb (Touch to Collect +500!)
+    targetGroup.userData.type = "fluoride";
+    const orb = new THREE.Mesh(
+      new THREE.OctahedronGeometry(0.48, 1),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8 }),
+    );
+    orb.position.y = 0.55;
+    targetGroup.add(orb);
+  }
+}
+
+function spawnShatterBurst(x, z, hexColor) {
+  let spawned = 0;
+  for (let i = 0; i < shatterParticles.length && spawned < 8; i++) {
+    const p = shatterParticles[i];
+    if (p.userData.life <= 0) {
+      p.visible = true;
+      p.material.color.setHex(hexColor);
+      p.position.set(x, 0.35, z);
+      p.userData = {
+        life: 1.0,
+        vx: (Math.random() - 0.5) * 0.24,
+        vy: 0.12 + Math.random() * 0.16,
+        vz: (Math.random() - 0.5) * 0.24,
+      };
+      spawned++;
+    }
+  }
+}
+
+function updateDentalRunnerLoop() {
+  const forwardSpeed = 0.88;
+  distanceTraveled += forwardSpeed;
+  score += 1;
+
+  // Discrete 3-Lane Switching on Left/Right Tap or Continuous Glide
+  if (!window.input.left && !window.input.right) {
+    laneSwitchLocked = false;
+  } else if (!laneSwitchLocked) {
+    if (window.input.left && dentalTargetLane > -1) {
+      dentalTargetLane--;
+      laneSwitchLocked = true;
+    } else if (window.input.right && dentalTargetLane < 1) {
+      dentalTargetLane++;
+      laneSwitchLocked = true;
+    }
+  }
+
+  const targetX = dentalTargetLane * 2.6;
+  dentalCurrentX += (targetX - dentalCurrentX) * 0.22;
+
+  const isDrilling = Boolean(window.input.gas);
+  dentalArcadeSynth.setDrillActive(isDrilling);
+
+  // Animate 3D Handpiece Position, Banking, Spinning Bur & Water Spray
+  if (playerMesh) {
+    const targetY = isDrilling ? 0.18 : 0.55;
+    playerMesh.position.x = dentalCurrentX;
+    playerMesh.position.y += (targetY - playerMesh.position.y) * 0.25;
+    playerMesh.rotation.z = (dentalCurrentX - targetX) * 0.18;
+
+    if (playerMesh.userData.burPivot) {
+      playerMesh.userData.burPivot.rotation.y += isDrilling ? 0.85 : 0.2;
+    }
+    if (playerMesh.userData.sprayCone) {
+      playerMesh.userData.sprayCone.material.opacity = isDrilling ? 0.42 : 0.0;
+      playerMesh.userData.sprayCone.rotation.y += 0.35;
+    }
+  }
+
+  // Scroll 3D Molar Arch Rows
+  molarRows.forEach((row) => {
+    row.position.z += forwardSpeed;
+    if (row.position.z > 8.4) {
+      row.position.z -= 24 * 4.2;
+    }
+  });
+
+  // Update Dental Targets & Check Clinical Interactions
+  const burZ = -0.95;
+  dentalTargets.forEach((tGroup) => {
+    tGroup.position.z += forwardSpeed;
+    tGroup.rotation.y += 0.03;
+
+    const dz = Math.abs(tGroup.position.z - burZ);
+    const dx = Math.abs(dentalCurrentX - tGroup.position.x);
+
+    if (!tGroup.userData.resolved && dz < 1.05 && dx < 1.15) {
+      const type = tGroup.userData.type;
+
+      if (type === "caries" || type === "calculus") {
+        if (isDrilling) {
+          tGroup.userData.resolved = true;
+          comboMultiplier = Math.min(12, comboMultiplier + 1);
+          const pts = (type === "caries" ? 350 : 400) * comboMultiplier;
+          score += pts;
+          sfx.playDing(920 + comboMultiplier * 65);
+          spawnShatterBurst(
+            tGroup.position.x,
+            tGroup.position.z,
+            type === "caries" ? 0xffffff : 0xfacc15,
+          );
+          showHudBanner(
+            type === "caries"
+              ? `🦷 CARIES RESTORED! +${pts}`
+              : `✨ CALCULUS SCALED! +${pts}`,
+            "#34d399",
+          );
+          tGroup.visible = false;
         }
-      }, 100);
+      } else if (type === "pulp") {
+        if (isDrilling) {
+          // Drilled into an exposed vital pulp chamber!
+          tGroup.userData.resolved = true;
+          comboMultiplier = 1;
+          score = Math.max(0, score - 300);
+          crashShake = 16;
+          sfx.playCrash();
+          spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0xff1e42);
+          showHudBanner("🩸 PULP EXPOSURE! -300 (Release Drill!)", "#ef4444");
+          tGroup.visible = false;
+        } else {
+          // Passed safely over vital pulp without drilling!
+          tGroup.userData.resolved = true;
+          score += 150;
+          sfx.playDing(720);
+          showHudBanner("✅ PULP PRESERVED! +150", "#38bdf8");
+        }
+      } else if (type === "fluoride") {
+        tGroup.userData.resolved = true;
+        score += 500;
+        sfx.playDing(1250);
+        spawnShatterBurst(tGroup.position.x, tGroup.position.z, 0x38bdf8);
+        showHudBanner("💎 FLUORIDE BOOST! +500", "#38bdf8");
+        tGroup.visible = false;
+      }
     }
-  }
 
-  if (!raceFinished) {
-    if (speed > 0.5) {
-      engineAudio.volume = Math.min(0.18, 0.02 + speed / 45);
-      engineAudio.playbackRate = 0.85 + speed / 12;
-    } else {
-      engineAudio.volume = 0;
+    // Missed caries penalty if it passes behind the bur uncleaned
+    if (
+      !tGroup.userData.resolved &&
+      tGroup.position.z > 2.2 &&
+      (tGroup.userData.type === "caries" || tGroup.userData.type === "calculus")
+    ) {
+      tGroup.userData.resolved = true;
+      comboMultiplier = 1;
+      showHudBanner("⚠️ MISSED LESION! Combo Reset", "#fb923c");
     }
-    const isDrifting = speed > 2 && Math.abs(carAngle - travelAngle) > 0.12;
-    driftAudio.volume = isDrifting ? 0.07 : 0;
-  }
 
-  if (carMeshGroup && webglCamera) {
-    carMeshGroup.position.set(carX * 0.02, 0, carY * -0.02);
-    carMeshGroup.rotation.y = -travelAngle - Math.PI / 2;
+    if (tGroup.position.z > 10) {
+      tGroup.visible = true;
+      respawnDentalTarget(tGroup, -165 - Math.random() * 25);
+    }
+  });
 
-    webglCamera.position.set(carX * 0.02, 6.5, carY * -0.02 + 8.5);
-    webglCamera.lookAt(carX * 0.02, 0, carY * -0.02);
+  // Animate Shatter Debris Particles
+  shatterParticles.forEach((p) => {
+    if (p.userData.life > 0) {
+      p.position.x += p.userData.vx;
+      p.position.y += p.userData.vy;
+      p.position.z += p.userData.vz;
+      p.userData.vy -= 0.012;
+      p.rotation.x += 0.15;
+      p.userData.life -= 0.05;
+      p.scale.setScalar(Math.max(0.01, p.userData.life));
+      if (p.userData.life <= 0) p.visible = false;
+    }
+  });
+
+  const shakeX = crashShake > 0 ? (Math.random() - 0.5) * 0.35 : 0;
+  if (crashShake > 0) crashShake--;
+
+  webglCamera.position.set(dentalCurrentX * 0.55 + shakeX, 3.6, 5.2);
+  webglCamera.lookAt(dentalCurrentX * 0.75, 0.2, -9);
+}
+
+// ==========================================
+// 16. MASTER 60FPS RENDER & COMPLETION HANDLER
+// ==========================================
+function masterArcadeLoop() {
+  if (raceFinished) return;
+
+  if (activeGameMode === "dental_runner") {
+    updateDentalRunnerLoop();
+  } else {
+    updateNightDriftLoop();
   }
 
   if (webglRenderer && webglScene && webglCamera) {
     webglRenderer.render(webglScene, webglCamera);
   }
 
-  const progress = Math.max(0, Math.min(100, ((26000 - carY) / 26000) * 100));
+  const progress = Math.max(
+    0,
+    Math.min(100, (distanceTraveled / totalRunDistance) * 100),
+  );
   const elScore = document.getElementById("hud-score");
   const elCombo = document.getElementById("hud-combo");
   const elProg = document.getElementById("hud-progress");
+
   if (elScore) elScore.textContent = String(score);
   if (elCombo) elCombo.textContent = `x${comboMultiplier}`;
   if (elProg) elProg.textContent = `${progress.toFixed(1)}%`;
 
-  if (!raceFinished) {
-    gameLoopId = requestAnimationFrame(gameLoop3D);
+  if (distanceTraveled >= totalRunDistance) {
+    raceFinished = true;
+    stopArcadeAudio();
+
+    const timeTaken = (Date.now() - startTime) / 1000;
+    const speedBonus = Math.max(0, Math.floor((65 - timeTaken) * 45));
+    score += speedBonus;
+
+    const scoreboardModal = document.getElementById("scoreboard-modal");
+    const finalScoreDisplay = document.getElementById("final-score-display");
+    const finalSub = document.getElementById("final-run-subtitle");
+    const heading = document.getElementById("scoreboard-heading");
+
+    if (heading) {
+      heading.textContent =
+        activeGameMode === "dental_runner"
+          ? "🦷 CLINICAL SHIFT COMPLETE 🦷"
+          : "🏁 MIDNIGHT RUN COMPLETE 🏁";
+    }
+    if (finalScoreDisplay) finalScoreDisplay.textContent = String(score);
+    if (finalSub) {
+      finalSub.textContent = `Time: ${timeTaken.toFixed(1)}s | Speed Bonus: +${speedBonus}`;
+    }
+
+    if (scoreboardModal) scoreboardModal.style.display = "flex";
+    setTimeout(async () => {
+      const saved = await submitDriftScore(arcadePlayerName, score);
+      if (saved) fetchDriftLeaderboard();
+    }, 80);
+    return;
   }
+
+  gameLoopId = requestAnimationFrame(masterArcadeLoop);
 }
