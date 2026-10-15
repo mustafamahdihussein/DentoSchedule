@@ -945,50 +945,42 @@ if (btnSubmitLofi) {
     try {
       await window.authPersistenceReady;
       if (!(await requireAdminSession())) return;
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = "";
-      const binaryChunkSize = 0x8000;
-      for (let offset = 0; offset < bytes.length; offset += binaryChunkSize) {
-        binary += String.fromCharCode(
-          ...bytes.subarray(offset, offset + binaryChunkSize),
-        );
-      }
-      const base64 = btoa(binary);
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = String(reader.result || "");
+          const separatorIndex = result.indexOf(",");
+          if (separatorIndex === -1) {
+            reject(new Error("Unable to convert the MP3 to Base64."));
+            return;
+          }
+          resolve(result.slice(separatorIndex + 1));
+        };
+        reader.onerror = () =>
+          reject(reader.error || new Error("Unable to read the MP3 file."));
+        reader.readAsDataURL(file);
+      });
       const chunks = [];
       for (let offset = 0; offset < base64.length; offset += LOFI_CHUNK_SIZE) {
         chunks.push(base64.slice(offset, offset + LOFI_CHUNK_SIZE));
       }
       const trackId = `track-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const trackRef = window.doc(window.db, "LofiTracks", trackId);
-
-      await window.setDoc(trackRef, {
+      await window.setDoc(window.doc(window.db, "Announcements", "lofi_meta"), {
+        trackId,
         name: file.name,
-        mimeType: file.type || "audio/mpeg",
+        mimeType: "audio/mpeg",
         totalChunks: chunks.length,
-        size: file.size,
-        timestamp: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       });
       for (let index = 0; index < chunks.length; index++) {
         if (lofiUploadStatus) {
           lofiUploadStatus.textContent = `Uploading MP3... (Chunk ${index + 1} of ${chunks.length})`;
         }
         await window.setDoc(
-          window.doc(
-            window.db,
-            "LofiTracks",
-            trackId,
-            "chunks",
-            String(index),
-          ),
-          { index, data: chunks[index] },
+          window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
+          { trackId, index, data: chunks[index] },
         );
       }
-      await window.setDoc(window.doc(window.db, "AudioSettings", "lofi"), {
-        trackId,
-        name: file.name,
-        timestamp: new Date().toISOString(),
-      });
 
       await window.lofiPlayer.loadUploadedTrack(trackId, base64);
       if (modalUploadLofi) modalUploadLofi.style.display = "none";
@@ -1022,15 +1014,10 @@ if (btnDeleteLofi) {
       await window.authPersistenceReady;
       if (!(await requireAdminSession())) return;
       const snapshot = await window.getDoc(
-        window.doc(window.db, "AudioSettings", "lofi"),
+        window.doc(window.db, "Announcements", "lofi_meta"),
       );
       const trackId = snapshot.exists() ? snapshot.data().trackId : null;
       if (trackId) await window.lofiPlayer.deleteTrack(trackId);
-      if (snapshot.exists()) {
-        await window.deleteDoc(
-          window.doc(window.db, "AudioSettings", "lofi"),
-        );
-      }
       if (modalUploadLofi) modalUploadLofi.style.display = "none";
       alert("Current Lo-Fi track deleted.");
     } catch (error) {
@@ -1256,10 +1243,12 @@ if (window.onSnapshot && window.db && window.doc) {
       if (!banner || !displayText) return;
 
       if (
-        docSnap.exists() &&
-        docSnap.data().message &&
-        docSnap.data().message.trim() !== ""
+        docSnap.id === "lofi_meta" ||
+        docSnap.id.startsWith("lofi_chunk_")
       ) {
+        return;
+      }
+      if (docSnap.exists() && docSnap.data().message?.trim()) {
         displayText.textContent = docSnap.data().message;
         banner.style.display = "flex";
       } else {
@@ -2250,8 +2239,9 @@ function stopArcadeAudio() {
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 const lofiAudio = new Audio();
 lofiAudio.loop = true;
-lofiAudio.preload = "none";
+lofiAudio.preload = "auto";
 const lofiBlobUrls = new Map();
+let lofiIndexedDbPromise;
 
 function base64ToBlob(base64) {
   const binary = atob(base64);
@@ -2262,40 +2252,142 @@ function base64ToBlob(base64) {
   return new Blob([bytes], { type: "audio/mpeg" });
 }
 
+function openLofiIndexedDb() {
+  if (!("indexedDB" in window)) {
+    return Promise.reject(new Error("IndexedDB is unavailable in this browser."));
+  }
+  if (!lofiIndexedDbPromise) {
+    lofiIndexedDbPromise = new Promise((resolve, reject) => {
+      const request = indexedDB.open("DentoScheduleLofi", 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore("blobs");
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () =>
+        reject(request.error || new Error("Unable to open IndexedDB."));
+    });
+  }
+  return lofiIndexedDbPromise;
+}
+
+async function getCachedLofiBlob(trackId) {
+  const database = await openLofiIndexedDb();
+  return new Promise((resolve, reject) => {
+    const request = database
+      .transaction("blobs", "readonly")
+      .objectStore("blobs")
+      .get(trackId);
+    request.onsuccess = () => resolve(request.result || null);
+    request.onerror = () =>
+      reject(request.error || new Error("Unable to read the Lo-Fi cache."));
+  });
+}
+
+async function cacheLofiBlob(trackId, blob) {
+  const database = await openLofiIndexedDb();
+  return new Promise((resolve, reject) => {
+    const request = database
+      .transaction("blobs", "readwrite")
+      .objectStore("blobs")
+      .put(blob, trackId);
+    request.onsuccess = () => resolve();
+    request.onerror = () =>
+      reject(request.error || new Error("Unable to cache the Lo-Fi track."));
+  });
+}
+
+async function deleteCachedLofiBlob(trackId) {
+  const database = await openLofiIndexedDb();
+  return new Promise((resolve, reject) => {
+    const request = database
+      .transaction("blobs", "readwrite")
+      .objectStore("blobs")
+      .delete(trackId);
+    request.onsuccess = () => resolve();
+    request.onerror = () =>
+      reject(request.error || new Error("Unable to clear the Lo-Fi cache."));
+  });
+}
+
 const lofiPlayer = {
   isPlaying: false,
+  loadError: null,
   toggle() {
-    if (!lofiAudio.src) {
-      alert("No Lo-Fi MP3 has been uploaded yet.");
-      return;
-    }
     if (this.isPlaying) {
       this.stop();
     } else {
-      this.start().catch((error) => {
-        console.error("Unable to play uploaded Lo-Fi track.", error);
-        this.stop();
-        alert("Unable to play the uploaded Lo-Fi track.");
-      });
+      if (this.loadError && !lofiAudio.src) {
+        alert(
+          "Unable to load the uploaded Lo-Fi track: " +
+            (this.loadError.message || "Unknown loading error."),
+        );
+        return;
+      }
+      const playPromise = lofiAudio.play();
+      if (playPromise) {
+        playPromise
+          .then(() => {
+            this.isPlaying = true;
+            this.updateButton();
+          })
+          .catch((error) => {
+            console.error("Unable to play uploaded Lo-Fi track.", error);
+            this.stop();
+            alert(
+              "Unable to play the uploaded Lo-Fi track: " +
+                (error?.message || "Unknown playback error."),
+            );
+          });
+      }
     }
   },
   async loadUploadedTrack(trackId, cachedBase64) {
+    this.loadError = null;
     this.stop();
     let url = lofiBlobUrls.get(trackId);
     if (!url) {
-      let base64 = cachedBase64;
-      if (!base64) {
-        const chunkSnapshot = await window.getDocs(
-          window.collection(window.db, "LofiTracks", trackId, "chunks"),
-        );
-        const chunks = [];
-        chunkSnapshot.forEach((chunkSnapshot) => {
-          chunks.push(chunkSnapshot.data());
-        });
-        chunks.sort((left, right) => left.index - right.index);
-        base64 = chunks.map((chunk) => chunk.data).join("");
+      let blob = await getCachedLofiBlob(trackId);
+      if (!blob) {
+        let base64 = cachedBase64;
+        if (!base64) {
+          const metadataSnapshot = await window.getDoc(
+            window.doc(window.db, "Announcements", "lofi_meta"),
+          );
+          if (!metadataSnapshot.exists()) {
+            throw new Error("No Lo-Fi MP3 metadata was found.");
+          }
+          const metadata = metadataSnapshot.data();
+          if (metadata.trackId !== trackId || !Number.isInteger(metadata.totalChunks)) {
+            throw new Error("Lo-Fi MP3 metadata is invalid.");
+          }
+          const chunkSnapshots = await Promise.all(
+            Array.from({ length: metadata.totalChunks }, (_, index) =>
+              window.getDoc(
+                window.doc(
+                  window.db,
+                  "Announcements",
+                  `lofi_chunk_${index}`,
+                ),
+              ),
+            ),
+          );
+          base64 = chunkSnapshots
+            .map((chunkSnapshot, index) => {
+              if (
+                !chunkSnapshot.exists() ||
+                chunkSnapshot.data().trackId !== trackId ||
+                chunkSnapshot.data().index !== index
+              ) {
+                throw new Error(`Lo-Fi MP3 chunk ${index} is missing or invalid.`);
+              }
+              return chunkSnapshot.data().data;
+            })
+            .join("");
+        }
+        blob = base64ToBlob(base64);
+        await cacheLofiBlob(trackId, blob);
       }
-      url = URL.createObjectURL(base64ToBlob(base64));
+      url = URL.createObjectURL(blob);
       lofiBlobUrls.set(trackId, url);
     }
     lofiAudio.src = url;
@@ -2304,37 +2396,38 @@ const lofiPlayer = {
   async loadSavedTrack() {
     try {
       const snapshot = await window.getDoc(
-        window.doc(window.db, "AudioSettings", "lofi"),
+        window.doc(window.db, "Announcements", "lofi_meta"),
       );
       if (snapshot.exists() && snapshot.data().trackId) {
-        const trackId = snapshot.data().trackId;
-        const metadataSnapshot = await window.getDoc(
-          window.doc(window.db, "LofiTracks", trackId),
-        );
-        if (metadataSnapshot.exists()) {
-          await this.loadUploadedTrack(trackId);
-        }
+        await this.loadUploadedTrack(snapshot.data().trackId);
       }
     } catch (error) {
+      this.loadError = error;
       console.error("Unable to load the uploaded Lo-Fi track.", error);
     }
   },
   async deleteTrack(trackId) {
     this.stop();
-    const chunkSnapshot = await window.getDocs(
-      window.collection(window.db, "LofiTracks", trackId, "chunks"),
+    const metadataSnapshot = await window.getDoc(
+      window.doc(window.db, "Announcements", "lofi_meta"),
     );
-    for (const chunkSnapshot of chunkSnapshot.docs) {
-      await window.deleteDoc(chunkSnapshot.ref);
+    const metadata = metadataSnapshot.exists() ? metadataSnapshot.data() : null;
+    if (metadata?.trackId === trackId && Number.isInteger(metadata.totalChunks)) {
+      for (let index = 0; index < metadata.totalChunks; index++) {
+        await window.deleteDoc(
+          window.doc(window.db, "Announcements", `lofi_chunk_${index}`),
+        );
+      }
+      await window.deleteDoc(
+        window.doc(window.db, "Announcements", "lofi_meta"),
+      );
     }
-    await window.deleteDoc(
-      window.doc(window.db, "LofiTracks", trackId),
-    );
     const url = lofiBlobUrls.get(trackId);
     if (url) {
       URL.revokeObjectURL(url);
       lofiBlobUrls.delete(trackId);
     }
+    await deleteCachedLofiBlob(trackId);
     lofiAudio.removeAttribute("src");
     lofiAudio.load();
   },
@@ -2344,11 +2437,6 @@ const lofiPlayer = {
       ? "🎧 Lo-Fi Beats: ON"
       : "🎧 Lo-Fi Beats: OFF";
     btnFocusSound.classList.toggle("active", this.isPlaying);
-  },
-  async start() {
-    await lofiAudio.play();
-      this.isPlaying = true;
-      this.updateButton();
   },
   stop() {
     lofiAudio.pause();
