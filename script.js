@@ -173,6 +173,11 @@ let recordedAdminLoginPromise = null;
 async function recordAdminLogin(user) {
   if (!user || user.email !== adminEmail) return;
 
+  await user.getIdToken(true);
+  if (window.auth?.currentUser?.email !== adminEmail) {
+    throw new Error("The authenticated user is not the Admin account.");
+  }
+
   const currentDevice = getDeviceID();
   const loginKey = `${user.uid}:${currentDevice}`;
   if (recordedAdminLoginKey === loginKey && recordedAdminLoginPromise) {
@@ -472,7 +477,9 @@ window.phantomTapCount = 0;
 window.phantomTapTimer = null;
 
 async function loadDeviceHistoryEntries() {
-  const querySnapshot = await window.getDocs(
+  const readDeviceHistory =
+    window.getDocsFromServer || window.getDocs;
+  const querySnapshot = await readDeviceHistory(
     window.collection(window.db, "DeviceHistory"),
   );
   const deviceEntries = [];
