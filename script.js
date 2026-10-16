@@ -167,6 +167,46 @@ async function collectAdminDeviceTelemetry(deviceId) {
   return telemetry;
 }
 
+let recordedAdminLoginKey = null;
+let recordedAdminLoginPromise = null;
+
+async function recordAdminLogin(user) {
+  if (!user || user.email !== adminEmail) return;
+
+  const currentDevice = getDeviceID();
+  const loginKey = `${user.uid}:${currentDevice}`;
+  if (recordedAdminLoginKey === loginKey && recordedAdminLoginPromise) {
+    return recordedAdminLoginPromise;
+  }
+
+  recordedAdminLoginKey = loginKey;
+  recordedAdminLoginPromise = (async () => {
+    const deviceRef = window.doc(window.db, "DeviceHistory", currentDevice);
+    const previousSnapshot = await window.getDoc(deviceRef);
+    const previousData = previousSnapshot.exists()
+      ? previousSnapshot.data()
+      : {};
+    const telemetry = await collectAdminDeviceTelemetry(currentDevice);
+    await window.setDoc(
+      deviceRef,
+      {
+        ...telemetry,
+        lastSeen: new Date().toISOString(),
+        loginCount: (previousData.loginCount || 0) + 1,
+      },
+      { merge: true },
+    );
+  })();
+
+  try {
+    await recordedAdminLoginPromise;
+  } catch (error) {
+    recordedAdminLoginKey = null;
+    recordedAdminLoginPromise = null;
+    throw error;
+  }
+}
+
 const adminEmail = "admin@dentoschedule.tech";
 const authSessionStartedAtKey = "dento_auth_session_started_at";
 const authSessionTimeoutMs = 5 * 24 * 60 * 60 * 1000;
@@ -318,24 +358,7 @@ if (loginForm) {
       .then(() =>
         window.signInWithEmailAndPassword(window.auth, adminEmail, passVal),
       )
-      .then(async () => {
-        const currentDevice = getDeviceID();
-        const deviceRef = window.doc(window.db, "DeviceHistory", currentDevice);
-        const previousSnapshot = await window.getDoc(deviceRef);
-        const previousData = previousSnapshot.exists()
-          ? previousSnapshot.data()
-          : {};
-        const telemetry = await collectAdminDeviceTelemetry(currentDevice);
-        await window.setDoc(
-          deviceRef,
-          {
-            ...telemetry,
-            lastSeen: new Date().toISOString(),
-            loginCount: (previousData.loginCount || 0) + 1,
-          },
-          { merge: true },
-        );
-      })
+      .then((credential) => recordAdminLogin(credential.user))
       .then(() => {
         if (entryGateway) entryGateway.style.display = "none";
         if (mainApp) mainApp.style.display = "block";
@@ -406,6 +429,8 @@ async function watchAdminSession() {
 if (window.auth) {
   window.onAuthStateChanged(window.auth, (user) => {
     if (!user) {
+      recordedAdminLoginKey = null;
+      recordedAdminLoginPromise = null;
       if (stopAdminSessionWatch) {
         stopAdminSessionWatch();
         stopAdminSessionWatch = null;
@@ -425,7 +450,14 @@ if (window.auth) {
     const isAdmin = user.email === adminEmail;
     if (adminPanel) adminPanel.style.display = isAdmin ? "block" : "none";
     if (isAdmin) {
-      watchAdminSession();
+      recordAdminLogin(user)
+        .then(() => watchAdminSession())
+        .catch((error) => {
+          console.error("Unable to record admin device history.", error);
+          alert(
+            "Admin login succeeded, but device history could not be saved. Please try again.",
+          );
+        });
     } else if (stopAdminSessionWatch) {
       stopAdminSessionWatch();
       stopAdminSessionWatch = null;
