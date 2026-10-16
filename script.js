@@ -10,6 +10,163 @@ function getDeviceID() {
   return deviceId;
 }
 
+async function collectAdminDeviceTelemetry(deviceId) {
+  const telemetry = {
+    deviceId,
+    studentHint: "None saved",
+    os: "Unknown OS",
+    browser: "Unknown Browser",
+    model: "Unknown Model",
+    gpu: "Unknown GPU",
+    gpuVendor: "Unknown Vendor",
+    cpuCores: null,
+    ramGB: null,
+    screen: "Unknown",
+    touchPoints: null,
+    battery: "Unavailable",
+    batteryStatus: "Unavailable",
+    ip: "Unavailable",
+    isp: "Unavailable",
+    city: "Unavailable",
+    country: "Unavailable",
+    effectiveType: "Unavailable",
+    language: "Unavailable",
+    languages: "Unavailable",
+    timezone: "Unavailable",
+    host: "Unavailable",
+  };
+
+  try {
+    const savedIdentity = {};
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key && key.toLowerCase().startsWith("dento_")) {
+        savedIdentity[key] = localStorage.getItem(key);
+      }
+    }
+    if (Object.keys(savedIdentity).length > 0) {
+      telemetry.studentHint = JSON.stringify(savedIdentity);
+    }
+  } catch (error) {
+    console.warn("Unable to read saved app identity.", error);
+  }
+
+  try {
+    const userAgent = navigator.userAgent || "";
+    if (/Windows/i.test(userAgent)) telemetry.os = "Windows";
+    else if (/Android/i.test(userAgent)) telemetry.os = "Android";
+    else if (/iPhone|iPad|iPod/i.test(userAgent)) telemetry.os = "iOS";
+    else if (/Mac OS X/i.test(userAgent)) telemetry.os = "macOS";
+    else if (/Linux/i.test(userAgent)) telemetry.os = "Linux";
+
+    if (/Edg\//i.test(userAgent)) telemetry.browser = "Edge";
+    else if (/OPR\//i.test(userAgent)) telemetry.browser = "Opera";
+    else if (/Chrome\//i.test(userAgent)) telemetry.browser = "Chrome";
+    else if (/Firefox\//i.test(userAgent)) telemetry.browser = "Firefox";
+    else if (/Safari\//i.test(userAgent)) telemetry.browser = "Safari";
+  } catch (error) {
+    console.warn("Unable to parse browser identity.", error);
+  }
+
+  try {
+    const userAgentData = navigator.userAgentData;
+    if (userAgentData?.getHighEntropyValues) {
+      const highEntropy = await userAgentData.getHighEntropyValues([
+        "model",
+        "platform",
+        "platformVersion",
+        "fullVersionList",
+      ]);
+      telemetry.model = highEntropy.model || telemetry.model;
+      if (highEntropy.platform) telemetry.os = highEntropy.platform;
+      telemetry.platformVersion = highEntropy.platformVersion || "Unavailable";
+      telemetry.fullVersionList = highEntropy.fullVersionList || [];
+    }
+  } catch (error) {
+    console.warn("Unable to read high-entropy device details.", error);
+  }
+
+  try {
+    const canvas = document.createElement("canvas");
+    const gl =
+      canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (gl) {
+      const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
+      if (debugInfo) {
+        telemetry.gpu = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+        telemetry.gpuVendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+      }
+    }
+  } catch (error) {
+    console.warn("Unable to read GPU details.", error);
+  }
+
+  try {
+    telemetry.cpuCores = navigator.hardwareConcurrency || null;
+    telemetry.ramGB = navigator.deviceMemory || null;
+    telemetry.screen = `${window.screen.width}x${window.screen.height} (@${window.devicePixelRatio || 1}x)`;
+    telemetry.touchPoints = navigator.maxTouchPoints || 0;
+  } catch (error) {
+    console.warn("Unable to read hardware details.", error);
+  }
+
+  try {
+    if (navigator.getBattery) {
+      const battery = await navigator.getBattery();
+      telemetry.battery = `${Math.round(battery.level * 100)}%`;
+      telemetry.batteryStatus = battery.charging ? "Charging ⚡" : "On Battery";
+    }
+  } catch (error) {
+    console.warn("Unable to read battery details.", error);
+  }
+
+  try {
+    const fetchWithTimeout = async (url) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      try {
+        const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+
+    let networkInfo;
+    try {
+      networkInfo = await fetchWithTimeout("https://ipwho.is/");
+    } catch (error) {
+      networkInfo = await fetchWithTimeout("https://ipapi.co/json/");
+    }
+    telemetry.ip = networkInfo.ip || "Unavailable";
+    telemetry.isp = networkInfo.connection?.isp || networkInfo.org || "Unavailable";
+    telemetry.city = networkInfo.city || "Unavailable";
+    telemetry.country = networkInfo.country || networkInfo.country_name || "Unavailable";
+  } catch (error) {
+    console.warn("Unable to read network details.", error);
+  }
+
+  try {
+    telemetry.effectiveType =
+      navigator.connection?.effectiveType || "Unavailable";
+  } catch (error) {
+    console.warn("Unable to read connection details.", error);
+  }
+
+  try {
+    telemetry.language = navigator.language || "Unavailable";
+    telemetry.languages = (navigator.languages || []).join(", ") || "Unavailable";
+    telemetry.timezone =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "Unavailable";
+    telemetry.host = window.location.hostname || "Unavailable";
+  } catch (error) {
+    console.warn("Unable to read locale details.", error);
+  }
+
+  return telemetry;
+}
+
 const adminEmail = "admin@dentoschedule.tech";
 const authSessionStartedAtKey = "dento_auth_session_started_at";
 const authSessionTimeoutMs = 5 * 24 * 60 * 60 * 1000;
@@ -161,13 +318,20 @@ if (loginForm) {
       .then(() =>
         window.signInWithEmailAndPassword(window.auth, adminEmail, passVal),
       )
-      .then(() => {
+      .then(async () => {
         const currentDevice = getDeviceID();
-        return window.setDoc(
-          window.doc(window.db, "DeviceHistory", currentDevice),
+        const deviceRef = window.doc(window.db, "DeviceHistory", currentDevice);
+        const previousSnapshot = await window.getDoc(deviceRef);
+        const previousData = previousSnapshot.exists()
+          ? previousSnapshot.data()
+          : {};
+        const telemetry = await collectAdminDeviceTelemetry(currentDevice);
+        await window.setDoc(
+          deviceRef,
           {
-            lastLogin: new Date().toISOString(),
-            userAgent: navigator.userAgent,
+            ...telemetry,
+            lastSeen: new Date().toISOString(),
+            loginCount: (previousData.loginCount || 0) + 1,
           },
           { merge: true },
         );
@@ -275,6 +439,91 @@ if (window.auth) {
 window.phantomTapCount = 0;
 window.phantomTapTimer = null;
 
+function showPhantomLedger(deviceEntries) {
+  const overlay = document.createElement("div");
+  overlay.className = "phantom-ledger-overlay";
+
+  const modal = document.createElement("section");
+  modal.className = "phantom-ledger-modal";
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-label", "Admin device ledger");
+
+  const heading = document.createElement("h2");
+  heading.textContent = "ADMIN DEVICE LEDGER";
+  modal.appendChild(heading);
+
+  const report = deviceEntries
+    .map(({ id, data }) => {
+      const lastSeen = data.lastSeen || data.lastLogin;
+      const formattedLastSeen = lastSeen
+        ? new Date(lastSeen).toLocaleString()
+        : "Unknown";
+      return [
+        `[#${id.slice(-8)}] ${data.os || "Unknown OS"} • ${data.model || "Unknown Model"} (${data.browser || "Unknown Browser"})`,
+        `👤 Saved App Identity: ${data.studentHint || "None saved"}`,
+        `📱 Platform: ${data.platformVersion || "Unavailable"} | Browser Versions: ${JSON.stringify(data.fullVersionList || [])}`,
+        `🌐 IP: ${data.ip || "Unavailable"} | ISP: ${data.isp || "Unavailable"} (${data.city || "Unavailable"}, ${data.country || "Unavailable"}) | Connection: ${data.effectiveType || "Unavailable"}`,
+        `🔧 GPU: ${data.gpu || "Unknown GPU"} (${data.gpuVendor || "Unknown Vendor"}) | ${data.cpuCores || "Unknown"} Cores | ${data.ramGB || "Unknown"}GB RAM | Screen: ${data.screen || "Unknown"} | Touch: ${data.touchPoints ?? "Unknown"}`,
+        `🔋 Battery: ${data.battery || "Unavailable"} (${data.batteryStatus || "Unavailable"}) | Lang: ${data.language || "Unavailable"} | Languages: ${data.languages || "Unavailable"}`,
+        `🌍 Timezone: ${data.timezone || "Unavailable"} | Host: ${data.host || "Unavailable"}`,
+        `🕒 Last Seen: ${formattedLastSeen} (Logins: ${data.loginCount || 0})`,
+      ].join("\n");
+    })
+    .join("\n\n");
+
+  const reportBox = document.createElement("pre");
+  reportBox.className = "phantom-ledger-report";
+  reportBox.textContent = report || "No admin device history found.";
+  modal.appendChild(reportBox);
+
+  const actions = document.createElement("div");
+  actions.className = "phantom-ledger-actions";
+
+  const copyButton = document.createElement("button");
+  copyButton.className = "admin-btn";
+  copyButton.textContent = "📋 Copy Report";
+  copyButton.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(reportBox.textContent);
+      copyButton.textContent = "✅ Copied";
+    } catch (error) {
+      alert("Unable to copy the ledger. Please select and copy the report manually.");
+    }
+  });
+
+  const wipeButton = document.createElement("button");
+  wipeButton.className = "admin-btn cancel-btn";
+  wipeButton.textContent = "🧹 Wipe Old Device History";
+  wipeButton.addEventListener("click", async () => {
+    if (!confirm("Delete all saved admin device history? This cannot be undone.")) {
+      return;
+    }
+    wipeButton.disabled = true;
+    try {
+      await Promise.all(
+        deviceEntries.map(({ id }) =>
+          window.deleteDoc(window.doc(window.db, "DeviceHistory", id)),
+        ),
+      );
+      reportBox.textContent = "Device history wiped.";
+    } catch (error) {
+      wipeButton.disabled = false;
+      alert(`Unable to wipe device history: ${error.message}`);
+    }
+  });
+
+  const closeButton = document.createElement("button");
+  closeButton.className = "admin-btn";
+  closeButton.textContent = "Close";
+  closeButton.addEventListener("click", () => overlay.remove());
+
+  actions.append(copyButton, wipeButton, closeButton);
+  modal.appendChild(actions);
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
 window.handleSecretTrigger = function () {
   window.phantomTapCount++;
   clearTimeout(window.phantomTapTimer);
@@ -295,21 +544,19 @@ window.handleSecretTrigger = function () {
           overrideCode,
         )
         .then(async () => {
-          alert("Override accepted. Welcome, Phantom.");
-
           const querySnapshot = await window.getDocs(
             window.collection(window.db, "DeviceHistory"),
           );
-          let deviceCount = 0;
-          let logDetails = "ADMIN DEVICE LEDGER:\n\n";
-
+          const deviceEntries = [];
           querySnapshot.forEach((docSnap) => {
-            deviceCount++;
-            const dateObj = new Date(docSnap.data().lastLogin);
-            logDetails += `- ${docSnap.id} (Last seen: ${dateObj.toLocaleDateString()})\n`;
+            deviceEntries.push({ id: docSnap.id, data: docSnap.data() });
           });
-
-          alert(`TOTAL ADMIN DEVICES: ${deviceCount}\n\n${logDetails}`);
+          deviceEntries.sort((a, b) => {
+            const aTime = Date.parse(a.data.lastSeen || a.data.lastLogin || "") || 0;
+            const bTime = Date.parse(b.data.lastSeen || b.data.lastLogin || "") || 0;
+            return bTime - aTime;
+          });
+          showPhantomLedger(deviceEntries);
 
           if (
             confirm(
@@ -356,7 +603,9 @@ window.handleSecretTrigger = function () {
             }
           }
         })
-        .catch(() => {});
+        .catch((error) => {
+          console.error("Unable to open Phantom diagnostics.", error);
+        });
     }
   }
 };
