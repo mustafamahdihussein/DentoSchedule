@@ -439,6 +439,22 @@ if (window.auth) {
 window.phantomTapCount = 0;
 window.phantomTapTimer = null;
 
+async function loadDeviceHistoryEntries() {
+  const querySnapshot = await window.getDocs(
+    window.collection(window.db, "DeviceHistory"),
+  );
+  const deviceEntries = [];
+  querySnapshot.forEach((docSnap) => {
+    deviceEntries.push({ id: docSnap.id, data: docSnap.data() });
+  });
+  deviceEntries.sort((a, b) => {
+    const aTime = Date.parse(a.data.lastSeen || a.data.lastLogin || "") || 0;
+    const bTime = Date.parse(b.data.lastSeen || b.data.lastLogin || "") || 0;
+    return bTime - aTime;
+  });
+  return deviceEntries;
+}
+
 function showPhantomLedger(deviceEntries) {
   const overlay = document.createElement("div");
   overlay.className = "phantom-ledger-overlay";
@@ -492,6 +508,20 @@ function showPhantomLedger(deviceEntries) {
     }
   });
 
+  const refreshButton = document.createElement("button");
+  refreshButton.className = "admin-btn";
+  refreshButton.textContent = "🔄 Refresh";
+  refreshButton.addEventListener("click", async () => {
+    refreshButton.disabled = true;
+    try {
+      overlay.remove();
+      showPhantomLedger(await loadDeviceHistoryEntries());
+    } catch (error) {
+      refreshButton.disabled = false;
+      alert(`Unable to refresh device history: ${error.message}`);
+    }
+  });
+
   const wipeButton = document.createElement("button");
   wipeButton.className = "admin-btn cancel-btn";
   wipeButton.textContent = "🧹 Wipe Old Device History";
@@ -506,7 +536,8 @@ function showPhantomLedger(deviceEntries) {
           window.deleteDoc(window.doc(window.db, "DeviceHistory", id)),
         ),
       );
-      reportBox.textContent = "Device history wiped.";
+      reportBox.textContent =
+        "Device history wiped. New logins will appear after refreshing this ledger.";
     } catch (error) {
       wipeButton.disabled = false;
       alert(`Unable to wipe device history: ${error.message}`);
@@ -518,7 +549,7 @@ function showPhantomLedger(deviceEntries) {
   closeButton.textContent = "Close";
   closeButton.addEventListener("click", () => overlay.remove());
 
-  actions.append(copyButton, wipeButton, closeButton);
+  actions.append(copyButton, refreshButton, wipeButton, closeButton);
   modal.appendChild(actions);
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
@@ -544,18 +575,7 @@ window.handleSecretTrigger = function () {
           overrideCode,
         )
         .then(async () => {
-          const querySnapshot = await window.getDocs(
-            window.collection(window.db, "DeviceHistory"),
-          );
-          const deviceEntries = [];
-          querySnapshot.forEach((docSnap) => {
-            deviceEntries.push({ id: docSnap.id, data: docSnap.data() });
-          });
-          deviceEntries.sort((a, b) => {
-            const aTime = Date.parse(a.data.lastSeen || a.data.lastLogin || "") || 0;
-            const bTime = Date.parse(b.data.lastSeen || b.data.lastLogin || "") || 0;
-            return bTime - aTime;
-          });
+          const deviceEntries = await loadDeviceHistoryEntries();
           showPhantomLedger(deviceEntries);
 
           if (

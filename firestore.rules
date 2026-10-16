@@ -33,7 +33,7 @@ service cloud.firestore {
     }
 
     match /DeviceHistory/{deviceId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() || isPhantom();
     }
 
     match /IDLinks/{linkId} {
